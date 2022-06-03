@@ -5,6 +5,8 @@ use winit::{
 };
 use wgpu::util::DeviceExt;
 
+mod camera;
+
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
@@ -36,25 +38,41 @@ impl Vertex {
     }
 }
 
-const VERTICES_TRIANGLE: &[Vertex] = &[
-    Vertex { position: [0.0, 0.5, 0.0], color: [1.0, 0.0, 0.0] },
-    Vertex { position: [-0.5, -0.5, 0.0], color: [0.0, 1.0, 0.0] },
-    Vertex { position: [0.5, -0.5, 0.0], color: [0.0, 0.0, 1.0] },
+fn generate_cube(x: f32,y: f32, z: f32, wcolor: wgpu::Color) -> [Vertex; 8] {
+    [
+        Vertex { position: [x, y, z], color: [(wcolor.r as f32), (wcolor.g as f32), (wcolor.b as f32)]},
+        Vertex { position: [x-1.0, y, z], color: [(wcolor.r as f32), (wcolor.g as f32), (wcolor.b as f32)]},
+        Vertex { position: [x-1.0, y-1.0, z], color: [(wcolor.r as f32), (wcolor.g as f32), (wcolor.b as f32)]},
+        Vertex { position: [x, y-1.0, z], color: [(wcolor.r as f32), (wcolor.g as f32), (wcolor.b as f32)]},
+        Vertex { position: [x, y, z-1.0], color:[(wcolor.r as f32), (wcolor.g as f32), (wcolor.b as f32)]},
+        Vertex { position: [x-1.0, y, z-1.0], color: [(wcolor.r as f32), (wcolor.g as f32), (wcolor.b as f32)]},
+        Vertex { position: [x-1.0, y-1.0, z-1.0], color: [(wcolor.r as f32), (wcolor.g as f32), (wcolor.b as f32)]},
+        Vertex { position: [x, y-1.0, z-1.0], color: [(wcolor.r as f32), (wcolor.g as f32), (wcolor.b as f32)]},
+    ]
+}
+
+const INDICES_CUBE: &[u16] = &[
+    // Front Face
+    0,1,2,
+    0,2,3,
+    // Back Face
+    5,4,7,
+    5,7,6,
+    // Right Face
+    1,5,6,
+    1,6,2,
+    // Left Face
+    4,0,3,
+    4,3,7,
+    // Bottom Face
+    2,6,7,
+    2,7,3,
+    // Bottom Face
+    5,1,0,
+    5,0,4,
 ];
 
-const VERTICES_PENTAGON: &[Vertex] = &[
-    Vertex { position: [-0.0868241, 0.49240386, 0.0], color: [0.5, 0.0, 0.5] }, // A
-    Vertex { position: [-0.49513406, 0.06958647, 0.0], color: [0.5, 0.0, 0.5] }, // B
-    Vertex { position: [-0.21918549, -0.44939706, 0.0], color: [0.5, 0.0, 0.5] }, // C
-    Vertex { position: [0.35966998, -0.3473291, 0.0], color: [0.5, 0.0, 0.5] }, // D
-    Vertex { position: [0.44147372, 0.2347359, 0.0], color: [0.5, 0.0, 0.5] }, // E
-];
-
-const INDICES_PENTAGON: &[u16] = &[
-    0, 1, 4,
-    1, 2, 4,
-    2, 3, 4,
-];
+const INDICES_CUBE_LEN: u32 = INDICES_CUBE.len() as u32;
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 pub async fn run() {
@@ -88,14 +106,22 @@ pub async fn run() {
     }
 
     let mut state = pollster::block_on(State::new(&window));
+    let mut last_render_time = instant::Instant::now();
 
     event_loop.run(move |event, _, control_flow| match event {
+        Event::DeviceEvent {
+            event: DeviceEvent::MouseMotion{ delta, },
+            .. // We're not using device_id currently
+        } => if state.mouse_pressed {
+            state.camera_controller.process_mouse(delta.0, delta.1)
+        }
         Event::WindowEvent {
             ref event,
             window_id,
         } if window_id == window.id() => {
             if !state.input(event) {
                 match event {
+                    #[cfg(not(target_arch="wasm32"))]
                     WindowEvent::CloseRequested
                     | WindowEvent::KeyboardInput {
                         input:
@@ -106,23 +132,10 @@ pub async fn run() {
                             },
                         ..
                     } => *control_flow = ControlFlow::Exit,
-
-                    WindowEvent::KeyboardInput {
-                        input:
-                            KeyboardInput {
-                                state: ElementState::Pressed,
-                                virtual_keycode: Some(VirtualKeyCode::Space),
-                                ..
-                            },
-                        ..
-                    } => state.choose_regular_shader = !state.choose_regular_shader,
-
                     WindowEvent::Resized(physical_size) => {
                         state.resize(*physical_size);
                     }
-
                     WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
-                        //new inner size is &&mut so we have to dereference it twice
                         state.resize(**new_inner_size);
                     }
                     _ => {}
@@ -131,7 +144,10 @@ pub async fn run() {
         }
 
         Event::RedrawRequested(window_id) if window_id == window.id() => {
-            state.update();
+            let now = instant::Instant::now();
+            let dt = now - last_render_time;
+            last_render_time = now;
+            state.update(dt);
             match state.render() {
                 Ok(_) => {}
                 //Reconfigure if surface is lost
@@ -150,6 +166,26 @@ pub async fn run() {
     });
 }
 
+// We need this for Rust to store our data correctly for the shaders
+#[repr(C)]
+// This is so we can store this in a buffer
+#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+struct CameraUniform {
+    // We can't use cgmath with bytemuck directly so we'll have to conver the Matrix4 into a 4x4 f32 array
+    view_proj: [[f32; 4]; 4],
+}
+
+impl CameraUniform {
+    fn new() -> Self {
+        use cgmath::SquareMatrix;
+        Self { view_proj: cgmath::Matrix4::identity().into()}
+    }
+
+    fn update_view_proj(&mut self, camera: &camera::Camera, projection: &camera::Projection) {
+        self.view_proj = (projection.calc_matrix() * camera.calc_matrix()).into();
+    }
+}
+
 struct State {
     surface: wgpu::Surface,
     device: wgpu::Device,
@@ -158,13 +194,15 @@ struct State {
     size: winit::dpi::PhysicalSize<u32>,
     screen_color: wgpu::Color,
     render_pipeline_regular: wgpu::RenderPipeline,
-    render_pipeline_challenge_2: wgpu::RenderPipeline,
-    choose_regular_shader: bool,
-    vertex_buffer_triangle: wgpu::Buffer,
-    vertex_buffer_pentagon: wgpu::Buffer,
-    index_buffer_pentagon: wgpu::Buffer,
-    num_vertices: u32,
-    num_indices: u32
+    vertex_buffer_cube: wgpu::Buffer,
+    index_buffer_cube: wgpu::Buffer,
+    camera: camera::Camera,
+    camera_uniform: CameraUniform,
+    camera_buffer: wgpu::Buffer,
+    camera_bind_group: wgpu::BindGroup,
+    projection: camera::Projection,
+    camera_controller: camera::CameraController,
+    mouse_pressed: bool,
 }
 
 impl State {
@@ -218,6 +256,48 @@ impl State {
             a: 1.0,
         };
 
+        let camera = camera::Camera::new((0.0,5.0,10.0), cgmath::Deg(-90.0), cgmath::Deg(-20.0));
+        let projection = camera::Projection::new(config.width, config.height, cgmath::Deg(45.0), 0.1, 100.0);
+        let camera_controller = camera::CameraController::new(4.0, 0.4);
+
+        let mut camera_uniform = CameraUniform::new();
+        camera_uniform.update_view_proj(&camera, &projection);
+
+        let camera_buffer = device.create_buffer_init(
+            &wgpu::util::BufferInitDescriptor {
+                label: Some("Camera Buffer"),
+                contents: bytemuck::cast_slice(&[camera_uniform]),
+                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            }
+        );
+
+        let camera_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }
+            ],
+            label: Some("camera_bind_group_layout"),
+        });
+
+        let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &camera_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: camera_buffer.as_entire_binding(),
+                }
+            ],
+            label: Some("camera_bind_group")
+        });
+
         let shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
             label: Some("Shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
@@ -226,7 +306,9 @@ impl State {
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[],
+                bind_group_layouts: &[
+                    &camera_bind_group_layout,
+                ],
                 push_constant_ranges: &[],
             });
 
@@ -271,85 +353,21 @@ impl State {
                 multiview: None,
             });
 
-        let shader2 = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
-            label: Some("Shader Challenge 2"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("challenge2.wgsl").into()),
-        });
-
-        let render_pipeline_layout_challenge2 =
-            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Render Pipeline Layout Challenge 2"),
-                bind_group_layouts: &[],
-                push_constant_ranges: &[],
-            });
-
-        let render_pipeline_challenge_2 =
-            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("Render Pipeline Challenge 2"),
-                layout: Some(&render_pipeline_layout_challenge2),
-                vertex: wgpu::VertexState {
-                    module: &shader2,
-                    entry_point: "vs_main",
-                    buffers: &[],
-                },
-                fragment: Some(wgpu::FragmentState {
-                    module: &shader2,
-                    entry_point: "fs_main",
-                    targets: &[wgpu::ColorTargetState {
-                        format: config.format,
-                        blend: Some(wgpu::BlendState::REPLACE),
-                        write_mask: wgpu::ColorWrites::ALL,
-                    }],
-                }),
-                primitive: wgpu::PrimitiveState {
-                    topology: wgpu::PrimitiveTopology::TriangleList,
-                    strip_index_format: None,
-                    front_face: wgpu::FrontFace::Ccw,
-                    cull_mode: Some(wgpu::Face::Back),
-                    // Setting this to anything other than Fill requires Features::NON_FILL_POLYGON_MODE
-                    polygon_mode: wgpu::PolygonMode::Fill,
-                    // Requires Features::DEPTH_CLIP_CONTROL
-                    unclipped_depth: false,
-                    // Requires Features::CONSERVATIVE_RASTERIZATION
-                    conservative: false,
-                },
-                depth_stencil: None,
-                multisample: wgpu::MultisampleState {
-                    count: 1,
-                    mask: !0,
-                    alpha_to_coverage_enabled: false,
-                },
-                multiview: None,
-            });
-
-        let choose_regular_shader = true;
-
-        let vertex_buffer_triangle = device.create_buffer_init(
+        let vertex_buffer_cube = device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
-                label: Some("Vertex Buffer"),
-                contents: bytemuck::cast_slice(VERTICES_TRIANGLE),
+                label: Some("Cube Vertex Buffer"),
+                contents: bytemuck::cast_slice(&generate_cube(-1.0, -1.0, 0.0, wgpu::Color::GREEN)),
                 usage: wgpu::BufferUsages::VERTEX,
             }
         );
 
-        let vertex_buffer_pentagon = device.create_buffer_init(
+        let index_buffer_cube = device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
-                label: Some("Vertex Buffer Pentagon"),
-                contents: bytemuck::cast_slice(VERTICES_PENTAGON),
-                usage: wgpu::BufferUsages::VERTEX,
-            }
-        );
-
-        let index_buffer_pentagon = device.create_buffer_init(
-            &wgpu::util::BufferInitDescriptor {
-                label: Some("Index Buffer Pentagon"),
-                contents: bytemuck::cast_slice(INDICES_PENTAGON),
+                label: Some("Cube Vertex Buffer"),
+                contents: bytemuck::cast_slice(INDICES_CUBE),
                 usage: wgpu::BufferUsages::INDEX,
             }
         );
-
-        let num_vertices = VERTICES_TRIANGLE.len() as u32;
-        let num_indices = INDICES_PENTAGON.len() as u32;
 
         Self {
             surface,
@@ -359,13 +377,15 @@ impl State {
             size,
             screen_color,
             render_pipeline_regular,
-            render_pipeline_challenge_2,
-            choose_regular_shader,
-            vertex_buffer_triangle,
-            vertex_buffer_pentagon,
-            index_buffer_pentagon,
-            num_vertices,
-            num_indices,
+            vertex_buffer_cube,
+            index_buffer_cube,
+            camera,
+            camera_uniform,
+            camera_buffer,
+            camera_bind_group,
+            projection,
+            camera_controller,
+            mouse_pressed: false,
         }
     }
 
@@ -375,21 +395,42 @@ impl State {
             self.config.width = new_size.width;
             self.config.height = new_size.height;
             self.surface.configure(&self.device, &self.config);
+            self.projection.resize(new_size.width, new_size.height);
         }
     }
 
     fn input(&mut self, event: &WindowEvent) -> bool {
         match event {
-            WindowEvent::CursorMoved { position, .. } => {
-                self.screen_color.r = position.x / (self.config.width as f64);
-                self.screen_color.g = position.y / (self.config.height as f64);
+            WindowEvent::KeyboardInput {
+                input:
+                    KeyboardInput {
+                        virtual_keycode: Some(key),
+                        state,
+                        ..
+                    },
+                ..
+            } => self.camera_controller.process_keyboard(*key, *state),
+            WindowEvent::MouseWheel { delta, .. } => {
+                self.camera_controller.process_scroll(delta);
+                true
+            }
+            WindowEvent::MouseInput {
+                button: MouseButton::Left,
+                state,
+                ..
+            } => {
+                self.mouse_pressed = *state == ElementState::Pressed;
                 true
             }
             _ => false,
         }
     }
 
-    fn update(&mut self) {}
+    fn update(&mut self, dt: instant::Duration) {
+        self.camera_controller.update_camera(&mut self.camera, dt);
+    self.camera_uniform.update_view_proj(&self.camera, &self.projection);
+        self.queue.write_buffer(&self.camera_buffer, 0, bytemuck::cast_slice(&[self.camera_uniform]));
+    }
 
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
         let output = self.surface.get_current_texture()?;
@@ -417,17 +458,10 @@ impl State {
             });
 
             render_pass.set_pipeline(&self.render_pipeline_regular);
-
-            if self.choose_regular_shader {
-                render_pass.set_vertex_buffer(0, self.vertex_buffer_triangle.slice(..));
-                render_pass.draw(0..self.num_vertices, 0..1);
-            } else {
-                render_pass.set_vertex_buffer(0, self.vertex_buffer_pentagon.slice(..));
-                render_pass.set_index_buffer(self.index_buffer_pentagon.slice(..), wgpu::IndexFormat::Uint16);
-                render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
-            }
-            
-            
+            render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
+            render_pass.set_vertex_buffer(0, self.vertex_buffer_cube.slice(..));
+            render_pass.set_index_buffer(self.index_buffer_cube.slice(..), wgpu::IndexFormat::Uint16);
+            render_pass.draw_indexed(0..INDICES_CUBE_LEN, 0, 0..1);
         }
 
         // submit will accept anything that implements IntoIter
