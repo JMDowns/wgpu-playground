@@ -1,13 +1,17 @@
 use crate::texture;
 use crate::camera;
 use crate::voxels;
+use crate::voxels::world::World;
+use itertools::izip;
+use wgpu::util::DeviceExt;
+use crate::voxels::position::Position;
 
 use winit::{
     event::*,
     window::Window,
 };
 
-use wgpu::util::DeviceExt;
+
 
 pub struct State {
     pub surface: wgpu::Surface,
@@ -18,9 +22,9 @@ pub struct State {
     pub screen_color: wgpu::Color,
     pub render_pipeline_regular: wgpu::RenderPipeline,
     pub render_pipeline_wireframe: wgpu::RenderPipeline,
-    pub vertex_buffer_cube: wgpu::Buffer,
-    pub index_buffer_cube: wgpu::Buffer,
-    pub index_buffer_length: u32,
+    pub vertex_buffers: Vec<wgpu::Buffer>,
+    pub index_buffers: Vec<wgpu::Buffer>,
+    pub index_buffers_length: Vec<u32>,
     pub depth_texture: texture::Texture,
     pub camera: camera::Camera,
     pub camera_uniform: camera::CameraUniform,
@@ -30,6 +34,7 @@ pub struct State {
     pub camera_controller: camera::CameraController,
     pub mouse_pressed: bool,
     pub render_wireframe: bool,
+    pub world: World
 }
 
 impl State {
@@ -68,7 +73,7 @@ impl State {
 
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: surface.get_preferred_format(&adapter).unwrap(),
+            format: *surface.get_supported_formats(&adapter).first().unwrap(),
             width: size.width,
             height: size.height,
             present_mode: wgpu::PresentMode::Fifo,
@@ -127,7 +132,7 @@ impl State {
 
         let depth_texture = texture::Texture::create_depth_texture(&device, &config, "depth_texture");
 
-        let shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
         });
@@ -155,11 +160,11 @@ impl State {
                 fragment: Some(wgpu::FragmentState {
                     module: &shader,
                     entry_point: "fs_main",
-                    targets: &[wgpu::ColorTargetState {
+                    targets: &[Some(wgpu::ColorTargetState {
                         format: config.format,
                         blend: Some(wgpu::BlendState::REPLACE),
                         write_mask: wgpu::ColorWrites::ALL,
-                    }],
+                    })],
                 }),
                 primitive: wgpu::PrimitiveState {
                     topology: wgpu::PrimitiveTopology::TriangleList,
@@ -203,11 +208,11 @@ impl State {
                 fragment: Some(wgpu::FragmentState {
                     module: &shader,
                     entry_point: "fs_main",
-                    targets: &[wgpu::ColorTargetState {
+                    targets: &[Some(wgpu::ColorTargetState {
                         format: config.format,
                         blend: Some(wgpu::BlendState::REPLACE),
                         write_mask: wgpu::ColorWrites::ALL,
-                    }],
+                    })],
                 }),
                 primitive: wgpu::PrimitiveState {
                     topology: wgpu::PrimitiveTopology::TriangleList,
@@ -237,28 +242,27 @@ impl State {
                 multiview: None,
             });
 
-        let n:u16 = 20;
+        let world = World::new();
 
-        let cubes = voxels::cubegen::generate_nxn_cube_from_lower_front_left(0.0, 0.0, 0.0, n, wgpu::Color::RED);
-
-        let vertex_buffer_cube = device.create_buffer_init(
-            &wgpu::util::BufferInitDescriptor {
-                label: Some("Cube Vertex Buffer"),
-                contents: bytemuck::cast_slice(&cubes),
-                usage: wgpu::BufferUsages::VERTEX,
+        let mut loaded_chunk_positions = Vec::new();
+        for x in -4..5 {
+            for y in -4..5 {
+                for z in -4..5 {
+                    let pos = Position::new(x,y,z);
+                    loaded_chunk_positions.push(pos);
+                }
             }
-        );
+        }
 
-        let indices = voxels::cubegen::generate_cube_indices(n*n*n);
-        let index_buffer_length = indices.len() as u32;
-
-        let index_buffer_cube = device.create_buffer_init(
-            &wgpu::util::BufferInitDescriptor {
-                label: Some("Cube Vertex Buffer"),
-                contents: bytemuck::cast_slice(&indices),
-                usage: wgpu::BufferUsages::INDEX,
-            }
-        );
+        let (vertex_buffers, index_buffers, index_buffers_length) = loaded_chunk_positions
+        .iter()
+        .fold((Vec::new(), Vec::new(), Vec::new()), |(mut v_vec, mut i_vec, mut l_vec), pos| {
+            let (v, i, l) = world.generate_vi_buffers_at(pos, &device);
+            v_vec.push(v);
+            i_vec.push(i); 
+            l_vec.push(l);
+            (v_vec, i_vec, l_vec)
+        });
 
         Self {
             surface,
@@ -269,9 +273,9 @@ impl State {
             screen_color,
             render_pipeline_regular,
             render_pipeline_wireframe,
-            vertex_buffer_cube,
-            index_buffer_cube,
-            index_buffer_length,
+            vertex_buffers,
+            index_buffers,
+            index_buffers_length,
             depth_texture,
             camera,
             camera_uniform,
@@ -281,6 +285,7 @@ impl State {
             camera_controller,
             mouse_pressed: false,
             render_wireframe: false,
+            world
         }
     }
 
@@ -307,7 +312,7 @@ impl State {
                 ..
             } => 
             {
-                if *key == VirtualKeyCode::Space && *state == ElementState::Pressed {
+                if *key == VirtualKeyCode::LControl && *state == ElementState::Pressed {
                     self.render_wireframe = !self.render_wireframe;
                 }
                 self.camera_controller.process_keyboard(*key, *state)
@@ -349,14 +354,14 @@ impl State {
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
-                color_attachments: &[wgpu::RenderPassColorAttachment {
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: &view,
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(self.screen_color),
                         store: true,
                     },
-                }],
+                })],
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                     view: &self.depth_texture.view,
                     depth_ops: Some(wgpu::Operations {
@@ -372,10 +377,15 @@ impl State {
             } else {
                 render_pass.set_pipeline(&self.render_pipeline_regular);
             }
+
             render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
-            render_pass.set_vertex_buffer(0, self.vertex_buffer_cube.slice(..));
-            render_pass.set_index_buffer(self.index_buffer_cube.slice(..), wgpu::IndexFormat::Uint16);
-            render_pass.draw_indexed(0..self.index_buffer_length, 0, 0..1);
+
+            for (vertex_buffer, index_buffer, index_buffer_length) 
+                in izip!(&self.vertex_buffers, &self.index_buffers, &self.index_buffers_length) {
+                render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
+                render_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+                render_pass.draw_indexed(0..*index_buffer_length, 0, 0..1);
+            }
         }
 
         // submit will accept anything that implements IntoIter

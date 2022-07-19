@@ -1,0 +1,46 @@
+[
+    {
+        "block_type": "STONE",
+        "color": {
+            "r": 0.411, 
+            "g": 0.411, 
+            "b": 0.411
+        }
+    },
+
+    {
+        "block_type": "DIRT",
+        "color": {
+            "r": 0.627,
+            "g": 0.321, 
+            "b": 0.176
+        }
+    },
+
+    {
+        "block_type": "GRASS",
+        "color": {
+            "r": 0.0,
+            "g": 0.321, 
+            "b": 0.0
+        }
+    },
+
+    {
+        "block_type": "WATER",
+        "color": {
+            "r": 0.0,
+            "g": 0.0, 
+            "b": 0.5
+        }
+    },
+
+    {
+        "block_type": "DEAD_GRASS",
+        "color": {
+            "r": 0.0,
+            "g": 0.1, 
+            "b": 0.0
+        }
+    }
+]
