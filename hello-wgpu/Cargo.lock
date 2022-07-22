@@ -625,6 +625,7 @@ dependencies = [
  "num",
  "num-derive",
  "num-traits",
+ "num_cpus",
  "phf",
  "phf_codegen",
  "phf_shared",

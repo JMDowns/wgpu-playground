@@ -2,6 +2,7 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::Path;
 use formats::formats;
+use ::formats::formats::config_format::ConfigFormat;
 use serde_json;
 
 fn main() {
@@ -27,7 +28,7 @@ fn main() {
         &mut consts_file,
         "{}\n{}",
         format!("pub const NUM_BLOCK_TYPES: u16 = {};", num_block_types),
-        format!("pub const NUM_THREADS: usize = {};", config_format.num_threads)
+        format!("pub const NUM_THREADS: usize = {};", generate_num_threads(config_format))
     ).unwrap();
 
     writeln!(
@@ -49,6 +50,14 @@ fn main() {
          build_lib_file(&lib_file_name),
          build_string_to_block_type_dictionary_builder(&string_to_block_types_file_name, vec_block_format, &block_type_reference_strings)
     ).unwrap();
+}
+
+fn generate_num_threads(cf: ConfigFormat) -> usize {
+    if cf.use_all_system_threads {
+        num_cpus::get()
+    } else {
+        cf.num_threads_specified
+    }
 }
 
 fn build_block_type_imports() -> String {
