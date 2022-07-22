@@ -25,7 +25,7 @@ impl World {
 
         World { chunks }
     }
-    pub fn generate_vi_buffers_at(&self, pos: &Position, device: &wgpu::Device) -> (wgpu::Buffer, wgpu::Buffer, u32) {
+    pub fn generate_vi_vecs_at(&self, pos: &Position) -> (Vec<Vertex>, Vec<u32>, u32) {
 
         let mut num_of_cube = 0;
 
@@ -52,23 +52,9 @@ impl World {
             }
         }
 
-        let vertex_buffer = device.create_buffer_init(
-            &wgpu::util::BufferInitDescriptor {
-                label: Some("Cube Vertex Buffer"),
-                contents: bytemuck::cast_slice(&vertices),
-                usage: wgpu::BufferUsages::VERTEX,
-            }
-        );
+        let indices_length = indices.len() as u32;
 
-        let index_buffer = device.create_buffer_init(
-            &wgpu::util::BufferInitDescriptor {
-                label: Some("Cube Vertex Buffer"),
-                contents: bytemuck::cast_slice(&indices),
-                usage: wgpu::BufferUsages::INDEX,
-            }
-        );
-
-        (vertex_buffer, index_buffer, indices.len() as u32)
+        (vertices, indices, indices_length)
     }
 }
 

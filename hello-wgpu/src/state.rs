@@ -248,9 +248,9 @@ impl State {
                 multiview: None,
             });
 
-        let radius = 10;
+        let radius = consts::RENDER_DISTANCE as i32;
 
-        let world = World::new(10);
+        let world = World::new(radius);
 
         let mut loaded_chunk_positions = Vec::new();
         for x in -radius..radius {
@@ -264,70 +264,61 @@ impl State {
 
         let (mut vertex_buffers, mut index_buffers, mut index_buffers_length) = (Vec::new(), Vec::new(), Vec::new());
 
-        let multithreaded_chunk_loading = true;
-
-        let start_time = Instant::now();
-
-        if multithreaded_chunk_loading {
-            let mut chunk_load_task_vec: Vec<(Vec<Position>, (Vec<wgpu::Buffer>, Vec<wgpu::Buffer>, Vec<u32>))> = Vec::new();
-            for _ in 0..consts::NUM_THREADS {
-                chunk_load_task_vec.push((Vec::new(), (Vec::new(), Vec::new(), Vec::new())));
-            }
-
-            let mut thread_num = 0;
-            for pos in loaded_chunk_positions {
-                chunk_load_task_vec[thread_num].0.push(pos);
-                thread_num = (thread_num + 1) % consts::NUM_THREADS;
-            }
-
-            let wg = WaitGroup::new();
-            
-
-            let _ = crossbeam::scope(|scope| {
-                for (ref mut positions, (ref mut v_vec, ref mut i_vec, ref mut l_vec)) in chunk_load_task_vec.iter_mut() {
-                    let wg = wg.clone();
-                    scope.spawn(|_| {
-                        for pos in positions {
-                            let (v, index, l) = world.generate_vi_buffers_at(pos, &device);
-                            v_vec.push(v);
-                            i_vec.push(index); 
-                            l_vec.push(l);
-                        }
-
-                        drop(wg);
-                    });
-                }
-            });
-
-            wg.wait();
-
-            for (_, (v_vec, i_vec, l_vec)) in chunk_load_task_vec {
-                for buffer in v_vec {
-                    vertex_buffers.push(buffer);
-                }
-                for buffer in i_vec {
-                    index_buffers.push(buffer);
-                }
-                for length in l_vec {
-                    index_buffers_length.push(length);
-                }
-            }
-
-        } else {
-            (vertex_buffers, index_buffers, index_buffers_length) = loaded_chunk_positions
-            .iter()
-            .fold((Vec::new(), Vec::new(), Vec::new()), |(mut v_vec, mut i_vec, mut l_vec), pos| {
-                let (v, i, l) = world.generate_vi_buffers_at(pos, &device);
-                v_vec.push(v);
-                i_vec.push(i); 
-                l_vec.push(l);
-                (v_vec, i_vec, l_vec)
-            });
+        let mut chunk_load_task_vec = Vec::new();
+        for _ in 0..consts::NUM_THREADS {
+            chunk_load_task_vec.push((Vec::new(), (Vec::new(), Vec::new(), Vec::new())));
         }
 
-        let finish_time = Instant::now();
+        let mut thread_num = 0;
+        for pos in loaded_chunk_positions {
+            chunk_load_task_vec[thread_num].0.push(pos);
+            thread_num = (thread_num + 1) % consts::NUM_THREADS;
+        }
 
-        println!("Generating the buffers took {} millisecs!", (finish_time - start_time).as_millis());
+        let wg = WaitGroup::new();
+        
+
+        let _ = crossbeam::scope(|scope| {
+            for (ref mut positions, (ref mut v_vec, ref mut i_vec, ref mut l_vec)) in chunk_load_task_vec.iter_mut() {
+                let wg = wg.clone();
+                scope.spawn(|_| {
+                    for pos in positions {
+                        let (v, index, l) = world.generate_vi_vecs_at(pos);
+                        v_vec.push(device.create_buffer_init(
+                            &wgpu::util::BufferInitDescriptor {
+                                label: Some(&format!("Chunk Vertex Buffer at {}", pos)),
+                                contents: bytemuck::cast_slice(&v),
+                                usage: wgpu::BufferUsages::VERTEX,
+                            }
+                        ));
+                        i_vec.push(device.create_buffer_init(
+                            &wgpu::util::BufferInitDescriptor {
+                                label: Some(&format!("Chunk Index Buffer at {}", pos)),
+                                contents: bytemuck::cast_slice(&index),
+                                usage: wgpu::BufferUsages::INDEX,
+                            }
+                        )); 
+                        l_vec.push(l);
+                    }
+
+                    drop(wg);
+                });
+            }
+        });
+
+        wg.wait();
+
+        for (_, (v_vec, i_vec, l_vec)) in chunk_load_task_vec {
+            for buffer in v_vec {
+                vertex_buffers.push(buffer);
+            }
+            for buffer in i_vec {
+                index_buffers.push(buffer);
+            }
+            for length in l_vec {
+                index_buffers_length.push(length);
+            }
+        }
 
         Self {
             surface,

@@ -1,4 +1,5 @@
 {
     "num_threads_specified": 8,
-    "use_all_system_threads": true
+    "use_all_system_threads": true,
+    "render_radius": 1
 }

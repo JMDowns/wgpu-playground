@@ -26,9 +26,12 @@ fn main() {
 
     writeln!(
         &mut consts_file,
-        "{}\n{}",
-        format!("pub const NUM_BLOCK_TYPES: u16 = {};", num_block_types),
-        format!("pub const NUM_THREADS: usize = {};", generate_num_threads(config_format))
+        "{}",
+        [
+            format!("pub const NUM_BLOCK_TYPES: u16 = {};", num_block_types),
+            format!("pub const NUM_THREADS: usize = {};", generate_num_threads(&config_format)),
+            format!("pub const RENDER_DISTANCE: usize = {};", config_format.render_radius)
+        ].join("\n")
     ).unwrap();
 
     writeln!(
@@ -52,7 +55,7 @@ fn main() {
     ).unwrap();
 }
 
-fn generate_num_threads(cf: ConfigFormat) -> usize {
+fn generate_num_threads(cf: &ConfigFormat) -> usize {
     if cf.use_all_system_threads {
         num_cpus::get()
     } else {
