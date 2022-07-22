@@ -7,9 +7,13 @@ use serde_json;
 fn main() {
     let blocks_json = std::fs::read_to_string("../data/blocks.json").unwrap();
     let vec_block_format: Vec<formats::block_format::BlockFormat> = serde_json::from_str(&blocks_json).unwrap();
-    let block_type_reference_strings = vec_block_format.iter().map(|ef| format!("BlockType::{}", ef.block_type.to_uppercase())).collect::<Vec<String>>();
-    let block_type_enum_values = vec_block_format.iter().map(|ef| format!("\t{},", ef.block_type.to_uppercase())).collect::<Vec<String>>();
-    let num_block_types = block_type_enum_values.len()+1;
+
+    let config_json = std::fs::read_to_string("../data/config.json").unwrap();
+    let config_format: formats::config_format::ConfigFormat = serde_json::from_str(&config_json).unwrap();
+
+    let block_type_names = vec_block_format.iter().map(|ef| format!("\t{},", ef.block_type.replace(" ", "_").to_uppercase())).collect::<Vec<String>>();
+    let block_type_reference_strings = block_type_names.iter().map(|n| format!("BlockType::{}", n)).collect::<Vec<String>>();
+    let num_block_types = block_type_names.len()+1;
     let path = Path::new("src/enums/block_type.rs");
     let mut block_types_file = BufWriter::new(File::create(&path).unwrap());
 
@@ -21,15 +25,16 @@ fn main() {
 
     writeln!(
         &mut consts_file,
-        "pub const NUM_BLOCK_TYPES: u16 = {};",
-        num_block_types
+        "{}\n{}",
+        format!("pub const NUM_BLOCK_TYPES: u16 = {};", num_block_types),
+        format!("pub const NUM_THREADS: usize = {};", config_format.num_threads)
     ).unwrap();
 
     writeln!(
         &mut block_types_file,
          "{}\n{}\n{}",
          build_block_type_imports(),
-         build_enum(&block_type_enum_values),
+         build_enum(&block_type_names),
          build_traits()
     ).unwrap();
 
@@ -112,8 +117,8 @@ fn generate_string_to_block_type_map(entries: Vec<(&String, &String)>) -> String
 }
 
 fn build_enum(block_type_enum_values: &Vec<String>) -> String {
-    format!("#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, FromPrimitive)]\npub enum BlockType\n{{\n\tAIR = 0,\n{}\n}}\n",
-        block_type_enum_values.join("\n"))
+    format!("#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, FromPrimitive)]\npub enum BlockType\n{{\n\tAIR = 0,\n\t{}\n}}\n",
+        block_type_enum_values.join("\n\t"))
 }
 
 fn build_traits() -> String {

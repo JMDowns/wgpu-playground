@@ -6,11 +6,11 @@ use core::hash::{Hash, Hasher};
 pub enum BlockType
 {
 	AIR = 0,
-	STONE,
-	DIRT,
-	GRASS,
-	WATER,
-	DEAD_GRASS,
+		STONE,
+		DIRT,
+		GRASS,
+		WATER,
+		DEAD_GRASS,
 }
 
 impl phf_shared::FmtConst for BlockType {

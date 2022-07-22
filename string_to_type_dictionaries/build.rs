@@ -14,11 +14,11 @@ writeln!(
 	&mut string_to_block_types_file,
 	"use fundamentals::enums::block_type::BlockType;\npub static STRING_TO_BLOCK_TYPE: phf::Map<&str, BlockType> = \n{};\n",
 	phf_codegen::Map::new()
-		.entry("STONE", "BlockType::STONE")
-		.entry("DIRT", "BlockType::DIRT")
-		.entry("GRASS", "BlockType::GRASS")
-		.entry("WATER", "BlockType::WATER")
-		.entry("DEAD_GRASS", "BlockType::DEAD_GRASS")
+		.entry("STONE", "BlockType::	STONE,")
+		.entry("DIRT", "BlockType::	DIRT,")
+		.entry("GRASS", "BlockType::	GRASS,")
+		.entry("WATER", "BlockType::	WATER,")
+		.entry("DEAD GRASS", "BlockType::	DEAD_GRASS,")
 		.build()
 	).unwrap();
 }

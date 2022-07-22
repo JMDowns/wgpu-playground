@@ -11,12 +11,12 @@ pub struct World {
 }
 
 impl World {
-    pub fn new() -> Self {
+    pub fn new(radius: i32) -> Self {
 
         let mut chunks = HashMap::new();
-        for x in -4..5 {
-            for y in -4..5 {
-                for z in -4..5 {
+        for x in -radius..radius+1 {
+            for y in -radius..radius+1 {
+                for z in -radius..radius+1{
                     let pos = Position::new(x,y,z);
                     chunks.insert(pos, Chunk::random(&pos));
                 }

@@ -1,4 +1,10 @@
+use std::collections::VecDeque;
+use std::thread;
+
 use crate::texture;
+use crossbeam::sync::WaitGroup;
+use fundamentals::consts;
+use instant::Instant;
 use crate::camera;
 use crate::voxels;
 use crate::voxels::world::World;
@@ -242,27 +248,86 @@ impl State {
                 multiview: None,
             });
 
-        let world = World::new();
+        let radius = 10;
+
+        let world = World::new(10);
 
         let mut loaded_chunk_positions = Vec::new();
-        for x in -4..5 {
-            for y in -4..5 {
-                for z in -4..5 {
+        for x in -radius..radius {
+            for y in -radius..radius {
+                for z in -radius..radius {
                     let pos = Position::new(x,y,z);
                     loaded_chunk_positions.push(pos);
                 }
             }
         }
 
-        let (vertex_buffers, index_buffers, index_buffers_length) = loaded_chunk_positions
-        .iter()
-        .fold((Vec::new(), Vec::new(), Vec::new()), |(mut v_vec, mut i_vec, mut l_vec), pos| {
-            let (v, i, l) = world.generate_vi_buffers_at(pos, &device);
-            v_vec.push(v);
-            i_vec.push(i); 
-            l_vec.push(l);
-            (v_vec, i_vec, l_vec)
-        });
+        let (mut vertex_buffers, mut index_buffers, mut index_buffers_length) = (Vec::new(), Vec::new(), Vec::new());
+
+        let multithreaded_chunk_loading = true;
+
+        let start_time = Instant::now();
+
+        if multithreaded_chunk_loading {
+            let mut chunk_load_task_vec: Vec<(Vec<Position>, (Vec<wgpu::Buffer>, Vec<wgpu::Buffer>, Vec<u32>))> = Vec::new();
+            for _ in 0..consts::NUM_THREADS {
+                chunk_load_task_vec.push((Vec::new(), (Vec::new(), Vec::new(), Vec::new())));
+            }
+
+            let mut thread_num = 0;
+            for pos in loaded_chunk_positions {
+                chunk_load_task_vec[thread_num].0.push(pos);
+                thread_num = (thread_num + 1) % consts::NUM_THREADS;
+            }
+
+            let wg = WaitGroup::new();
+            
+
+            let _ = crossbeam::scope(|scope| {
+                for (ref mut positions, (ref mut v_vec, ref mut i_vec, ref mut l_vec)) in chunk_load_task_vec.iter_mut() {
+                    let wg = wg.clone();
+                    scope.spawn(|_| {
+                        for pos in positions {
+                            let (v, index, l) = world.generate_vi_buffers_at(pos, &device);
+                            v_vec.push(v);
+                            i_vec.push(index); 
+                            l_vec.push(l);
+                        }
+
+                        drop(wg);
+                    });
+                }
+            });
+
+            wg.wait();
+
+            for (_, (v_vec, i_vec, l_vec)) in chunk_load_task_vec {
+                for buffer in v_vec {
+                    vertex_buffers.push(buffer);
+                }
+                for buffer in i_vec {
+                    index_buffers.push(buffer);
+                }
+                for length in l_vec {
+                    index_buffers_length.push(length);
+                }
+            }
+
+        } else {
+            (vertex_buffers, index_buffers, index_buffers_length) = loaded_chunk_positions
+            .iter()
+            .fold((Vec::new(), Vec::new(), Vec::new()), |(mut v_vec, mut i_vec, mut l_vec), pos| {
+                let (v, i, l) = world.generate_vi_buffers_at(pos, &device);
+                v_vec.push(v);
+                i_vec.push(i); 
+                l_vec.push(l);
+                (v_vec, i_vec, l_vec)
+            });
+        }
+
+        let finish_time = Instant::now();
+
+        println!("Generating the buffers took {} millisecs!", (finish_time - start_time).as_millis());
 
         Self {
             surface,

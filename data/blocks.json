@@ -36,7 +36,7 @@
     },
 
     {
-        "block_type": "DEAD_GRASS",
+        "block_type": "DEAD GRASS",
         "color": {
             "r": 0.0,
             "g": 0.1, 
