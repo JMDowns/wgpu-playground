@@ -14,6 +14,7 @@ path = "src/main.rs"
 
 [dependencies]
 cfg-if = "1"
+image = "0.24.2"
 winit = "0.26"
 cgmath = "0.18"
 env_logger = "0.9"
@@ -31,12 +32,6 @@ itertools = "0.10.3"
 fundamentals = { path = "../fundamentals" }
 derivables = { path = "../derivables" }
 crossbeam = "0.8.1"
-rayon = "1.5.3"
-
-[dependencies.image]
-version = "0.24"
-default-features = false
-features = ["png", "jpeg"]
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = "0.1.6"
