@@ -268,6 +268,8 @@ impl State {
             }
         }
 
+        let start_time = Instant::now();
+
         let (mut vertex_buffers, mut index_buffers, mut index_buffers_length) = (Vec::new(), Vec::new(), Vec::new());
 
         let mut chunk_load_task_vec = Vec::new();
@@ -313,6 +315,10 @@ impl State {
                 index_buffers_length.push(il);
             }
         }
+
+        let finish_time = Instant::now();
+
+        println!("Finished chunk generation in {} milliseconds!", (finish_time-start_time).as_millis());
 
         Self {
             surface,
