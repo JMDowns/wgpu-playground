@@ -4,6 +4,10 @@ use std::path::Path;
 use formats::formats;
 use ::formats::formats::config_format::ConfigFormat;
 use serde_json;
+use texture_packer::exporter::ImageExporter;
+use texture_packer::{TexturePacker, TexturePackerConfig};
+use texture_packer::importer::ImageImporter;
+use image::DynamicImage;
 
 fn main() {
     let blocks_json = std::fs::read_to_string("../data/blocks.json").unwrap();
@@ -12,7 +16,7 @@ fn main() {
     let config_json = std::fs::read_to_string("../data/config.json").unwrap();
     let config_format: formats::config_format::ConfigFormat = serde_json::from_str(&config_json).unwrap();
 
-    let block_type_names = vec_block_format.iter().map(|ef| format!("\t{},", ef.block_type.replace(" ", "_").to_uppercase())).collect::<Vec<String>>();
+    let block_type_names = vec_block_format.iter().map(|ef| format!("{},", ef.block_type.replace(" ", "_").to_uppercase())).collect::<Vec<String>>();
     let block_type_reference_strings = block_type_names.iter().map(|n| format!("BlockType::{}", n)).collect::<Vec<String>>();
     let num_block_types = block_type_names.len()+1;
     let path = Path::new("src/enums/block_type.rs");
@@ -24,15 +28,7 @@ fn main() {
     let string_to_block_type_path = Path::new("../string_to_type_dictionaries/build.rs");
     let mut string_to_block_type_file = BufWriter::new(File::create(&string_to_block_type_path).unwrap());
 
-    writeln!(
-        &mut consts_file,
-        "{}",
-        [
-            format!("pub const NUM_BLOCK_TYPES: u16 = {};", num_block_types),
-            format!("pub const NUM_THREADS: usize = {};", generate_num_threads(&config_format)),
-            format!("pub const RENDER_DISTANCE: usize = {};", config_format.render_radius)
-        ].join("\n")
-    ).unwrap();
+    
 
     writeln!(
         &mut block_types_file,
@@ -43,16 +39,96 @@ fn main() {
     ).unwrap();
 
     let string_to_block_types_file_name = String::from("string_to_block_types_file");
+    let string_to_texture_indices_name = String::from("string_to_texture_indices_file");
     let lib_file_name = String::from("lib_file");
+
+    
+
+    let atlas_path = Path::new("../hello-wgpu/src/atlas.png");
+
+    let mut image_coord_x = 0;
+    let mut image_coord_y: u32 = 0;
+
+    let blocks = vec_block_format.iter().map(|bf| (bf.block_type.to_string(), &bf.texture_filename));
+    let mut block_string_to_texture_indices = Vec::new();
+    let mut block_string_to_texture_coords = Vec::new();
+
+    let atlas_num_images_width_max = 64;
+    let atlas_num_images_height_max = 64;
+
+    let mut tp = TexturePacker::new_skyline(
+        TexturePackerConfig {
+            max_width: 16*atlas_num_images_width_max,
+            max_height: 16*atlas_num_images_height_max,
+            allow_rotation: false,
+            border_padding: 0,
+            texture_padding: 0,
+            texture_extrusion: 0,
+            trim: true,
+            texture_outlines: false,
+        });
+
+    for (block_name, block_path) in blocks {
+        let block_path = format!("../resources/{}", block_path);
+        println!("{}", block_path);
+        let texture_path = Path::new(&block_path);
+        let texture = ImageImporter::import_from_file(texture_path).unwrap();
+        block_string_to_texture_indices.push((block_name.clone(), (image_coord_x, image_coord_y)));
+        image_coord_x += 1;
+        if image_coord_x % atlas_num_images_width_max == 0 {
+            image_coord_y += 1;
+        }
+
+        tp.pack_own(block_name, texture).unwrap();
+    }
+
+    let atlas_index_width = match image_coord_y {
+        0 => image_coord_x as f32,
+        _ => 64.0
+    };
+
+    let atlas_index_height = (image_coord_y + 1) as f32;
+
+    let texture_width = 1.0 / atlas_index_width;
+    let mut texture_width_str = texture_width.to_string();
+    if texture_width == 1.0 {
+        texture_width_str = String::from("1.0");
+    }
+
+    let texture_height = 1.0 / atlas_index_height;
+    let mut texture_height_str = texture_height.to_string();
+    if texture_height == 1.0 {
+        texture_height_str = String::from("1.0");
+    }
+
+    block_string_to_texture_coords = block_string_to_texture_indices.iter().map(|(s, (tix, tiy))| (s, (*tix as f32 / atlas_index_width, *tiy as f32 / atlas_index_height))).collect();
+
+    writeln!(
+        &mut consts_file,
+        "{}",
+        [
+            format!("pub const NUM_BLOCK_TYPES: u16 = {};", num_block_types),
+            format!("pub const NUM_THREADS: usize = {};", generate_num_threads(&config_format)),
+            format!("pub const RENDER_DISTANCE: usize = {};", config_format.render_radius),
+            format!("pub const TEXTURE_WIDTH: f32 = {};", texture_width_str),
+            format!("pub const TEXTURE_HEIGHT: f32 = {};", texture_height_str)
+        ].join("\n")
+    ).unwrap();
 
     writeln!(
         &mut string_to_block_type_file,
-         "{}\nfn main() {{\n{}\n{}\n{}\n}}",
+         "{}\nfn main() {{\n{}\n}}",
          build_string_to_block_type_imports(),
-         build_file_creates(&string_to_block_types_file_name),
-         build_lib_file(&lib_file_name),
-         build_string_to_block_type_dictionary_builder(&string_to_block_types_file_name, vec_block_format, &block_type_reference_strings)
+         [
+            build_file_creates(&string_to_block_types_file_name, &string_to_texture_indices_name),
+            build_lib_file(&lib_file_name),
+            build_string_to_block_type_dictionary_builder(&string_to_block_types_file_name, &vec_block_format, &block_type_reference_strings),
+            build_string_to_texture_indices_dictionary_builder(&string_to_texture_indices_name, &block_string_to_texture_coords)
+         ].join("\n")
     ).unwrap();
+
+    let atlas = ImageExporter::export(&tp).unwrap();
+    atlas.save(atlas_path).unwrap();
 }
 
 fn generate_num_threads(cf: &ConfigFormat) -> usize {
@@ -72,12 +148,14 @@ fn build_block_type_imports() -> String {
     ].join("\n"))
 }
 
-fn build_file_creates(string_to_block_types_file_name: &String) -> String {
+fn build_file_creates(string_to_block_types_file_name: &String, string_to_texture_indices_file_name: &String) -> String {
     String::from([
         "let lib_path = Path::new(\"src/lib.rs\");",
         "let string_to_block_types_path = Path::new(\"src/string_to_block_type.rs\");",
+        "let string_to_texture_indices_path = Path::new(\"src/string_to_texture_indices.rs\");",
         "let mut lib_file = BufWriter::new(File::create(&lib_path).unwrap());",
         &format!("let mut {} = BufWriter::new(File::create(&string_to_block_types_path).unwrap());", string_to_block_types_file_name),
+        &format!("let mut {} = BufWriter::new(File::create(&string_to_texture_indices_path).unwrap());", string_to_texture_indices_file_name),
     ].join("\n"))
 }
 
@@ -89,7 +167,7 @@ fn build_string_to_block_type_imports() -> String {
     ].join("\n"))
 }
 
-fn build_string_to_block_type_dictionary_builder(string_to_block_type_dictionary_file_name: &String, block_values: Vec<formats::block_format::BlockFormat>, block_type_reference_strings: &Vec<String>) -> String {
+fn build_string_to_block_type_dictionary_builder(string_to_block_type_dictionary_file_name: &String, block_values: &Vec<formats::block_format::BlockFormat>, block_type_reference_strings: &Vec<String>) -> String {
     let block_names = block_values.iter().map(|b| &b.block_type);
     let map_entries = block_names.zip(block_type_reference_strings).collect::<Vec<(&String, &String)>>();
     String::from(
@@ -100,22 +178,54 @@ fn build_string_to_block_type_dictionary_builder(string_to_block_type_dictionary
         )
 }
 
+fn build_string_to_texture_indices_dictionary_builder(string_to_texture_indices_file_name: &String, block_string_to_texture_coords: &Vec<(&String, (f32, f32))>) -> String {
+    String::from(
+        format!("writeln!(\n\t&mut {},\n{},\n{}\n\t).unwrap();", 
+        string_to_texture_indices_file_name,
+        "\t\"use fundamentals::enums::block_type::BlockType;\nuse fundamentals::texture_coords::TextureCoordinates;\\npub static STRING_TO_TEXTURE_COORDINATES: phf::Map<&str, [TextureCoordinates; 6]> = \\n{};\\n\"",
+        generate_string_to_texture_indices_map(block_string_to_texture_coords)),
+        )
+}
+
+fn generate_string_to_texture_indices_map(block_string_to_texture_coords: &Vec<(&String, (f32, f32))>) -> String {
+    let mut lines = Vec::new();
+    lines.push("\tphf_codegen::Map::new()".to_string());
+    for (string_name, (tx, ty)) in block_string_to_texture_coords {
+        let mut string_tx = tx.to_string();
+        if *tx == 0.0 {
+            string_tx = String::from("0.0");
+        }
+        let mut string_ty = ty.to_string();
+        if *ty == 0.0 {
+            string_ty = String::from("0.0");
+        }
+        let new_line = format!(".entry(\"{}\", \"[{}]\")", string_name, 
+            [
+                format!("TextureCoordinates {{tx: {}, ty: {}}}", string_tx, string_ty),
+                format!("TextureCoordinates {{tx: {}, ty: {}}}", string_tx, string_ty),
+                format!("TextureCoordinates {{tx: {}, ty: {}}}", string_tx, string_ty),
+                format!("TextureCoordinates {{tx: {}, ty: {}}}", string_tx, string_ty),
+                format!("TextureCoordinates {{tx: {}, ty: {}}}", string_tx, string_ty),
+                format!("TextureCoordinates {{tx: {}, ty: {}}}", string_tx, string_ty)
+            ].join(",")
+            );
+        lines.push(new_line);
+    }
+    lines.push(".build()".to_string());
+    lines.join("\n\t\t")
+}
+
 fn build_lib_file(lib_file_name: &String) -> String {
     String::from(
         format!("writeln!(\n\t&mut {},\n{}\n\t).unwrap();",
         lib_file_name,
-        "\"pub mod string_to_block_type;\""
+        [
+            "\"{}{}\",",
+        "\"pub mod string_to_block_type;\",",
+        "\"pub mod string_to_texture_indices;\"",
+        ].join("\n")
         ))
 }
-
-// writeln!(
-//     &mut file,
-//      "{}\npub static BLOCK_TYPE_TO_COLOR: phf::Map<BlockType, wgpu::Color> = \n{};\n",
-//      get_imports(),
-//      phf_codegen::Map::new()
-//      .entry(BlockType::STONE, "wgpu::Color { r: 0.411, g: 0.411, b: 0.411, a: 0.0}" )
-//     .build()
-// ).unwrap();
 
 fn generate_string_to_block_type_map(entries: Vec<(&String, &String)>) -> String {
     let mut lines = Vec::new();

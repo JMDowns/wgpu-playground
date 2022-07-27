@@ -15,6 +15,19 @@ impl Position {
     pub fn new(x: i32, y: i32, z: i32) -> Self {
         Position { x, y, z}
     }
+
+    pub fn generate_positions(&self) -> [Position; 8] {
+        [
+            Position::new(self.x, self.y, self.z),
+            Position::new(self.x-1, self.y, self.z),
+            Position::new(self.x-1, self.y-1, self.z),
+            Position::new(self.x, self.y-1, self.z),
+            Position::new(self.x, self.y, self.z-1),
+            Position::new(self.x-1, self.y, self.z-1),
+            Position::new(self.x-1, self.y-1, self.z-1),
+            Position::new(self.x, self.y-1, self.z-1),
+        ]
+    }
 }
 
 impl Display for Position {

@@ -3,8 +3,10 @@ use std::collections::HashMap;
 use fundamentals::enums::block_type::BlockType;
 use super::chunk::Chunk;
 use super::position::Position;
+use fundamentals::texture_coords::TextureCoordinates;
 use crate::voxels::vertex::Vertex;
 use wgpu::util::DeviceExt;
+use fundamentals::consts::{TEXTURE_HEIGHT, TEXTURE_WIDTH};
 
 pub struct World {
     chunks: HashMap<Position, Chunk>,
@@ -39,7 +41,7 @@ impl World {
                     if block.get_block_type() != BlockType::AIR {
                         vertices = [
                             vertices,
-                            generate_cube(self.chunks[&pos].get_absolute_coords_usize(i, j, k), block.get_color())
+                            generate_cube(self.chunks[&pos].get_absolute_coords_usize(i, j, k), block.get_texture_coords())
                         ].concat();
                         indices = [
                             indices,
@@ -58,38 +60,60 @@ impl World {
     }
 }
 
-fn generate_cube(pos: Position, wcolor: wgpu::Color) -> Vec<Vertex> {
+fn generate_cube(pos: Position, tex_coords_arr: &[TextureCoordinates; 6]) -> Vec<Vertex> {
+    let positions = pos.generate_positions();
     [
-        Vertex::new(Position { x: pos.x, y: pos.y, z: pos.z}, wcolor),
-        Vertex::new(Position { x: pos.x-1, y: pos.y, z: pos.z}, wcolor),
-        Vertex::new(Position { x: pos.x-1, y: pos.y-1, z: pos.z}, wcolor),
-        Vertex::new(Position { x: pos.x, y: pos.y-1, z: pos.z}, wcolor),
-        Vertex::new(Position { x: pos.x, y: pos.y, z: pos.z-1}, wcolor),
-        Vertex::new(Position { x: pos.x-1, y: pos.y, z: pos.z-1}, wcolor),
-        Vertex::new(Position { x: pos.x-1, y: pos.y-1, z: pos.z-1}, wcolor),
-        Vertex::new(Position { x: pos.x, y: pos.y-1, z: pos.z-1}, wcolor),
+        Vertex::new(positions[0], tex_coords_arr[0].offset(TEXTURE_WIDTH, 0.0)),
+        Vertex::new(positions[1], tex_coords_arr[0].offset(0.0, 0.0)),
+        Vertex::new(positions[2], tex_coords_arr[0].offset(0.0, TEXTURE_HEIGHT)),
+        Vertex::new(positions[3], tex_coords_arr[0].offset(TEXTURE_WIDTH, TEXTURE_HEIGHT)),
+
+        Vertex::new(positions[4], tex_coords_arr[1].offset(TEXTURE_WIDTH, 0.0)),
+        Vertex::new(positions[5], tex_coords_arr[1].offset(0.0, 0.0)),
+        Vertex::new(positions[6], tex_coords_arr[1].offset(0.0, TEXTURE_HEIGHT)),
+        Vertex::new(positions[7], tex_coords_arr[1].offset(TEXTURE_WIDTH, TEXTURE_HEIGHT)),
+
+        Vertex::new(positions[0], tex_coords_arr[2].offset(TEXTURE_WIDTH, 0.0)),
+        Vertex::new(positions[3], tex_coords_arr[2].offset(TEXTURE_WIDTH, TEXTURE_HEIGHT)),
+        Vertex::new(positions[4], tex_coords_arr[2].offset(0.0, 0.0)),
+        Vertex::new(positions[7], tex_coords_arr[2].offset(0.0, TEXTURE_HEIGHT)),
+
+        Vertex::new(positions[1], tex_coords_arr[3].offset(0.0, 0.0)),
+        Vertex::new(positions[2], tex_coords_arr[3].offset(0.0, TEXTURE_HEIGHT)),
+        Vertex::new(positions[5], tex_coords_arr[3].offset(TEXTURE_WIDTH, 0.0)),
+        Vertex::new(positions[6], tex_coords_arr[3].offset(TEXTURE_WIDTH, TEXTURE_HEIGHT)),
+
+        Vertex::new(positions[0], tex_coords_arr[4].offset(0.0, TEXTURE_HEIGHT)),
+        Vertex::new(positions[1], tex_coords_arr[4].offset(TEXTURE_WIDTH, TEXTURE_HEIGHT)),
+        Vertex::new(positions[4], tex_coords_arr[4].offset(0.0, 0.0)),
+        Vertex::new(positions[5], tex_coords_arr[4].offset(TEXTURE_WIDTH, 0.0)),
+
+        Vertex::new(positions[2], tex_coords_arr[5].offset(TEXTURE_WIDTH, 0.0)),
+        Vertex::new(positions[3], tex_coords_arr[5].offset(0.0, 0.0)),
+        Vertex::new(positions[6], tex_coords_arr[5].offset(TEXTURE_WIDTH, TEXTURE_HEIGHT)),
+        Vertex::new(positions[7], tex_coords_arr[5].offset(0.0, TEXTURE_HEIGHT)),
     ].to_vec()
 }
 
 fn generate_cube_indices(num_of_cube: u32) -> Vec<u32> {
     [
         // Front Face
-        0+8*num_of_cube,1+8*num_of_cube,2+8*num_of_cube,
-        0+8*num_of_cube,2+8*num_of_cube,3+8*num_of_cube,
+        0+24*num_of_cube,1+24*num_of_cube,2+24*num_of_cube,
+        0+24*num_of_cube,2+24*num_of_cube,3+24*num_of_cube,
         // Back Face
-        5+8*num_of_cube,4+8*num_of_cube,7+8*num_of_cube,
-        5+8*num_of_cube,7+8*num_of_cube,6+8*num_of_cube,
-        // Rnum_of_cubeght Face
-        1+8*num_of_cube,5+8*num_of_cube,6+8*num_of_cube,
-        1+8*num_of_cube,6+8*num_of_cube,2+8*num_of_cube,
+        5+24*num_of_cube,4+24*num_of_cube,7+24*num_of_cube,
+        5+24*num_of_cube,7+24*num_of_cube,6+24*num_of_cube,
         // Left Face
-        4+8*num_of_cube,0+8*num_of_cube,3+8*num_of_cube,
-        4+8*num_of_cube,3+8*num_of_cube,7+8*num_of_cube,
+        10+24*num_of_cube,8+24*num_of_cube,9+24*num_of_cube,
+        10+24*num_of_cube,9+24*num_of_cube,11+24*num_of_cube,
+        // Rnight Face
+        12+24*num_of_cube,14+24*num_of_cube,15+24*num_of_cube,
+        12+24*num_of_cube,15+24*num_of_cube,13+24*num_of_cube,
+        // Top Face
+        19+24*num_of_cube,17+24*num_of_cube,16+24*num_of_cube,
+        19+24*num_of_cube,16+24*num_of_cube,18+24*num_of_cube,
         // Bottom Face
-        2+8*num_of_cube,6+8*num_of_cube,7+8*num_of_cube,
-        2+8*num_of_cube,7+8*num_of_cube,3+8*num_of_cube,
-        // Bottom Face
-        5+8*num_of_cube,1+8*num_of_cube,0+8*num_of_cube,
-        5+8*num_of_cube,0+8*num_of_cube,4+8*num_of_cube,
+        20+24*num_of_cube,22+24*num_of_cube,23+24*num_of_cube,
+        20+24*num_of_cube,23+24*num_of_cube,21+24*num_of_cube,
     ].to_vec()
 }
