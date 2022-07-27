@@ -4,6 +4,7 @@ use std::thread;
 use crate::texture;
 use crossbeam::sync::WaitGroup;
 use fundamentals::consts;
+use image::GenericImageView;
 use instant::Instant;
 use crate::camera;
 use crate::voxels;
@@ -40,7 +41,9 @@ pub struct State {
     pub camera_controller: camera::CameraController,
     pub mouse_pressed: bool,
     pub render_wireframe: bool,
-    pub world: World
+    pub world: World,
+    pub diffuse_bind_group: wgpu::BindGroup,
+    pub diffuse_texture: texture::Texture
 }
 
 impl State {
@@ -86,6 +89,50 @@ impl State {
         };
 
         surface.configure(&device, &config);
+
+        let diffuse_bytes = include_bytes!("atlas.png");
+        let diffuse_texture = texture::Texture::from_bytes(&device, &queue, diffuse_bytes, "atlas.png").unwrap();
+
+        let texture_bind_group_layout = 
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Texture { 
+                            multisampled: false,
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        },
+                        count: None
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        // This should match the filterable field of the corresponding Texture entry above.
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                        count: None,
+                    },
+                ],
+                label: Some("texture_bind_group_layout"),
+            });
+
+        let diffuse_bind_group = device.create_bind_group(
+            &wgpu::BindGroupDescriptor {
+                layout: &texture_bind_group_layout,
+                entries: &[
+                    wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: wgpu::BindingResource::TextureView(&diffuse_texture.view),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 1,
+                        resource: wgpu::BindingResource::Sampler(&diffuse_texture.sampler),
+                    }
+                ],
+                label: Some("diffuse_bind_group"),
+            }
+        );
 
         let screen_color = wgpu::Color {
             r: 1.0,
@@ -148,6 +195,7 @@ impl State {
                 label: Some("Render Pipeline Layout"),
                 bind_group_layouts: &[
                     &camera_bind_group_layout,
+                    &texture_bind_group_layout,
                 ],
                 push_constant_ranges: &[],
             });
@@ -341,7 +389,9 @@ impl State {
             camera_controller,
             mouse_pressed: false,
             render_wireframe: false,
-            world
+            world,
+            diffuse_bind_group,
+            diffuse_texture
         }
     }
 
@@ -435,6 +485,7 @@ impl State {
             }
 
             render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
+            render_pass.set_bind_group(1, &self.diffuse_bind_group, &[]);
 
             for (vertex_buffer, index_buffer, index_buffer_length) 
                 in izip!(&self.vertex_buffers, &self.index_buffers, &self.index_buffers_length) {

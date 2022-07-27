@@ -1,5 +1,5 @@
-use fundamentals::enums::block_type::BlockType;
-use derivables::dictionaries::block_type_to_color::BLOCK_TYPE_TO_COLOR;
+use fundamentals::{enums::block_type::BlockType, texture_coords::TextureCoordinates};
+use derivables::dictionaries::block_type_to_texture_coordinates::BLOCK_TYPE_TO_TEXTURE_COORDINATES;
 
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable, Debug)]
@@ -20,16 +20,12 @@ impl Block {
         }
     }
 
-    pub fn get_color(&self) -> wgpu::Color {
-        let btype = num::FromPrimitive::from_u16(self.block_type);
-        match btype {
-            Some(bt) => {
-                match BLOCK_TYPE_TO_COLOR.get(&(bt)) {
-                    Some(color) => *color,
-                    None => wgpu::Color::TRANSPARENT
-                }
-            },
-            None => wgpu::Color::TRANSPARENT
-        }
+    pub fn get_texture_coords(&self) -> &[TextureCoordinates; 6] {
+        let btype_option = num::FromPrimitive::from_u16(self.block_type);
+        let btype = match btype_option {
+            Some(bt) => bt,
+            None => BlockType::WOOD
+        };
+        BLOCK_TYPE_TO_TEXTURE_COORDINATES.get(&btype).unwrap()
     }
 }
