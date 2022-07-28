@@ -5,9 +5,10 @@ use formats::formats;
 use ::formats::formats::config_format::ConfigFormat;
 use serde_json;
 use texture_packer::exporter::ImageExporter;
-use texture_packer::{TexturePacker, TexturePackerConfig};
+use texture_packer::{TexturePacker, TexturePackerConfig, texture};
 use texture_packer::importer::ImageImporter;
 use image::DynamicImage;
+use std::collections::HashMap;
 
 fn main() {
     let blocks_json = std::fs::read_to_string("../data/blocks.json").unwrap();
@@ -49,9 +50,9 @@ fn main() {
     let mut image_coord_x = 0;
     let mut image_coord_y: u32 = 0;
 
-    let blocks = vec_block_format.iter().map(|bf| (bf.block_type.to_string(), &bf.texture_filename));
+    let blocks = vec_block_format.iter().map(|bf| (bf.block_type.to_string(), &bf.texture));
     let mut block_string_to_texture_indices = Vec::new();
-    let mut block_string_to_texture_coords = Vec::new();
+    let mut texture_string_to_texture_indices = HashMap::new();
 
     let atlas_num_images_width_max = 64;
     let atlas_num_images_height_max = 64;
@@ -68,18 +69,30 @@ fn main() {
             texture_outlines: false,
         });
 
-    for (block_name, block_path) in blocks {
-        let block_path = format!("../resources/{}", block_path);
-        println!("{}", block_path);
-        let texture_path = Path::new(&block_path);
-        let texture = ImageImporter::import_from_file(texture_path).unwrap();
-        block_string_to_texture_indices.push((block_name.clone(), (image_coord_x, image_coord_y)));
-        image_coord_x += 1;
-        if image_coord_x % atlas_num_images_width_max == 0 {
-            image_coord_y += 1;
+    for (block_name, block_textures) in blocks {
+        let mut block_texture_indices = [(0,0);6];
+        let mut i = 0;
+        for block_texture in block_textures.to_vec() {
+            if !texture_string_to_texture_indices.contains_key(&block_texture) {
+                texture_string_to_texture_indices.insert(block_texture.clone(), (image_coord_x, image_coord_y));
+                let block_texture = format!("../resources/{}", block_texture);
+                let texture_path = Path::new(&block_texture);
+                let texture = ImageImporter::import_from_file(texture_path).unwrap();
+                block_texture_indices[i] = (image_coord_x, image_coord_y);
+                image_coord_x += 1;
+                if image_coord_x % atlas_num_images_width_max == 0 {
+                    image_coord_y += 1;
+                }
+        
+                tp.pack_own(block_name.clone(), texture).unwrap();
+            } else {
+                block_texture_indices[i] = *texture_string_to_texture_indices.get(&block_texture).unwrap();
+            }
+            
+            i += 1;
         }
-
-        tp.pack_own(block_name, texture).unwrap();
+        block_string_to_texture_indices.push((block_name.clone(), block_texture_indices));
+        
     }
 
     let atlas_index_width = match image_coord_y {
@@ -101,7 +114,7 @@ fn main() {
         texture_height_str = String::from("1.0");
     }
 
-    block_string_to_texture_coords = block_string_to_texture_indices.iter().map(|(s, (tix, tiy))| (s, (*tix as f32 / atlas_index_width, *tiy as f32 / atlas_index_height))).collect();
+    let block_string_to_texture_coords = block_string_to_texture_indices.iter().map(|(s, t_arr)| (s, t_arr.map(|(tix, tiy)| (tix as f32 / atlas_index_width, tiy as f32 / atlas_index_height)))).collect();
 
     writeln!(
         &mut consts_file,
@@ -178,7 +191,7 @@ fn build_string_to_block_type_dictionary_builder(string_to_block_type_dictionary
         )
 }
 
-fn build_string_to_texture_indices_dictionary_builder(string_to_texture_indices_file_name: &String, block_string_to_texture_coords: &Vec<(&String, (f32, f32))>) -> String {
+fn build_string_to_texture_indices_dictionary_builder(string_to_texture_indices_file_name: &String, block_string_to_texture_coords: &Vec<(&String, [(f32, f32);6])>) -> String {
     String::from(
         format!("writeln!(\n\t&mut {},\n{},\n{}\n\t).unwrap();", 
         string_to_texture_indices_file_name,
@@ -187,26 +200,32 @@ fn build_string_to_texture_indices_dictionary_builder(string_to_texture_indices_
         )
 }
 
-fn generate_string_to_texture_indices_map(block_string_to_texture_coords: &Vec<(&String, (f32, f32))>) -> String {
+fn generate_string_to_texture_indices_map(block_string_to_texture_coords: &Vec<(&String, [(f32, f32);6])>) -> String {
     let mut lines = Vec::new();
     lines.push("\tphf_codegen::Map::new()".to_string());
-    for (string_name, (tx, ty)) in block_string_to_texture_coords {
-        let mut string_tx = tx.to_string();
-        if *tx == 0.0 {
-            string_tx = String::from("0.0");
-        }
-        let mut string_ty = ty.to_string();
-        if *ty == 0.0 {
-            string_ty = String::from("0.0");
+    for (string_name, texture_coords) in block_string_to_texture_coords {
+        let mut texture_coord_strings = [(String::new(), String::new()), (String::new(), String::new()),(String::new(), String::new()),(String::new(), String::new()),(String::new(), String::new()),(String::new(), String::new())];
+        for i in 0..6 {
+            let tx = texture_coords[i].0;
+            let ty = texture_coords[i].1;
+            let mut string_tx = tx.to_string();
+            if tx == 0.0 {
+                string_tx = String::from("0.0");
+            }
+            let mut string_ty = ty.to_string();
+            if ty == 0.0 {
+                string_ty = String::from("0.0");
+            }
+            texture_coord_strings[i] = (string_tx.clone(), string_ty.clone());
         }
         let new_line = format!(".entry(\"{}\", \"[{}]\")", string_name, 
             [
-                format!("TextureCoordinates {{tx: {}, ty: {}}}", string_tx, string_ty),
-                format!("TextureCoordinates {{tx: {}, ty: {}}}", string_tx, string_ty),
-                format!("TextureCoordinates {{tx: {}, ty: {}}}", string_tx, string_ty),
-                format!("TextureCoordinates {{tx: {}, ty: {}}}", string_tx, string_ty),
-                format!("TextureCoordinates {{tx: {}, ty: {}}}", string_tx, string_ty),
-                format!("TextureCoordinates {{tx: {}, ty: {}}}", string_tx, string_ty)
+                format!("TextureCoordinates {{tx: {}, ty: {}}}", texture_coord_strings[0].0, texture_coord_strings[0].1),
+                format!("TextureCoordinates {{tx: {}, ty: {}}}", texture_coord_strings[1].0, texture_coord_strings[1].1),
+                format!("TextureCoordinates {{tx: {}, ty: {}}}", texture_coord_strings[2].0, texture_coord_strings[2].1),
+                format!("TextureCoordinates {{tx: {}, ty: {}}}", texture_coord_strings[3].0, texture_coord_strings[3].1),
+                format!("TextureCoordinates {{tx: {}, ty: {}}}", texture_coord_strings[4].0, texture_coord_strings[4].1),
+                format!("TextureCoordinates {{tx: {}, ty: {}}}", texture_coord_strings[5].0, texture_coord_strings[5].1)
             ].join(",")
             );
         lines.push(new_line);

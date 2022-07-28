@@ -1,11 +1,25 @@
 [
     {
         "block_type": "WOOD",
-        "texture_filename": "wooden-plank.png"
+        "texture": {
+            "front": "wooden-plank.png",
+            "back": "wooden-plank.png",
+            "left": "wooden-plank.png",
+            "right": "wooden-plank.png",
+            "top": "wooden-plank.png",
+            "bottom": "wooden-plank.png"
+        }
     },
 
     {
         "block_type": "DIRT",
-        "texture_filename": "dirt.png"
+        "texture": {
+            "front": "dirt.png",
+            "back": "dirt.png",
+            "left": "dirt.png",
+            "right": "dirt.png",
+            "top": "wooden-plank.png",
+            "bottom": "dirt.png"
+        }
     }
 ]

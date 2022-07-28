@@ -7,7 +7,7 @@ pub static BLOCK_TYPE_TO_TEXTURE_COORDINATES: phf::Map<BlockType, [TextureCoordi
         (0, 0),
     ],
     entries: &[
-        (BlockType::DIRT, [TextureCoordinates { tx: 0.5, ty: 0.0 },TextureCoordinates { tx: 0.5, ty: 0.0 },TextureCoordinates { tx: 0.5, ty: 0.0 },TextureCoordinates { tx: 0.5, ty: 0.0 },TextureCoordinates { tx: 0.5, ty: 0.0 },TextureCoordinates { tx: 0.5, ty: 0.0 }]),
+        (BlockType::DIRT, [TextureCoordinates { tx: 0.5, ty: 0.0 },TextureCoordinates { tx: 0.5, ty: 0.0 },TextureCoordinates { tx: 0.5, ty: 0.0 },TextureCoordinates { tx: 0.5, ty: 0.0 },TextureCoordinates { tx: 0.0, ty: 0.0 },TextureCoordinates { tx: 0.5, ty: 0.0 }]),
         (BlockType::WOOD, [TextureCoordinates { tx: 0.0, ty: 0.0 },TextureCoordinates { tx: 0.0, ty: 0.0 },TextureCoordinates { tx: 0.0, ty: 0.0 },TextureCoordinates { tx: 0.0, ty: 0.0 },TextureCoordinates { tx: 0.0, ty: 0.0 },TextureCoordinates { tx: 0.0, ty: 0.0 }]),
     ],
 };

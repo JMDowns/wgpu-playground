@@ -106,7 +106,7 @@ fn generate_cube_indices(num_of_cube: u32) -> Vec<u32> {
         // Left Face
         10+24*num_of_cube,8+24*num_of_cube,9+24*num_of_cube,
         10+24*num_of_cube,9+24*num_of_cube,11+24*num_of_cube,
-        // Rnight Face
+        // Right Face
         12+24*num_of_cube,14+24*num_of_cube,15+24*num_of_cube,
         12+24*num_of_cube,15+24*num_of_cube,13+24*num_of_cube,
         // Top Face
