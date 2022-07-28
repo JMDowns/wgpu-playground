@@ -69,6 +69,7 @@ fn main() {
                 image_coord_x += 1;
                 if image_coord_x % atlas_num_images_width_max == 0 {
                     image_coord_y += 1;
+                    image_coord_x = 0;
                 }
             } else {
                 block_texture_indices[i] = *texture_string_to_texture_indices.get(&block_texture).unwrap();
@@ -82,10 +83,10 @@ fn main() {
 
     let atlas_index_width = match image_coord_y {
         0 => image_coord_x,
-        _ => 64
+        _ => config_format.atlas_max_images_on_a_row
     };
 
-    let atlas_index_height = image_coord_y + 1;
+    let atlas_index_height = image_coord_y;
 
     let mut atlas_buf = <image::ImageBuffer<image::Rgba<u8>, _>>::new(atlas_index_width*config_format.texture_dimension, atlas_index_height*config_format.texture_dimension);
 
@@ -107,7 +108,7 @@ fn main() {
         texture_height_str = String::from("1.0");
     }
 
-    let block_string_to_texture_coords = block_string_to_texture_indices.iter().map(|(s, t_arr)| (s, t_arr.map(|(tix, tiy)| (tix as f32 / atlas_index_width as f32, tiy as f32 / atlas_index_height as f32)))).collect();
+    let block_string_to_texture_coords = block_string_to_texture_indices.iter().map(|(s, t_arr)| (s, t_arr.map(|(tix, tiy)| (tix as f32 / atlas_index_width as f32, tiy as f32 / (atlas_index_height as f32))))).collect();
 
     writeln!(
         &mut consts_file,

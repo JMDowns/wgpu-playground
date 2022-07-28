@@ -7,9 +7,9 @@ pub static STRING_TO_TEXTURE_COORDINATES: phf::Map<&str, [TextureCoordinates; 6]
         (1, 0),
     ],
     entries: &[
-        ("DIRT", [TextureCoordinates {tx: 0.25, ty: 0.0},TextureCoordinates {tx: 0.25, ty: 0.0},TextureCoordinates {tx: 0.25, ty: 0.0},TextureCoordinates {tx: 0.25, ty: 0.0},TextureCoordinates {tx: 0.25, ty: 0.0},TextureCoordinates {tx: 0.25, ty: 0.0}]),
+        ("DIRT", [TextureCoordinates {tx: 0.0, ty: 0.25},TextureCoordinates {tx: 0.0, ty: 0.25},TextureCoordinates {tx: 0.0, ty: 0.25},TextureCoordinates {tx: 0.0, ty: 0.25},TextureCoordinates {tx: 0.0, ty: 0.25},TextureCoordinates {tx: 0.0, ty: 0.25}]),
         ("WOOD", [TextureCoordinates {tx: 0.0, ty: 0.0},TextureCoordinates {tx: 0.0, ty: 0.0},TextureCoordinates {tx: 0.0, ty: 0.0},TextureCoordinates {tx: 0.0, ty: 0.0},TextureCoordinates {tx: 0.0, ty: 0.0},TextureCoordinates {tx: 0.0, ty: 0.0}]),
-        ("GRASS", [TextureCoordinates {tx: 0.5, ty: 0.0},TextureCoordinates {tx: 0.5, ty: 0.0},TextureCoordinates {tx: 0.5, ty: 0.0},TextureCoordinates {tx: 0.5, ty: 0.0},TextureCoordinates {tx: 0.75, ty: 0.0},TextureCoordinates {tx: 0.25, ty: 0.0}]),
+        ("GRASS", [TextureCoordinates {tx: 0.0, ty: 0.5},TextureCoordinates {tx: 0.0, ty: 0.5},TextureCoordinates {tx: 0.0, ty: 0.5},TextureCoordinates {tx: 0.0, ty: 0.5},TextureCoordinates {tx: 0.0, ty: 0.75},TextureCoordinates {tx: 0.0, ty: 0.25}]),
     ],
 };
 
