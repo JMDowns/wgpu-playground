@@ -4,10 +4,7 @@ use std::path::Path;
 use formats::formats;
 use ::formats::formats::config_format::ConfigFormat;
 use serde_json;
-use texture_packer::exporter::ImageExporter;
-use texture_packer::{TexturePacker, TexturePackerConfig, texture};
-use texture_packer::importer::ImageImporter;
-use image::DynamicImage;
+use image::GenericImage;
 use std::collections::HashMap;
 
 fn main() {
@@ -43,32 +40,19 @@ fn main() {
     let string_to_texture_indices_name = String::from("string_to_texture_indices_file");
     let lib_file_name = String::from("lib_file");
 
-    
-
     let atlas_path = Path::new("../hello-wgpu/src/atlas.png");
 
     let mut image_coord_x = 0;
-    let mut image_coord_y: u32 = 0;
+    let mut image_coord_y = 0;
 
     let blocks = vec_block_format.iter().map(|bf| (bf.block_type.to_string(), &bf.texture));
     let mut block_string_to_texture_indices = Vec::new();
     let mut texture_string_to_texture_indices = HashMap::new();
 
-    let atlas_num_images_width_max = 64;
-    let atlas_num_images_height_max = 64;
+    let atlas_num_images_width_max = config_format.atlas_max_images_on_a_row;
 
-    let mut tp = TexturePacker::new_skyline(
-        TexturePackerConfig {
-            max_width: 16*atlas_num_images_width_max,
-            max_height: 16*atlas_num_images_height_max,
-            allow_rotation: false,
-            border_padding: 0,
-            texture_padding: 0,
-            texture_extrusion: 0,
-            trim: true,
-            texture_outlines: false,
-        });
-
+    let mut texture_vec = Vec::new();
+    
     for (block_name, block_textures) in blocks {
         let mut block_texture_indices = [(0,0);6];
         let mut i = 0;
@@ -77,14 +61,15 @@ fn main() {
                 texture_string_to_texture_indices.insert(block_texture.clone(), (image_coord_x, image_coord_y));
                 let block_texture = format!("../resources/{}", block_texture);
                 let texture_path = Path::new(&block_texture);
-                let texture = ImageImporter::import_from_file(texture_path).unwrap();
+                let texture = image::io::Reader::open(texture_path).unwrap().decode().unwrap();
                 block_texture_indices[i] = (image_coord_x, image_coord_y);
+        
+                texture_vec.push(((image_coord_x, image_coord_y), texture));
+
                 image_coord_x += 1;
                 if image_coord_x % atlas_num_images_width_max == 0 {
                     image_coord_y += 1;
                 }
-        
-                tp.pack_own(block_name.clone(), texture).unwrap();
             } else {
                 block_texture_indices[i] = *texture_string_to_texture_indices.get(&block_texture).unwrap();
             }
@@ -96,25 +81,33 @@ fn main() {
     }
 
     let atlas_index_width = match image_coord_y {
-        0 => image_coord_x as f32,
-        _ => 64.0
+        0 => image_coord_x,
+        _ => 64
     };
 
-    let atlas_index_height = (image_coord_y + 1) as f32;
+    let atlas_index_height = image_coord_y + 1;
 
-    let texture_width = 1.0 / atlas_index_width;
+    let mut atlas_buf = <image::ImageBuffer<image::Rgba<u8>, _>>::new(atlas_index_width*config_format.texture_dimension, atlas_index_height*config_format.texture_dimension);
+
+    for ((tix,tiy), texture) in texture_vec {
+        atlas_buf.copy_from(&texture, tix*config_format.texture_dimension, tiy*config_format.texture_dimension).unwrap();
+    }
+
+    atlas_buf.save_with_format(atlas_path, image::ImageFormat::Png).unwrap();
+
+    let texture_width = 1.0 / atlas_index_width as f32;
     let mut texture_width_str = texture_width.to_string();
     if texture_width == 1.0 {
         texture_width_str = String::from("1.0");
     }
 
-    let texture_height = 1.0 / atlas_index_height;
+    let texture_height = 1.0 / atlas_index_height as f32;
     let mut texture_height_str = texture_height.to_string();
     if texture_height == 1.0 {
         texture_height_str = String::from("1.0");
     }
 
-    let block_string_to_texture_coords = block_string_to_texture_indices.iter().map(|(s, t_arr)| (s, t_arr.map(|(tix, tiy)| (tix as f32 / atlas_index_width, tiy as f32 / atlas_index_height)))).collect();
+    let block_string_to_texture_coords = block_string_to_texture_indices.iter().map(|(s, t_arr)| (s, t_arr.map(|(tix, tiy)| (tix as f32 / atlas_index_width as f32, tiy as f32 / atlas_index_height as f32)))).collect();
 
     writeln!(
         &mut consts_file,
@@ -124,7 +117,7 @@ fn main() {
             format!("pub const NUM_THREADS: usize = {};", generate_num_threads(&config_format)),
             format!("pub const RENDER_DISTANCE: usize = {};", config_format.render_radius),
             format!("pub const TEXTURE_WIDTH: f32 = {};", texture_width_str),
-            format!("pub const TEXTURE_HEIGHT: f32 = {};", texture_height_str)
+            format!("pub const TEXTURE_HEIGHT: f32 = {};", texture_height_str),
         ].join("\n")
     ).unwrap();
 
@@ -139,9 +132,6 @@ fn main() {
             build_string_to_texture_indices_dictionary_builder(&string_to_texture_indices_name, &block_string_to_texture_coords)
          ].join("\n")
     ).unwrap();
-
-    let atlas = ImageExporter::export(&tp).unwrap();
-    atlas.save(atlas_path).unwrap();
 }
 
 fn generate_num_threads(cf: &ConfigFormat) -> usize {

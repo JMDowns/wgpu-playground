@@ -18,7 +18,19 @@
             "back": "dirt.png",
             "left": "dirt.png",
             "right": "dirt.png",
-            "top": "wooden-plank.png",
+            "top": "dirt.png",
+            "bottom": "dirt.png"
+        }
+    },
+
+    {
+        "block_type": "GRASS",
+        "texture": {
+            "front": "grass-block-side.png",
+            "back": "grass-block-side.png",
+            "left": "grass-block-side.png",
+            "right": "grass-block-side.png",
+            "top": "grass-block-top.png",
             "bottom": "dirt.png"
         }
     }

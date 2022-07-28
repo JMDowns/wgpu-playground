@@ -1,5 +1,7 @@
 {
     "num_threads_specified": 8,
     "use_all_system_threads": true,
-    "render_radius": 1
+    "render_radius": 1,
+    "atlas_max_images_on_a_row": 64,
+    "texture_dimension": 16
 }

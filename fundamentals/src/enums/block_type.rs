@@ -8,6 +8,7 @@ pub enum BlockType
 	AIR = 0,
 	WOOD,
 	DIRT,
+	GRASS,
 }
 
 impl phf_shared::FmtConst for BlockType {

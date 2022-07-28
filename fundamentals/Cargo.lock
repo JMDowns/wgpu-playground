@@ -193,7 +193,6 @@ dependencies = [
  "phf_shared",
  "serde",
  "serde_json",
- "texture_packer",
 ]
 
 [[package]]
@@ -686,15 +685,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
-]
-
-[[package]]
-name = "texture_packer"
-version = "0.24.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6c0c9aca09dbcbe40a6c50e95422cef6f3d5b4907d47defe271eb7faf5e1151c"
-dependencies = [
- "image",
 ]
 
 [[package]]

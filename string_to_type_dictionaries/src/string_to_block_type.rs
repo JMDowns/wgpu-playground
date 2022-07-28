@@ -1,13 +1,14 @@
 use fundamentals::enums::block_type::BlockType;
 pub static STRING_TO_BLOCK_TYPE: phf::Map<&str, BlockType> = 
 ::phf::Map {
-    key: 12913932095322966823,
+    key: 15467950696543387533,
     disps: &[
-        (0, 0),
+        (1, 0),
     ],
     entries: &[
         ("DIRT", BlockType::DIRT,),
         ("WOOD", BlockType::WOOD,),
+        ("GRASS", BlockType::GRASS,),
     ],
 };
 
