@@ -1,18 +1,17 @@
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::Path;
-use formats::formats;
-use ::formats::formats::config_format::ConfigFormat;
+use ::formats::formats::{config_format::ConfigFormat, block_format::BlockFormat};
 use serde_json;
 use image::GenericImage;
 use std::collections::HashMap;
 
 fn main() {
     let blocks_json = std::fs::read_to_string("../data/blocks.json").unwrap();
-    let vec_block_format: Vec<formats::block_format::BlockFormat> = serde_json::from_str(&blocks_json).unwrap();
+    let vec_block_format: Vec<BlockFormat> = serde_json::from_str(&blocks_json).unwrap();
 
     let config_json = std::fs::read_to_string("../data/config.json").unwrap();
-    let config_format: formats::config_format::ConfigFormat = serde_json::from_str(&config_json).unwrap();
+    let config_format: ConfigFormat = serde_json::from_str(&config_json).unwrap();
 
     let block_type_names = vec_block_format.iter().map(|ef| format!("{},", ef.block_type.replace(" ", "_").to_uppercase())).collect::<Vec<String>>();
     let block_type_reference_strings = block_type_names.iter().map(|n| format!("BlockType::{}", n)).collect::<Vec<String>>();
@@ -39,8 +38,6 @@ fn main() {
     let string_to_block_types_file_name = String::from("string_to_block_types_file");
     let string_to_texture_indices_name = String::from("string_to_texture_indices_file");
     let lib_file_name = String::from("lib_file");
-
-    let atlas_path = Path::new("../hello-wgpu/src/atlas.png");
 
     let mut image_coord_x = 0;
     let mut image_coord_y = 0;
@@ -81,16 +78,28 @@ fn main() {
         
     }
 
+    let atlas_path = Path::new("../hello-wgpu/src/atlas.png");
+    match std::fs::remove_file(atlas_path) {
+        _ => {},
+    }
+
     let atlas_index_width = match image_coord_y {
         0 => image_coord_x,
         _ => config_format.atlas_max_images_on_a_row
     };
 
-    let atlas_index_height = image_coord_y;
+    let atlas_index_height = match image_coord_y {
+        0 => 1,
+        h => h
+    };
+
+    println!("{} {} {}", atlas_index_width, atlas_index_height, config_format.texture_dimension);
 
     let mut atlas_buf = <image::ImageBuffer<image::Rgba<u8>, _>>::new(atlas_index_width*config_format.texture_dimension, atlas_index_height*config_format.texture_dimension);
 
     for ((tix,tiy), texture) in texture_vec {
+        println!("{} {}", texture.width(), texture.height());
+        println!("{} {}", atlas_buf.width(), atlas_buf.height());
         atlas_buf.copy_from(&texture, tix*config_format.texture_dimension, tiy*config_format.texture_dimension).unwrap();
     }
 
@@ -171,7 +180,7 @@ fn build_string_to_block_type_imports() -> String {
     ].join("\n"))
 }
 
-fn build_string_to_block_type_dictionary_builder(string_to_block_type_dictionary_file_name: &String, block_values: &Vec<formats::block_format::BlockFormat>, block_type_reference_strings: &Vec<String>) -> String {
+fn build_string_to_block_type_dictionary_builder(string_to_block_type_dictionary_file_name: &String, block_values: &Vec<BlockFormat>, block_type_reference_strings: &Vec<String>) -> String {
     let block_names = block_values.iter().map(|b| &b.block_type);
     let map_entries = block_names.zip(block_type_reference_strings).collect::<Vec<(&String, &String)>>();
     String::from(

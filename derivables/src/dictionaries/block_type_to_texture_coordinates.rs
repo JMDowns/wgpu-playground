@@ -7,9 +7,9 @@ pub static BLOCK_TYPE_TO_TEXTURE_COORDINATES: phf::Map<BlockType, [TextureCoordi
         (1, 0),
     ],
     entries: &[
-        (BlockType::GRASS, [TextureCoordinates { tx: 0.0, ty: 0.5 },TextureCoordinates { tx: 0.0, ty: 0.5 },TextureCoordinates { tx: 0.0, ty: 0.5 },TextureCoordinates { tx: 0.0, ty: 0.5 },TextureCoordinates { tx: 0.0, ty: 0.75 },TextureCoordinates { tx: 0.0, ty: 0.25 }]),
+        (BlockType::GRASS, [TextureCoordinates { tx: 0.5, ty: 0.0 },TextureCoordinates { tx: 0.5, ty: 0.0 },TextureCoordinates { tx: 0.5, ty: 0.0 },TextureCoordinates { tx: 0.5, ty: 0.0 },TextureCoordinates { tx: 0.75, ty: 0.0 },TextureCoordinates { tx: 0.25, ty: 0.0 }]),
         (BlockType::WOOD, [TextureCoordinates { tx: 0.0, ty: 0.0 },TextureCoordinates { tx: 0.0, ty: 0.0 },TextureCoordinates { tx: 0.0, ty: 0.0 },TextureCoordinates { tx: 0.0, ty: 0.0 },TextureCoordinates { tx: 0.0, ty: 0.0 },TextureCoordinates { tx: 0.0, ty: 0.0 }]),
-        (BlockType::DIRT, [TextureCoordinates { tx: 0.0, ty: 0.25 },TextureCoordinates { tx: 0.0, ty: 0.25 },TextureCoordinates { tx: 0.0, ty: 0.25 },TextureCoordinates { tx: 0.0, ty: 0.25 },TextureCoordinates { tx: 0.0, ty: 0.25 },TextureCoordinates { tx: 0.0, ty: 0.25 }]),
+        (BlockType::DIRT, [TextureCoordinates { tx: 0.25, ty: 0.0 },TextureCoordinates { tx: 0.25, ty: 0.0 },TextureCoordinates { tx: 0.25, ty: 0.0 },TextureCoordinates { tx: 0.25, ty: 0.0 },TextureCoordinates { tx: 0.25, ty: 0.0 },TextureCoordinates { tx: 0.25, ty: 0.0 }]),
     ],
 };
 
