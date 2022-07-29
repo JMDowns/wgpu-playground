@@ -8,10 +8,6 @@ pub struct Position {
 }
 
 impl Position {
-    pub fn origin() -> Self {
-        Position { x: 0, y: 0, z: 0}
-    }
-
     pub fn new(x: i32, y: i32, z: i32) -> Self {
         Position { x, y, z}
     }

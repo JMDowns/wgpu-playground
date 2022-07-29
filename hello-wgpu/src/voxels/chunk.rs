@@ -27,10 +27,6 @@ impl Chunk {
         &self.blocks[cx+16*cy+256*cz]
     }
 
-    pub fn get_absolute_coords_i32(&self, cx: i32, cy: i32, cz: i32) -> Position {
-        Position { x: cx - 16*self.position.x, y: cy - 16*self.position.y, z: cz - 16*self.position.z}
-    }
-
     pub fn get_absolute_coords_usize(&self, cx: usize, cy: usize, cz: usize)  -> Position {
         Position { x: cx as i32 - 16*self.position.x, y: cy as i32 - 16*self.position.y, z: cz as i32 - 16*self.position.z}
     }

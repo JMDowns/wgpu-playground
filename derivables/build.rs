@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::Path;
 use string_to_type_dictionaries::string_to_block_type::STRING_TO_BLOCK_TYPE;
-use string_to_type_dictionaries::string_to_texture_indices::STRING_TO_TEXTURE_COORDINATES;
+use string_to_type_dictionaries::string_to_texture_coords::STRING_TO_TEXTURE_COORDINATES;
 use formats::formats;
 use phf_codegen;
 use serde_json;

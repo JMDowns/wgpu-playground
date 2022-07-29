@@ -5,7 +5,6 @@ use super::chunk::Chunk;
 use super::position::Position;
 use fundamentals::texture_coords::TextureCoordinates;
 use crate::voxels::vertex::Vertex;
-use wgpu::util::DeviceExt;
 use fundamentals::consts::{TEXTURE_HEIGHT, TEXTURE_WIDTH};
 
 pub struct World {

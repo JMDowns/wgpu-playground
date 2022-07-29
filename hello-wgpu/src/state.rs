@@ -1,11 +1,6 @@
-use std::collections::VecDeque;
-use std::thread;
-
 use crate::texture;
 use crossbeam::sync::WaitGroup;
 use fundamentals::consts;
-use image::GenericImageView;
-use instant::Instant;
 use crate::camera;
 use crate::voxels;
 use crate::voxels::world::World;
