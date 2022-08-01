@@ -24,6 +24,10 @@ impl Position {
             Position::new(self.x, self.y-1, self.z-1),
         ]
     }
+
+    pub fn to_perlin_pos(&self, scale_factor: f64) -> [f64;3] {
+        [(self.x as f64 * scale_factor), (self.y as f64 * scale_factor), (self.z as f64 * scale_factor)]
+    }
 }
 
 impl Display for Position {

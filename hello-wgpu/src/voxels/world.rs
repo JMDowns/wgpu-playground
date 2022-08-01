@@ -19,7 +19,7 @@ impl World {
             for y in -radius..radius+1 {
                 for z in -radius..radius+1{
                     let pos = Position::new(x,y,z);
-                    chunks.insert(pos, Chunk::random(&pos));
+                    chunks.insert(pos, Chunk::perlin(&pos));
                 }
             }
         }

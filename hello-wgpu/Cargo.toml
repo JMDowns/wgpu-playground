@@ -33,6 +33,7 @@ itertools = "0.10.3"
 fundamentals = { path = "../fundamentals" }
 derivables = { path = "../derivables" }
 crossbeam = "0.8.1"
+noise = "0.7.0"
 
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
