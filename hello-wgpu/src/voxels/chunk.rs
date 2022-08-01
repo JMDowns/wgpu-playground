@@ -11,20 +11,6 @@ pub struct Chunk {
 }
 
 impl Chunk {
-    pub fn random(position: &Position) -> Self {
-        let mut blocks_vec = Vec::new();
-
-        for _ in 0..4096 {
-            if fastrand::u8(0..10) == 0 {
-                blocks_vec.push(Block::new(num::FromPrimitive::from_u16(fastrand::u16(1..consts::NUM_BLOCK_TYPES)).unwrap()))
-            } else {
-                blocks_vec.push(Block::new(BlockType::AIR));
-            }
-        }
-
-        Chunk { position: *position, blocks: Chunk::get_arr(blocks_vec) }
-    }
-
     pub fn perlin(position: &Position) -> Self {
         let mut blocks_vec = Vec::new();
 
@@ -33,7 +19,7 @@ impl Chunk {
         for i in 0..4096 {
             let bposition = Position { x: (i % 16) - 16*position.x, y: ((i / 16) % 16) - 16*position.y, z: (i / 256) - 16*position.z };
             let perlin_sample = perlin.get(bposition.to_perlin_pos(0.1));
-            if perlin_sample > 0.0 {
+            if perlin_sample < -0.2 || perlin_sample > 0.2 {
                 blocks_vec.push(Block::new(num::FromPrimitive::from_u16(fastrand::u16(1..consts::NUM_BLOCK_TYPES)).unwrap()))
             } else {
                 blocks_vec.push(Block::new(BlockType::AIR));

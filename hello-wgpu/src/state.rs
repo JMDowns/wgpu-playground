@@ -7,6 +7,7 @@ use crate::voxels::world::World;
 use itertools::izip;
 use wgpu::util::DeviceExt;
 use crate::voxels::position::Position;
+use crate::voxels::mesh::Mesh;
 
 use winit::{
     event::*,
@@ -24,9 +25,10 @@ pub struct State {
     pub screen_color: wgpu::Color,
     pub render_pipeline_regular: wgpu::RenderPipeline,
     pub render_pipeline_wireframe: wgpu::RenderPipeline,
-    pub vertex_buffers: Vec<wgpu::Buffer>,
-    pub index_buffers: Vec<wgpu::Buffer>,
-    pub index_buffers_length: Vec<u32>,
+    pub mesh: Mesh,
+    vertex_buffers: [wgpu::Buffer; 6],
+    index_buffers: [wgpu::Buffer; 6],
+    index_buffers_length: [u32; 6],
     pub depth_texture: texture::Texture,
     pub camera: camera::Camera,
     pub camera_uniform: camera::CameraUniform,
@@ -296,20 +298,18 @@ impl State {
         let world = World::new(radius);
 
         let mut loaded_chunk_positions = Vec::new();
-        for x in -radius..radius {
-            for y in -radius..radius {
-                for z in -radius..radius {
+        for x in -radius..radius+1 {
+            for y in -radius..radius+1 {
+                for z in -radius..radius+1 {
                     let pos = Position::new(x,y,z);
                     loaded_chunk_positions.push(pos);
                 }
             }
         }
 
-        let (mut vertex_buffers, mut index_buffers, mut index_buffers_length) = (Vec::new(), Vec::new(), Vec::new());
-
         let mut chunk_load_task_vec = Vec::new();
         for _ in 0..consts::NUM_THREADS {
-            chunk_load_task_vec.push((Vec::new(), (Vec::new(), Vec::new(), Vec::new())));
+            chunk_load_task_vec.push((Vec::new(), Mesh::new()));
         }
 
         let mut thread_num = 0;
@@ -322,26 +322,11 @@ impl State {
         
 
         let _ = crossbeam::scope(|scope| {
-            for (ref mut positions, (ref mut v_vec, ref mut i_vec, ref mut l_vec)) in chunk_load_task_vec.iter_mut() {
+            for (ref mut positions, mesh) in chunk_load_task_vec.iter_mut() {
                 let wg = wg.clone();
                 scope.spawn(|_| {
                     for pos in positions {
-                        let (v, index, l) = world.generate_vi_vecs_at(pos);
-                        v_vec.push(device.create_buffer_init(
-                            &wgpu::util::BufferInitDescriptor {
-                                label: Some(&format!("Chunk Vertex Buffer at {}", pos)),
-                                contents: bytemuck::cast_slice(&v),
-                                usage: wgpu::BufferUsages::VERTEX,
-                            }
-                        ));
-                        i_vec.push(device.create_buffer_init(
-                            &wgpu::util::BufferInitDescriptor {
-                                label: Some(&format!("Chunk Index Buffer at {}", pos)),
-                                contents: bytemuck::cast_slice(&index),
-                                usage: wgpu::BufferUsages::INDEX,
-                            }
-                        )); 
-                        l_vec.push(l);
+                        mesh.add_mesh(world.generate_mesh_at(pos));
                     }
 
                     drop(wg);
@@ -351,17 +336,17 @@ impl State {
 
         wg.wait();
 
-        for (_, (v_vec, i_vec, l_vec)) in chunk_load_task_vec {
-            for buffer in v_vec {
-                vertex_buffers.push(buffer);
-            }
-            for buffer in i_vec {
-                index_buffers.push(buffer);
-            }
-            for length in l_vec {
-                index_buffers_length.push(length);
-            }
+        let mut mesh = Mesh::new();
+
+        for (_, chunk_mesh) in chunk_load_task_vec {
+            mesh.add_mesh(chunk_mesh);
         }
+
+        let vertex_buffers = mesh.get_vertex_buffers(&device);
+
+        let index_buffers = mesh.get_index_buffers(&device);
+
+        let index_buffers_length = mesh.get_index_buffers_lengths();
 
         Self {
             surface,
@@ -372,6 +357,7 @@ impl State {
             screen_color,
             render_pipeline_regular,
             render_pipeline_wireframe,
+            mesh,
             vertex_buffers,
             index_buffers,
             index_buffers_length,
@@ -482,11 +468,10 @@ impl State {
             render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
             render_pass.set_bind_group(1, &self.diffuse_bind_group, &[]);
 
-            for (vertex_buffer, index_buffer, index_buffer_length) 
-                in izip!(&self.vertex_buffers, &self.index_buffers, &self.index_buffers_length) {
-                render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
-                render_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-                render_pass.draw_indexed(0..*index_buffer_length, 0, 0..1);
+            for i in 0..6 {
+                render_pass.set_vertex_buffer(0, self.vertex_buffers[i].slice(..));
+                render_pass.set_index_buffer(self.index_buffers[i].slice(..), wgpu::IndexFormat::Uint32);
+                render_pass.draw_indexed(0..self.index_buffers_length[i], 0, 0..1);
             }
         }
 
