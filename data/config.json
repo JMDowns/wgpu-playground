@@ -3,5 +3,6 @@
     "use_all_system_threads": false,
     "render_radius": 1,
     "atlas_max_images_on_a_row": 2,
-    "texture_dimension": 16
+    "texture_dimension": 16,
+    "chunk_dimension": 16
 }

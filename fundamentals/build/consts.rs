@@ -15,6 +15,9 @@ pub fn generate_consts(config_format: &ConfigFormat, consts_model: &ConstsModel)
             format!("pub const RENDER_DISTANCE: usize = {};", config_format.render_radius),
             format!("pub const TEXTURE_WIDTH: f32 = {};", consts_model.texture_width_str),
             format!("pub const TEXTURE_HEIGHT: f32 = {};", consts_model.texture_height_str),
+            format!("pub const CHUNK_DIMENSION: i32 = {};", config_format.chunk_dimension),
+            format!("pub const CHUNK_PLANE_SIZE: i32 = {};", (config_format.chunk_dimension as u32)*(config_format.chunk_dimension as u32)),
+            format!("pub const CHUNK_SIZE: usize = {};", (config_format.chunk_dimension as u32)*(config_format.chunk_dimension as u32)*(config_format.chunk_dimension as u32)),
         ].join("\n")
     ).unwrap();
 }
