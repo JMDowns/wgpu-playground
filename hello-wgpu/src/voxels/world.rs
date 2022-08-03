@@ -1,7 +1,12 @@
 use std::collections::HashMap;
+use derivables::dictionaries::block_type_to_texture_coordinates::BLOCK_TYPE_TO_TEXTURE_COORDINATES;
+use fundamentals::consts::{CHUNK_DIMENSION, CHUNK_PLANE_SIZE};
+
+use super::{block, chunk};
 use super::chunk::Chunk;
 use super::position::Position;
 use crate::voxels::mesh::Mesh;
+use fundamentals::enums::block_type::BlockType;
 
 pub struct World {
     chunks: HashMap<Position, Chunk>,
@@ -24,6 +29,27 @@ impl World {
     }
     
     pub fn generate_mesh_at(&self, pos: &Position) -> Mesh {
-        Mesh::stupid(self.chunks.get(pos).unwrap())
+        let block_solid_data = self.list_if_blocks_are_solid_in_and_surrounding_chunk(pos);
+        Mesh::stupid_ambient_occlusion(self.chunks.get(pos).unwrap(), block_solid_data)
+    }
+
+    fn list_if_blocks_are_solid_in_and_surrounding_chunk(&self, pos: &Position) -> [[[bool; CHUNK_DIMENSION as usize+2]; CHUNK_DIMENSION as usize+2]; CHUNK_DIMENSION as usize+2] {
+        let mut block_info = [[[false; CHUNK_DIMENSION as usize+2]; CHUNK_DIMENSION as usize+2]; CHUNK_DIMENSION as usize+2];
+        let chunk_options = pos.generate_neighborhood1_positions().map(|d2arr| d2arr.map(|d1arr| d1arr.map(|pos| self.chunks.get(&pos))));
+        for k in 0..(CHUNK_DIMENSION+2 )as usize {
+            for j in 0..(CHUNK_DIMENSION+2 )as usize {
+                for i in 0..(CHUNK_DIMENSION+2 )as usize {
+                    let offset_i = i + CHUNK_DIMENSION as usize-1;
+                    let offset_j = j + CHUNK_DIMENSION as usize-1;
+                    let offset_k = k + CHUNK_DIMENSION as usize-1;
+                    block_info[i][j][k] = match chunk_options[offset_i / CHUNK_DIMENSION as usize][offset_j / CHUNK_DIMENSION as usize][offset_k / CHUNK_DIMENSION as usize] {
+                        Some(chunk) => chunk.get_block_at(offset_i % CHUNK_DIMENSION as usize, offset_j % CHUNK_DIMENSION as usize, offset_k % CHUNK_DIMENSION as usize).get_block_type() != BlockType::AIR,
+                        None => false
+                    };
+                }
+            }
+        }
+
+        block_info
     }
 }

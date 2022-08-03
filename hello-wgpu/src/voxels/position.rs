@@ -12,17 +12,29 @@ impl Position {
         Position { x, y, z}
     }
 
-    pub fn generate_positions(&self) -> [Position; 8] {
+    pub fn generate_vertex_positions(&self) -> [Position; 8] {
         [
             Position::new(self.x, self.y, self.z),
-            Position::new(self.x-1, self.y, self.z),
-            Position::new(self.x-1, self.y-1, self.z),
-            Position::new(self.x, self.y-1, self.z),
-            Position::new(self.x, self.y, self.z-1),
-            Position::new(self.x-1, self.y, self.z-1),
-            Position::new(self.x-1, self.y-1, self.z-1),
-            Position::new(self.x, self.y-1, self.z-1),
+            Position::new(self.x, self.y, self.z+1),
+            Position::new(self.x, self.y+1, self.z),
+            Position::new(self.x, self.y+1, self.z+1),
+            Position::new(self.x+1, self.y, self.z),
+            Position::new(self.x+1, self.y, self.z+1),
+            Position::new(self.x+1, self.y+1, self.z),
+            Position::new(self.x+1, self.y+1, self.z+1),
         ]
+    }
+
+    pub fn generate_neighborhood1_positions(&self) -> [[[Position; 3]; 3]; 3] {
+        let mut positions = [[[Position::new(self.x,self.y,self.z); 3]; 3]; 3];
+        for k in 0..3 as i32 {
+            for j in 0..3 as i32 {
+                for i in 0..3 as i32{
+                    positions[i as usize][j as usize][k as usize] = Position::new(self.x+i-1, self.y+j-1, self.z+k-1);
+                }
+            }
+        }
+        positions
     }
 
     pub fn to_perlin_pos(&self, scale_factor: f64) -> [f64;3] {

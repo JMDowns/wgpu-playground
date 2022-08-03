@@ -5,11 +5,12 @@ use fundamentals::texture_coords::TextureCoordinates;
 pub struct Vertex {
     position: [i32; 3],
     tex_coords: [f32; 2],
+    ambient_occlusion: f32
 }
 
 impl Vertex {
-    pub fn new(pos: crate::voxels::position::Position, tc: TextureCoordinates) -> Self {
-        Vertex { position: [pos.x, pos.y, pos.z], tex_coords: [tc.tx, tc.ty] }
+    pub fn new(pos: crate::voxels::position::Position, tc: TextureCoordinates, ambient_occlusion: f32) -> Self {
+        Vertex { position: [pos.x, pos.y, pos.z], tex_coords: [tc.tx, tc.ty], ambient_occlusion }
     }
     pub fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
         wgpu::VertexBufferLayout {
@@ -25,6 +26,11 @@ impl Vertex {
                     offset: std::mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
                     shader_location: 1,
                     format: wgpu::VertexFormat::Float32x2,
+                },
+                wgpu::VertexAttribute {
+                    offset: (std::mem::size_of::<[f32; 3]>() + std::mem::size_of::<[f32;2]>()) as wgpu::BufferAddress,
+                    shader_location: 2,
+                    format: wgpu::VertexFormat::Float32,
                 }
             ]
         }

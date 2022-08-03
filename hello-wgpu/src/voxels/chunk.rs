@@ -1,5 +1,5 @@
 use super::position::Position;
-use super::block::{Block};
+use super::block::{Block, self};
 use fundamentals::enums::block_type::BlockType;
 use fundamentals::consts;
 use noise::Perlin;
