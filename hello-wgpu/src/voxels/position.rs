@@ -30,7 +30,7 @@ impl Position {
         for k in 0..3 as i32 {
             for j in 0..3 as i32 {
                 for i in 0..3 as i32{
-                    positions[i as usize][j as usize][k as usize] = Position::new(self.x+i-1, self.y+j-1, self.z+k-1);
+                    positions[i as usize][j as usize][k as usize] = Position::new(self.x-i+1, self.y-j+1, self.z-k+1);
                 }
             }
         }
