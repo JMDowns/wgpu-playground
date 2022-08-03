@@ -316,7 +316,7 @@ pub fn generate_cube(pos: Position, tex_coords_arr: &[TextureCoordinates; 6], am
         Vertex::new(positions[7], tex_coords_arr[1].offset(0.0, 0.0), ambient_occlusion_on_vertices[7][0] as f32),
         ].to_vec(),
         [
-        Vertex::new(positions[0], tex_coords_arr[2].offset(TEXTURE_HEIGHT, TEXTURE_HEIGHT), ambient_occlusion_on_vertices[0][1] as f32),
+        Vertex::new(positions[0], tex_coords_arr[2].offset(TEXTURE_WIDTH, TEXTURE_HEIGHT), ambient_occlusion_on_vertices[0][1] as f32),
         Vertex::new(positions[2], tex_coords_arr[2].offset(TEXTURE_WIDTH, 0.0), ambient_occlusion_on_vertices[2][1] as f32),
         Vertex::new(positions[4], tex_coords_arr[2].offset(0.0, TEXTURE_HEIGHT), ambient_occlusion_on_vertices[4][1] as f32),
         Vertex::new(positions[6], tex_coords_arr[2].offset(0.0, 0.0), ambient_occlusion_on_vertices[6][1] as f32),
