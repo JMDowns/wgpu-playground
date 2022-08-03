@@ -5,8 +5,6 @@ use super::position::Position;
 use fundamentals::consts::{TEXTURE_HEIGHT, TEXTURE_WIDTH, CHUNK_DIMENSION};
 use fundamentals::enums::block_type::BlockType;
 use super::chunk::Chunk;
-use std::collections::HashMap;
-use crate::voxels::world::World;
 
 pub struct Mesh {
     pub front: (Vec<Vertex>, Vec<u32>, u32),
@@ -29,7 +27,7 @@ impl Mesh {
         }
     }
 
-    pub fn stupid(chunk: &Chunk, _solid_data: [[[bool; CHUNK_DIMENSION as usize+2]; CHUNK_DIMENSION as usize+2]; CHUNK_DIMENSION as usize+2]) -> Self {
+    pub fn _stupid(chunk: &Chunk, _solid_data: [[[bool; CHUNK_DIMENSION as usize+2]; CHUNK_DIMENSION as usize+2]; CHUNK_DIMENSION as usize+2]) -> Self {
 
         let mut mesh = Mesh::new();
 
