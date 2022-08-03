@@ -27,7 +27,7 @@ impl World {
     
     pub fn generate_mesh_at(&self, pos: &Position) -> Mesh {
         let block_solid_data = self.list_if_blocks_are_solid_in_and_surrounding_chunk(pos);
-        Mesh::stupid_ambient_occlusion(self.chunks.get(pos).unwrap(), block_solid_data)
+        Mesh::cull_ambient_occlusion(self.chunks.get(pos).unwrap(), block_solid_data)
     }
 
     fn list_if_blocks_are_solid_in_and_surrounding_chunk(&self, pos: &Position) -> [[[bool; CHUNK_DIMENSION as usize+2]; CHUNK_DIMENSION as usize+2]; CHUNK_DIMENSION as usize+2] {

@@ -12,6 +12,18 @@
     },
 
     {
+        "block_type": "WHITE",
+        "texture": {
+            "front": "White.png",
+            "back": "White.png",
+            "left": "White.png",
+            "right": "White.png",
+            "top": "White.png",
+            "bottom": "White.png"
+        }
+    },
+
+    {
         "block_type": "DIRT",
         "texture": {
             "front": "dirt.png",

@@ -40,7 +40,7 @@ impl Mesh {
                     if block.get_block_type() != BlockType::AIR {
                         mesh.add_vertices(
                             generate_cube(chunk.get_absolute_coords_usize(i, j, k), block.get_texture_coords(), &ambient_occlusion_on_vertices, &adjacent_blocks_data), 
-                            generate_cube_indices(&adjacent_blocks_data)
+                            generate_cube_indices(&adjacent_blocks_data, &ambient_occlusion_on_vertices)
                         );
                     }
                     
@@ -51,7 +51,7 @@ impl Mesh {
         mesh
     }
 
-    pub fn stupid_ambient_occlusion(chunk: &Chunk, solid_data: [[[bool; CHUNK_DIMENSION as usize+2]; CHUNK_DIMENSION as usize+2]; CHUNK_DIMENSION as usize+2]) -> Self {
+    pub fn cull_ambient_occlusion(chunk: &Chunk, solid_data: [[[bool; CHUNK_DIMENSION as usize+2]; CHUNK_DIMENSION as usize+2]; CHUNK_DIMENSION as usize+2]) -> Self {
 
         let mut mesh = Mesh::new();
 
@@ -64,7 +64,7 @@ impl Mesh {
                     if block.get_block_type() != BlockType::AIR {
                         mesh.add_vertices(
                             generate_cube(chunk.get_absolute_coords_usize(i, j, k), block.get_texture_coords(), &ambient_occlusion_on_vertices, &adjacent_blocks_data), 
-                            generate_cube_indices(&adjacent_blocks_data)
+                            generate_cube_indices(&adjacent_blocks_data, &ambient_occlusion_on_vertices)
                         );
                     }
                     
@@ -350,40 +350,86 @@ pub fn generate_cube(pos: Position, tex_coords_arr: &[TextureCoordinates; 6], am
     vertices_arr
 }
 
-pub fn generate_cube_indices(adjacent_blocks_data: &[bool;6]) -> [Vec<u32>;6] {
+pub fn generate_cube_indices(adjacent_blocks_data: &[bool;6], ambient_occlusion_on_vertices: &[[u8;3]; 8]) -> [Vec<u32>;6] {
     let mut indices_arr = [Vec::new(),Vec::new(),Vec::new(),Vec::new(),Vec::new(),Vec::new(),];
     let all_indices_arr = 
     [
         // Front Face
-        [
-        0,1,2,
-        1,3,2,
-        ].to_vec(),
+        match ambient_occlusion_on_vertices[0][0] + ambient_occlusion_on_vertices[3][0] <= ambient_occlusion_on_vertices[1][0] + ambient_occlusion_on_vertices[2][0] {
+            true => [
+                0,1,3,
+                0,3,2,
+                ].to_vec(),
+            false => [
+                0,1,2,
+                1,3,2,
+                ].to_vec(),
+        },
         // Back Face
-        [    
-        0,2,3,
-        0,3,1,
-        ].to_vec(),
+        match ambient_occlusion_on_vertices[5][0] + ambient_occlusion_on_vertices[6][0] <= ambient_occlusion_on_vertices[4][0] + ambient_occlusion_on_vertices[7][0] {
+            true => 
+            [    
+            1,0,2,
+            1,2,3,
+            ].to_vec(),
+            false => 
+            [    
+            1,0,3,
+            0,2,3,
+            ].to_vec(),
+        },
         // Left Face
-        [
-        0,1,2,
-        1,3,2,
-        ].to_vec(),
+        match ambient_occlusion_on_vertices[4][1] + ambient_occlusion_on_vertices[2][1] <= ambient_occlusion_on_vertices[0][1] + ambient_occlusion_on_vertices[6][1] {
+            true => 
+            [
+            2,0,1,
+            2,1,3,
+            ].to_vec(),
+            false => 
+            [
+            2,0,3,
+            0,1,3,
+            ].to_vec(),
+        },
         // Right Face
-        [
-        0,2,1,
-        1,2,3,
-        ].to_vec(),
+        match ambient_occlusion_on_vertices[1][1] + ambient_occlusion_on_vertices[7][1] <= ambient_occlusion_on_vertices[3][1] + ambient_occlusion_on_vertices[5][1] {
+            true => 
+            [
+            0,2,3,
+            0,3,1,
+            ].to_vec(),
+            false => 
+            [
+            0,2,1,
+            2,3,1,
+            ].to_vec(),
+        },
         // Top Face
-        [
-        0,3,2,
-        0,1,3,
-        ].to_vec(),
+        match ambient_occlusion_on_vertices[2][2] + ambient_occlusion_on_vertices[7][2] <= ambient_occlusion_on_vertices[3][2] + ambient_occlusion_on_vertices[6][2] {
+            true => 
+            [
+            0,1,3,
+            0,3,2,
+            ].to_vec(),
+            false => 
+            [
+            0,1,2,
+            1,3,2,
+            ].to_vec(),
+        },
         // Bottom Face
-        [
-        1,0,3,
-        0,2,3
-        ].to_vec(),
+        match ambient_occlusion_on_vertices[4][2] + ambient_occlusion_on_vertices[1][2] <= ambient_occlusion_on_vertices[0][2] + ambient_occlusion_on_vertices[5][2] {
+            true => 
+            [
+            1,0,2,
+            1,2,3
+            ].to_vec(),
+            false => 
+            [
+            1,0,3,
+            0,2,3
+            ].to_vec(),
+        },
     ];
 
     for i in 0..6 {

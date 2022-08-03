@@ -20,6 +20,7 @@ writeln!(
 	"use fundamentals::enums::block_type::BlockType;\npub static STRING_TO_BLOCK_TYPE: phf::Map<&str, BlockType> = \n{};\n",
 	phf_codegen::Map::new()
 		.entry("WOOD", "BlockType::WOOD,")
+		.entry("WHITE", "BlockType::WHITE,")
 		.entry("DIRT", "BlockType::DIRT,")
 		.entry("GRASS", "BlockType::GRASS,")
 		.build()
@@ -29,8 +30,9 @@ writeln!(
 	"use fundamentals::texture_coords::TextureCoordinates;\npub static STRING_TO_TEXTURE_COORDINATES: phf::Map<&str, [TextureCoordinates; 6]> = \n{};\n",
 	phf_codegen::Map::new()
 		.entry("WOOD", "[TextureCoordinates {tx: 0.0, ty: 0.0},TextureCoordinates {tx: 0.0, ty: 0.0},TextureCoordinates {tx: 0.0, ty: 0.0},TextureCoordinates {tx: 0.0, ty: 0.0},TextureCoordinates {tx: 0.0, ty: 0.0},TextureCoordinates {tx: 0.0, ty: 0.0}]")
-		.entry("DIRT", "[TextureCoordinates {tx: 0.5, ty: 0.0},TextureCoordinates {tx: 0.5, ty: 0.0},TextureCoordinates {tx: 0.5, ty: 0.0},TextureCoordinates {tx: 0.5, ty: 0.0},TextureCoordinates {tx: 0.5, ty: 0.0},TextureCoordinates {tx: 0.5, ty: 0.0}]")
-		.entry("GRASS", "[TextureCoordinates {tx: 0.0, ty: 0.5},TextureCoordinates {tx: 0.0, ty: 0.5},TextureCoordinates {tx: 0.0, ty: 0.5},TextureCoordinates {tx: 0.0, ty: 0.5},TextureCoordinates {tx: 0.5, ty: 0.5},TextureCoordinates {tx: 0.5, ty: 0.0}]")
+		.entry("WHITE", "[TextureCoordinates {tx: 0.5, ty: 0.0},TextureCoordinates {tx: 0.5, ty: 0.0},TextureCoordinates {tx: 0.5, ty: 0.0},TextureCoordinates {tx: 0.5, ty: 0.0},TextureCoordinates {tx: 0.5, ty: 0.0},TextureCoordinates {tx: 0.5, ty: 0.0}]")
+		.entry("DIRT", "[TextureCoordinates {tx: 0.0, ty: 0.33333334},TextureCoordinates {tx: 0.0, ty: 0.33333334},TextureCoordinates {tx: 0.0, ty: 0.33333334},TextureCoordinates {tx: 0.0, ty: 0.33333334},TextureCoordinates {tx: 0.0, ty: 0.33333334},TextureCoordinates {tx: 0.0, ty: 0.33333334}]")
+		.entry("GRASS", "[TextureCoordinates {tx: 0.5, ty: 0.33333334},TextureCoordinates {tx: 0.5, ty: 0.33333334},TextureCoordinates {tx: 0.5, ty: 0.33333334},TextureCoordinates {tx: 0.5, ty: 0.33333334},TextureCoordinates {tx: 0.0, ty: 0.6666667},TextureCoordinates {tx: 0.0, ty: 0.33333334}]")
 		.build()
 	).unwrap();
 }
