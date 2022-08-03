@@ -1,8 +1,4 @@
 use std::collections::HashMap;
-use derivables::dictionaries::block_type_to_texture_coordinates::BLOCK_TYPE_TO_TEXTURE_COORDINATES;
-use fundamentals::consts::{CHUNK_DIMENSION, CHUNK_PLANE_SIZE};
-
-use super::{block, chunk};
 use super::chunk::Chunk;
 use super::position::Position;
 use crate::voxels::mesh::Mesh;
