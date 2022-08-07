@@ -17,8 +17,9 @@ const SAFE_FRAC_PI_2: f32 = FRAC_PI_2 - 0.0001;
 #[derive(Debug)]
 pub struct Camera {
     pub position: Point3<f32>,
-    yaw: Rad<f32>,
-    pitch: Rad<f32>,
+    pub yaw: Rad<f32>,
+    pub pitch: Rad<f32>,
+    pub view_vec: cgmath::Vector3<f32>
 }
 
 impl Camera {
@@ -31,10 +32,15 @@ impl Camera {
         yaw: Y,
         pitch: P,
     ) -> Self {
+        let yaw_rad = yaw.into();
+        let pitch_rad = pitch.into();
+        let (yaw_sin, yaw_cos) = yaw_rad.sin_cos();
+        let (pitch_sin, _) = pitch_rad.sin_cos();
         Self {
             position: position.into(),
-            yaw: yaw.into(),
-            pitch: pitch.into(),
+            yaw: yaw_rad,
+            pitch: pitch_rad,
+            view_vec: cgmath::Vector3::new(yaw_cos, pitch_sin, yaw_sin).normalize(),
         }
     }
 
@@ -188,6 +194,12 @@ impl CameraController {
         // Rotate
         camera.yaw += Rad(self.rotate_horizontal) * self.sensitivity * dt;
         camera.pitch += Rad(-self.rotate_vertical) * self.sensitivity * dt;
+
+        // Adjust normal
+        camera.view_vec.x += camera.yaw.cos();
+        camera.view_vec.y += camera.pitch.sin();
+        camera.view_vec.z += camera.yaw.sin();
+        camera.view_vec = camera.view_vec.normalize();
 
         // If process_mouse isn't called every frame, these values
         // will not get set to zero, and the camera will rotate

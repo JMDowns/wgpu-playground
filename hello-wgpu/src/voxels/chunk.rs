@@ -1,3 +1,4 @@
+use super::mesh::Mesh;
 use super::position::Position;
 use super::block::Block;
 use fundamentals::enums::block_type::BlockType;
@@ -8,7 +9,8 @@ use consts::{CHUNK_DIMENSION, CHUNK_PLANE_SIZE, CHUNK_SIZE};
 
 pub struct Chunk {
     pub position: Position,
-    pub blocks: [Block; CHUNK_SIZE]
+    pub blocks: [Block; CHUNK_SIZE],
+    pub mesh: Mesh
 }
 
 impl Chunk {
@@ -27,7 +29,7 @@ impl Chunk {
             }
         }
 
-        Chunk { position: *position, blocks: Chunk::get_arr(blocks_vec) }
+        Chunk { position: *position, blocks: Chunk::get_arr(blocks_vec), mesh: Mesh::new() }
     }
 
     pub fn get_block_at(&self, cx: usize, cy: usize, cz: usize) -> &Block{

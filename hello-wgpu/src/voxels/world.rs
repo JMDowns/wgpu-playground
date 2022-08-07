@@ -10,19 +10,16 @@ pub struct World {
 }
 
 impl World {
-    pub fn new(radius: i32) -> Self {
+    pub fn new() -> Self {
+        World { chunks: HashMap::new() }
+    }
 
-        let mut chunks = HashMap::new();
-        for x in -radius..radius+1 {
-            for y in -radius..radius+1 {
-                for z in -radius..radius+1{
-                    let pos = Position::new(x,y,z);
-                    chunks.insert(pos, Chunk::perlin(&pos));
-                }
-            }
-        }
+    pub fn generate_chunk_at(pos: &Position) -> Chunk {
+        Chunk::perlin(&pos)
+    }
 
-        World { chunks }
+    pub fn add_chunk(&mut self, chunk: Chunk) {
+        self.chunks.insert(chunk.position, chunk);
     }
     
     pub fn generate_mesh_at(&self, pos: &Position) -> Mesh {

@@ -7,13 +7,19 @@ use crate::voxels::world::World;
 use wgpu::util::DeviceExt;
 use crate::voxels::position::Position;
 use crate::voxels::mesh::Mesh;
+use std::f32::consts::{FRAC_PI_4, FRAC_PI_6, FRAC_PI_3, FRAC_PI_2};
+use std::collections::HashMap;
 
 use winit::{
     event::*,
     window::Window,
 };
 
-
+const FRAC_3_PI_4: f32 = 3.0 * FRAC_PI_4;
+const NEG_FRAC_3_PI_4: f32 = -1.0 * FRAC_3_PI_4;
+const SQRT_2_DIV_2: f32 = 0.7071;
+const NEG_SQRT_2_DIV_2: f32 = -0.7071;
+const SQRT_2_DIV_2_OFF: f32 = 0.7000;
 
 pub struct State {
     pub surface: wgpu::Surface,
@@ -294,7 +300,7 @@ impl State {
 
         let radius = consts::RENDER_DISTANCE as i32;
 
-        let world = World::new(radius);
+        let mut world = World::new();
 
         let mut loaded_chunk_positions = Vec::new();
         for x in -radius..radius+1 {
@@ -308,20 +314,48 @@ impl State {
 
         let mut chunk_load_task_vec = Vec::new();
         for _ in 0..consts::NUM_THREADS {
-            chunk_load_task_vec.push((Vec::new(), Mesh::new()));
+            chunk_load_task_vec.push((Vec::new(), HashMap::new()));
+        }
+
+        let mut chunk_mesh_task_vec = Vec::new();
+        for _ in 0..consts::NUM_THREADS {
+            chunk_mesh_task_vec.push((Vec::new(), Mesh::new()));
         }
 
         let mut thread_num = 0;
         for pos in loaded_chunk_positions {
             chunk_load_task_vec[thread_num].0.push(pos);
+            chunk_mesh_task_vec[thread_num].0.push(pos);
             thread_num = (thread_num + 1) % consts::NUM_THREADS;
+        }
+
+        let wg = WaitGroup::new();
+
+        let _ = crossbeam::scope(|scope| {
+            for (ref mut positions, ref mut chunkmap) in chunk_load_task_vec.iter_mut() {
+                let wg = wg.clone();
+                scope.spawn(|_| {
+                    for pos in positions {
+                        let pos2 = pos.clone();
+                        chunkmap.insert(*pos, World::generate_chunk_at(&pos2));
+                    }
+
+                    drop(wg);
+                });
+            }
+        });
+
+        for (_, ref mut chunkmap) in chunk_load_task_vec {
+            for (_pos, chunk) in chunkmap.drain() {
+                world.add_chunk(chunk);
+            }
         }
 
         let wg = WaitGroup::new();
         
 
         let _ = crossbeam::scope(|scope| {
-            for (ref mut positions, mesh) in chunk_load_task_vec.iter_mut() {
+            for (ref mut positions, mesh) in chunk_mesh_task_vec.iter_mut() {
                 let wg = wg.clone();
                 scope.spawn(|_| {
                     for pos in positions {
@@ -337,7 +371,7 @@ impl State {
 
         let mut mesh = Mesh::new();
 
-        for (_, chunk_mesh) in chunk_load_task_vec {
+        for (_, chunk_mesh) in chunk_mesh_task_vec {
             mesh.add_mesh(chunk_mesh);
         }
 
@@ -467,10 +501,45 @@ impl State {
             render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
             render_pass.set_bind_group(1, &self.diffuse_bind_group, &[]);
 
-            for i in 0..6 {
-                render_pass.set_vertex_buffer(0, self.vertex_buffers[i].slice(..));
-                render_pass.set_index_buffer(self.index_buffers[i].slice(..), wgpu::IndexFormat::Uint32);
-                render_pass.draw_indexed(0..self.index_buffers_length[i], 0, 0..1);
+            let ycos = self.camera.yaw.0.cos();
+            let ysin = self.camera.yaw.0.sin();
+            let psin = self.camera.pitch.0.sin();
+
+            //front
+            if ycos > NEG_SQRT_2_DIV_2 {
+                render_pass.set_vertex_buffer(0, self.vertex_buffers[0].slice(..));
+                render_pass.set_index_buffer(self.index_buffers[0].slice(..), wgpu::IndexFormat::Uint32);
+                render_pass.draw_indexed(0..self.index_buffers_length[0], 0, 0..1);
+            }
+            //back
+            if ycos < SQRT_2_DIV_2_OFF {
+                render_pass.set_vertex_buffer(0, self.vertex_buffers[1].slice(..));
+                render_pass.set_index_buffer(self.index_buffers[1].slice(..), wgpu::IndexFormat::Uint32);
+                render_pass.draw_indexed(0..self.index_buffers_length[1], 0, 0..1);
+            }
+            //left
+            if ysin > NEG_SQRT_2_DIV_2 {
+                render_pass.set_vertex_buffer(0, self.vertex_buffers[2].slice(..));
+                render_pass.set_index_buffer(self.index_buffers[2].slice(..), wgpu::IndexFormat::Uint32);
+                render_pass.draw_indexed(0..self.index_buffers_length[2], 0, 0..1);
+            }
+            //right
+            if ysin < SQRT_2_DIV_2 {
+                render_pass.set_vertex_buffer(0, self.vertex_buffers[3].slice(..));
+                render_pass.set_index_buffer(self.index_buffers[3].slice(..), wgpu::IndexFormat::Uint32);
+                render_pass.draw_indexed(0..self.index_buffers_length[3], 0, 0..1);
+            }
+            //top
+            if psin < SQRT_2_DIV_2  {
+                render_pass.set_vertex_buffer(0, self.vertex_buffers[4].slice(..));
+                render_pass.set_index_buffer(self.index_buffers[4].slice(..), wgpu::IndexFormat::Uint32);
+                render_pass.draw_indexed(0..self.index_buffers_length[4], 0, 0..1);
+            }
+            //bottom
+            if psin > NEG_SQRT_2_DIV_2 {
+                render_pass.set_vertex_buffer(0, self.vertex_buffers[5].slice(..));
+                render_pass.set_index_buffer(self.index_buffers[5].slice(..), wgpu::IndexFormat::Uint32);
+                render_pass.draw_indexed(0..self.index_buffers_length[5], 0, 0..1);
             }
         }
 
