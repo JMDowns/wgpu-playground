@@ -19,7 +19,9 @@ pub struct Camera {
     pub position: Point3<f32>,
     pub yaw: Rad<f32>,
     pub pitch: Rad<f32>,
-    pub view_vec: cgmath::Vector3<f32>
+    pub view_x_vec: cgmath::Vector3<f32>,
+    pub view_y_vec: cgmath::Vector3<f32>,
+    pub view_z_vec: cgmath::Vector3<f32>
 }
 
 impl Camera {
@@ -35,12 +37,14 @@ impl Camera {
         let yaw_rad = yaw.into();
         let pitch_rad = pitch.into();
         let (yaw_sin, yaw_cos) = yaw_rad.sin_cos();
-        let (pitch_sin, _) = pitch_rad.sin_cos();
+        let (pitch_sin, pitch_cos) = pitch_rad.sin_cos();
         Self {
             position: position.into(),
             yaw: yaw_rad,
             pitch: pitch_rad,
-            view_vec: cgmath::Vector3::new(yaw_cos, pitch_sin, yaw_sin).normalize(),
+            view_x_vec: cgmath::Vector3::new(yaw_cos, pitch_sin, yaw_sin).normalize(),
+            view_y_vec: cgmath::Vector3::new(-pitch_sin, pitch_cos, 0.0).normalize(),
+            view_z_vec: cgmath::Vector3::new(-yaw_sin, 0.0, -yaw_cos).normalize(),
         }
     }
 
@@ -195,11 +199,19 @@ impl CameraController {
         camera.yaw += Rad(self.rotate_horizontal) * self.sensitivity * dt;
         camera.pitch += Rad(-self.rotate_vertical) * self.sensitivity * dt;
 
-        // Adjust normal
-        camera.view_vec.x += camera.yaw.cos();
-        camera.view_vec.y += camera.pitch.sin();
-        camera.view_vec.z += camera.yaw.sin();
-        camera.view_vec = camera.view_vec.normalize();
+        // Adjust normals
+        camera.view_x_vec.x = camera.yaw.cos();
+        camera.view_x_vec.y = camera.pitch.sin();
+        camera.view_x_vec.z = camera.yaw.sin();
+        camera.view_x_vec = camera.view_x_vec.normalize();
+
+        camera.view_y_vec.x = -camera.pitch.sin();
+        camera.view_y_vec.y = camera.pitch.cos();
+        camera.view_y_vec = camera.view_y_vec.normalize();
+
+        camera.view_z_vec.x = -camera.yaw.sin();
+        camera.view_z_vec.z = camera.yaw.cos();
+        camera.view_z_vec = camera.view_z_vec.normalize();
 
         // If process_mouse isn't called every frame, these values
         // will not get set to zero, and the camera will rotate
