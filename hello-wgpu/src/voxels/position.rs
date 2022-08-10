@@ -40,6 +40,10 @@ impl Position {
     pub fn generate_neighborhood_n_positions(&self, n: i32) -> Vec<Position> {
         let mut pos_vec = Vec::new();
 
+        if n == 0 {
+            return vec![*self];
+        }
+
         for i in -n..n+1 {
             for j in -n..n+1 {
                 pos_vec.push(Position::new(self.x-n, self.y+i, self.z+j))
@@ -50,23 +54,23 @@ impl Position {
                 pos_vec.push(Position::new(self.x+n, self.y+i, self.z+j))
             }
         }
-        for i in -n..n+1 {
+        for i in -n+1..n {
             for j in -n..n+1 {
                 pos_vec.push(Position::new(self.x+i, self.y+n, self.z+j))
             }
         }
-        for i in -n..n+1 {
+        for i in -n+1..n {
             for j in -n..n+1 {
                 pos_vec.push(Position::new(self.x+i, self.y-n, self.z+j))
             }
         }
-        for i in -n..n+1 {
-            for j in -n..n+1 {
-                pos_vec.push(Position::new(self.x+i, self.y+j, self.z-n))
+        for i in -n+1..n {
+            for j in -n+1..n {
+                pos_vec.push(Position::new(self.x+i, self.y+j, self.z+n))
             }
         }
-        for i in -n..n+1 {
-            for j in -n..n+1 {
+        for i in -n+1..n {
+            for j in -n+1..n {
                 pos_vec.push(Position::new(self.x+i, self.y+j, self.z-n))
             }
         }

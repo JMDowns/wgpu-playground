@@ -1,8 +1,8 @@
 {
     "num_threads_specified": 16,
     "use_all_system_threads": true,
-    "render_radius": 10,
+    "render_radius": 1,
     "atlas_max_images_on_a_row": 4,
     "texture_dimension": 16,
-    "chunk_dimension": 16
+    "chunk_dimension": 32
 }

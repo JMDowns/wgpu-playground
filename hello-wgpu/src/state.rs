@@ -304,8 +304,8 @@ impl State {
         let player_position = Position::new(0,0,0);
 
         let mut loaded_chunk_positions = Vec::new();
-        for n in 0..consts::RENDER_DISTANCE as i32 {
-            loaded_chunk_positions.extend(player_position.generate_neighborhood_n_positions(n));
+        for n in 0..(consts::RENDER_DISTANCE+1) as i32 {
+            loaded_chunk_positions.append(&mut player_position.generate_neighborhood_n_positions(n));
         }
 
         let mut task_queue = VecDeque::new();
@@ -432,7 +432,7 @@ impl State {
         for (_ ,task_results) in task_schedules.drain(0..) {
             for task_result in task_results {
                 match task_result {
-                    TaskResult::Requeue { task } => self.task_queue.push_back(task),
+                    TaskResult::Requeue { task } => self.task_queue.push_front(task),
                     TaskResult::GenerateChunk { chunk } => {
                         println!("Generated chunk {}!", chunks_generated + 1);
                         chunks_generated += 1;
@@ -453,18 +453,17 @@ impl State {
             self.index_buffers = self.mesh.get_index_buffers(&self.device);
             self.index_buffers_lengths = self.mesh.get_index_buffers_lengths();
         }
-
-        println!("Finished generating this phase!");
     }
 
     fn schedule_tasks(&mut self) -> Vec<(Vec<Task>, Vec<TaskResult>)> {
         let mut tasks_scheduled = 0;
         let mut empty_task_list = false;
         let mut task_schedules = Vec::new();
+        let number_tasks_per_thread = 1;
         for _ in 0..consts::NUM_THREADS-1 {
             task_schedules.push((Vec::new(), Vec::new()));
         }
-        while tasks_scheduled < (consts::NUM_THREADS-1) * 5 && !empty_task_list {
+        while tasks_scheduled < (consts::NUM_THREADS-1) * number_tasks_per_thread && !empty_task_list {
             match self.task_queue.pop_front() {
                 Some(task) => task_schedules[tasks_scheduled % (consts::NUM_THREADS-1)].0.push(task),
                 None => empty_task_list = true
