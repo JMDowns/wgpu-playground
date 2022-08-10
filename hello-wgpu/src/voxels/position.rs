@@ -37,6 +37,43 @@ impl Position {
         positions
     }
 
+    pub fn generate_neighborhood_n_positions(&self, n: i32) -> Vec<Position> {
+        let mut pos_vec = Vec::new();
+
+        for i in -n..n+1 {
+            for j in -n..n+1 {
+                pos_vec.push(Position::new(self.x-n, self.y+i, self.z+j))
+            }
+        }
+        for i in -n..n+1 {
+            for j in -n..n+1 {
+                pos_vec.push(Position::new(self.x+n, self.y+i, self.z+j))
+            }
+        }
+        for i in -n..n+1 {
+            for j in -n..n+1 {
+                pos_vec.push(Position::new(self.x+i, self.y+n, self.z+j))
+            }
+        }
+        for i in -n..n+1 {
+            for j in -n..n+1 {
+                pos_vec.push(Position::new(self.x+i, self.y-n, self.z+j))
+            }
+        }
+        for i in -n..n+1 {
+            for j in -n..n+1 {
+                pos_vec.push(Position::new(self.x+i, self.y+j, self.z-n))
+            }
+        }
+        for i in -n..n+1 {
+            for j in -n..n+1 {
+                pos_vec.push(Position::new(self.x+i, self.y+j, self.z-n))
+            }
+        }
+
+        pos_vec
+    }
+
     pub fn to_perlin_pos(&self, scale_factor: f64) -> [f64;3] {
         [(self.x as f64 * scale_factor), (self.y as f64 * scale_factor), (self.z as f64 * scale_factor)]
     }

@@ -2,6 +2,7 @@ mod texture;
 mod camera;
 mod voxels;
 mod state;
+mod tasks;
 
 use winit::{
     event::*,
@@ -101,6 +102,7 @@ pub async fn run() {
 
         Event::MainEventsCleared => {
             // RedrawRequested will only trigger once, unless we manually request it.
+            state.process_tasks();
             window.request_redraw();
         }
         _ => {}

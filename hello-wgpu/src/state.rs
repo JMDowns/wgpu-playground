@@ -1,3 +1,7 @@
+use crate::tasks::Task;
+use crate::tasks::TaskResult;
+use crate::tasks::tasks_processors::generate_chunk_mesh_processor::GenerateChunkMeshProcessor;
+use crate::tasks::tasks_processors::generate_chunk_processor::GenerateChunkProcessor;
 use crate::texture;
 use crossbeam::sync::WaitGroup;
 use fundamentals::consts;
@@ -7,19 +11,15 @@ use crate::voxels::world::World;
 use wgpu::util::DeviceExt;
 use crate::voxels::position::Position;
 use crate::voxels::mesh::Mesh;
-use std::f32::consts::{FRAC_PI_4, FRAC_PI_6, FRAC_PI_3, FRAC_PI_2};
-use std::collections::HashMap;
+use std::collections::VecDeque;
 
 use winit::{
     event::*,
     window::Window,
 };
 
-const FRAC_3_PI_4: f32 = 3.0 * FRAC_PI_4;
-const NEG_FRAC_3_PI_4: f32 = -1.0 * FRAC_3_PI_4;
 const SQRT_2_DIV_2: f32 = 0.7071;
 const NEG_SQRT_2_DIV_2: f32 = -0.7071;
-const SQRT_2_DIV_2_OFF: f32 = 0.7000;
 
 pub struct State {
     pub surface: wgpu::Surface,
@@ -31,9 +31,6 @@ pub struct State {
     pub render_pipeline_regular: wgpu::RenderPipeline,
     pub render_pipeline_wireframe: wgpu::RenderPipeline,
     pub mesh: Mesh,
-    vertex_buffers: [wgpu::Buffer; 6],
-    index_buffers: [wgpu::Buffer; 6],
-    index_buffers_length: [u32; 6],
     pub depth_texture: texture::Texture,
     pub camera: camera::Camera,
     pub camera_uniform: camera::CameraUniform,
@@ -45,7 +42,11 @@ pub struct State {
     pub render_wireframe: bool,
     pub world: World,
     pub diffuse_bind_group: wgpu::BindGroup,
-    pub diffuse_texture: texture::Texture
+    pub diffuse_texture: texture::Texture,
+    pub task_queue: VecDeque<Task>,
+    pub vertex_buffers: [wgpu::Buffer; 6],
+    pub index_buffers: [wgpu::Buffer; 6],
+    pub index_buffers_lengths: [u32; 6]
 }
 
 impl State {
@@ -298,88 +299,27 @@ impl State {
                 multiview: None,
             });
 
-        let radius = consts::RENDER_DISTANCE as i32;
+        let world = World::new();
 
-        let mut world = World::new();
+        let player_position = Position::new(0,0,0);
 
         let mut loaded_chunk_positions = Vec::new();
-        for x in -radius..radius+1 {
-            for y in -radius..radius+1 {
-                for z in -radius..radius+1 {
-                    let pos = Position::new(x,y,z);
-                    loaded_chunk_positions.push(pos);
-                }
-            }
+        for n in 0..consts::RENDER_DISTANCE as i32 {
+            loaded_chunk_positions.extend(player_position.generate_neighborhood_n_positions(n));
         }
 
-        let mut chunk_load_task_vec = Vec::new();
-        for _ in 0..consts::NUM_THREADS {
-            chunk_load_task_vec.push((Vec::new(), HashMap::new()));
-        }
-
-        let mut chunk_mesh_task_vec = Vec::new();
-        for _ in 0..consts::NUM_THREADS {
-            chunk_mesh_task_vec.push((Vec::new(), Mesh::new()));
-        }
-
-        let mut thread_num = 0;
+        let mut task_queue = VecDeque::new();
         for pos in loaded_chunk_positions {
-            chunk_load_task_vec[thread_num].0.push(pos);
-            chunk_mesh_task_vec[thread_num].0.push(pos);
-            thread_num = (thread_num + 1) % consts::NUM_THREADS;
+            task_queue.push_back(Task::GenerateChunk { chunk_position: pos });
         }
 
-        let wg = WaitGroup::new();
-
-        let _ = crossbeam::scope(|scope| {
-            for (ref mut positions, ref mut chunkmap) in chunk_load_task_vec.iter_mut() {
-                let wg = wg.clone();
-                scope.spawn(|_| {
-                    for pos in positions {
-                        let pos2 = pos.clone();
-                        chunkmap.insert(*pos, World::generate_chunk_at(&pos2));
-                    }
-
-                    drop(wg);
-                });
-            }
-        });
-
-        for (_, ref mut chunkmap) in chunk_load_task_vec {
-            for (_pos, chunk) in chunkmap.drain() {
-                world.add_chunk(chunk);
-            }
-        }
-
-        let wg = WaitGroup::new();
-        
-
-        let _ = crossbeam::scope(|scope| {
-            for (ref mut positions, mesh) in chunk_mesh_task_vec.iter_mut() {
-                let wg = wg.clone();
-                scope.spawn(|_| {
-                    for pos in positions {
-                        mesh.add_mesh(world.generate_mesh_at(pos));
-                    }
-
-                    drop(wg);
-                });
-            }
-        });
-
-        wg.wait();
-
-        let mut mesh = Mesh::new();
-
-        for (_, chunk_mesh) in chunk_mesh_task_vec {
-            mesh.add_mesh(chunk_mesh);
-        }
+        let mesh = Mesh::new();
 
         let vertex_buffers = mesh.get_vertex_buffers(&device);
 
         let index_buffers = mesh.get_index_buffers(&device);
 
-        let index_buffers_length = mesh.get_index_buffers_lengths();
+        let index_buffers_lengths = mesh.get_index_buffers_lengths();
 
         Self {
             surface,
@@ -391,9 +331,6 @@ impl State {
             render_pipeline_regular,
             render_pipeline_wireframe,
             mesh,
-            vertex_buffers,
-            index_buffers,
-            index_buffers_length,
             depth_texture,
             camera,
             camera_uniform,
@@ -405,7 +342,11 @@ impl State {
             render_wireframe: false,
             world,
             diffuse_bind_group,
-            diffuse_texture
+            diffuse_texture,
+            task_queue,
+            vertex_buffers,
+            index_buffers,
+            index_buffers_lengths
         }
     }
 
@@ -460,6 +401,81 @@ impl State {
         self.queue.write_buffer(&self.camera_buffer, 0, bytemuck::cast_slice(&[self.camera_uniform]));
     }
 
+    pub fn process_tasks(&mut self) {
+        let mut task_schedules = self.schedule_tasks();
+
+        let wg = WaitGroup::new();
+
+        let _ = crossbeam::scope(|scope| {
+            for (ref mut tasks, ref mut task_results) in task_schedules.iter_mut() {
+                let wg = wg.clone();
+                scope.spawn(|_| {
+                    for task in tasks {
+                        match task {
+                            Task::GenerateChunk { chunk_position } => { 
+                                task_results.push(GenerateChunkProcessor::process_task(&chunk_position))
+                            },
+                            Task::GenerateChunkMesh { chunk_position } => {
+                                task_results.push(GenerateChunkMeshProcessor::process_task(&chunk_position, &self.world))
+                            }
+                        }
+                    }
+
+                    drop(wg);
+                });
+            }
+        });
+
+        let mut chunks_generated = 0;
+        let mut meshes_generated = 0;
+
+        for (_ ,task_results) in task_schedules.drain(0..) {
+            for task_result in task_results {
+                match task_result {
+                    TaskResult::Requeue { task } => self.task_queue.push_back(task),
+                    TaskResult::GenerateChunk { chunk } => {
+                        println!("Generated chunk {}!", chunks_generated + 1);
+                        chunks_generated += 1;
+                        self.task_queue.push_front(Task::GenerateChunkMesh { chunk_position: chunk.position });
+                        self.world.add_chunk(chunk);
+                    },
+                    TaskResult::GenerateChunkMesh { mesh } => {
+                        println!("Generated mesh {}!", meshes_generated + 1);
+                        meshes_generated += 1;
+                        self.mesh.add_mesh(mesh);
+                    }
+                }
+            }
+        }
+
+        if meshes_generated > 0 {
+            self.vertex_buffers = self.mesh.get_vertex_buffers(&self.device);
+            self.index_buffers = self.mesh.get_index_buffers(&self.device);
+            self.index_buffers_lengths = self.mesh.get_index_buffers_lengths();
+        }
+
+        println!("Finished generating this phase!");
+    }
+
+    fn schedule_tasks(&mut self) -> Vec<(Vec<Task>, Vec<TaskResult>)> {
+        let mut tasks_scheduled = 0;
+        let mut empty_task_list = false;
+        let mut task_schedules = Vec::new();
+        for _ in 0..consts::NUM_THREADS-1 {
+            task_schedules.push((Vec::new(), Vec::new()));
+        }
+        while tasks_scheduled < (consts::NUM_THREADS-1) * 5 && !empty_task_list {
+            match self.task_queue.pop_front() {
+                Some(task) => task_schedules[tasks_scheduled % (consts::NUM_THREADS-1)].0.push(task),
+                None => empty_task_list = true
+            }
+            
+            tasks_scheduled = tasks_scheduled + 1;
+        }
+
+        task_schedules
+    }
+
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
         let output = self.surface.get_current_texture()?;
         let view = output
@@ -470,6 +486,8 @@ impl State {
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("Render Encoder"),
             });
+
+        
 
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -509,37 +527,37 @@ impl State {
             if ycos > NEG_SQRT_2_DIV_2 {
                 render_pass.set_vertex_buffer(0, self.vertex_buffers[0].slice(..));
                 render_pass.set_index_buffer(self.index_buffers[0].slice(..), wgpu::IndexFormat::Uint32);
-                render_pass.draw_indexed(0..self.index_buffers_length[0], 0, 0..1);
+                render_pass.draw_indexed(0..self.index_buffers_lengths[0], 0, 0..1);
             }
             //back
-            if ycos < SQRT_2_DIV_2_OFF {
+            if ycos < SQRT_2_DIV_2 {
                 render_pass.set_vertex_buffer(0, self.vertex_buffers[1].slice(..));
                 render_pass.set_index_buffer(self.index_buffers[1].slice(..), wgpu::IndexFormat::Uint32);
-                render_pass.draw_indexed(0..self.index_buffers_length[1], 0, 0..1);
+                render_pass.draw_indexed(0..self.index_buffers_lengths[1], 0, 0..1);
             }
             //left
             if ysin > NEG_SQRT_2_DIV_2 {
                 render_pass.set_vertex_buffer(0, self.vertex_buffers[2].slice(..));
                 render_pass.set_index_buffer(self.index_buffers[2].slice(..), wgpu::IndexFormat::Uint32);
-                render_pass.draw_indexed(0..self.index_buffers_length[2], 0, 0..1);
+                render_pass.draw_indexed(0..self.index_buffers_lengths[2], 0, 0..1);
             }
             //right
             if ysin < SQRT_2_DIV_2 {
                 render_pass.set_vertex_buffer(0, self.vertex_buffers[3].slice(..));
                 render_pass.set_index_buffer(self.index_buffers[3].slice(..), wgpu::IndexFormat::Uint32);
-                render_pass.draw_indexed(0..self.index_buffers_length[3], 0, 0..1);
+                render_pass.draw_indexed(0..self.index_buffers_lengths[3], 0, 0..1);
             }
             //top
             if psin < SQRT_2_DIV_2  {
                 render_pass.set_vertex_buffer(0, self.vertex_buffers[4].slice(..));
                 render_pass.set_index_buffer(self.index_buffers[4].slice(..), wgpu::IndexFormat::Uint32);
-                render_pass.draw_indexed(0..self.index_buffers_length[4], 0, 0..1);
+                render_pass.draw_indexed(0..self.index_buffers_lengths[4], 0, 0..1);
             }
             //bottom
             if psin > NEG_SQRT_2_DIV_2 {
                 render_pass.set_vertex_buffer(0, self.vertex_buffers[5].slice(..));
                 render_pass.set_index_buffer(self.index_buffers[5].slice(..), wgpu::IndexFormat::Uint32);
-                render_pass.draw_indexed(0..self.index_buffers_length[5], 0, 0..1);
+                render_pass.draw_indexed(0..self.index_buffers_lengths[5], 0, 0..1);
             }
         }
 

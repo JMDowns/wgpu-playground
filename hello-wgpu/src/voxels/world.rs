@@ -22,9 +22,13 @@ impl World {
         self.chunks.insert(chunk.position, chunk);
     }
     
-    pub fn generate_mesh_at(&self, pos: &Position) -> Mesh {
+    pub fn generate_mesh_at(&self, pos: &Position) -> Option<Mesh> {
         let block_solid_data = self.list_if_blocks_are_solid_in_and_surrounding_chunk(pos);
-        Mesh::cull_ambient_occlusion(self.chunks.get(pos).unwrap(), block_solid_data)
+        match self.chunks.get(pos) {
+            Some(chunk) => Some(Mesh::cull_ambient_occlusion(chunk, block_solid_data)),
+            None => None
+        }
+        
     }
 
     fn list_if_blocks_are_solid_in_and_surrounding_chunk(&self, pos: &Position) -> [[[bool; CHUNK_DIMENSION as usize+2]; CHUNK_DIMENSION as usize+2]; CHUNK_DIMENSION as usize+2] {
