@@ -12,6 +12,7 @@ use wgpu::util::DeviceExt;
 use crate::voxels::position::Position;
 use crate::voxels::mesh::Mesh;
 use std::collections::VecDeque;
+use crate::gpu_data::{vec_vertex_index_length_triple::VecVertexIndexLengthsTriple, vertex::Vertex, vertex_gpu_data::VertexGPUData};
 
 use winit::{
     event::*,
@@ -46,7 +47,8 @@ pub struct State {
     pub task_queue: VecDeque<Task>,
     pub vertex_buffers: [wgpu::Buffer; 6],
     pub index_buffers: [wgpu::Buffer; 6],
-    pub index_buffers_lengths: [u32; 6]
+    pub index_buffers_lengths: [u32; 6],
+    pub vertex_gpu_data: VertexGPUData
 }
 
 impl State {
@@ -211,7 +213,7 @@ impl State {
                     module: &shader,
                     entry_point: "vs_main",
                     buffers: &[
-                        voxels::vertex::Vertex::desc(),
+                        Vertex::desc(),
                     ],
                 },
                 fragment: Some(wgpu::FragmentState {
@@ -259,7 +261,7 @@ impl State {
                     module: &shader,
                     entry_point: "vs_main",
                     buffers: &[
-                        voxels::vertex::Vertex::desc(),
+                        Vertex::desc(),
                     ],
                 },
                 fragment: Some(wgpu::FragmentState {
@@ -315,11 +317,15 @@ impl State {
 
         let mesh = Mesh::new();
 
-        let vertex_buffers = mesh.get_vertex_buffers(&device);
+        
 
-        let index_buffers = mesh.get_index_buffers(&device);
+        let vertex_gpu_data = mesh.get_gpu_data();
 
-        let index_buffers_lengths = mesh.get_index_buffers_lengths();
+        let vertex_buffers = vertex_gpu_data.generate_vertex_buffers(&device);
+
+        let index_buffers = vertex_gpu_data.generate_index_buffers(&device);
+
+        let index_buffers_lengths = vertex_gpu_data.generate_index_buffer_lengths();
 
         Self {
             surface,
@@ -346,7 +352,8 @@ impl State {
             task_queue,
             vertex_buffers,
             index_buffers,
-            index_buffers_lengths
+            index_buffers_lengths,
+            vertex_gpu_data,
         }
     }
 
@@ -442,16 +449,16 @@ impl State {
                     TaskResult::GenerateChunkMesh { mesh } => {
                         println!("Generated mesh {}!", meshes_generated + 1);
                         meshes_generated += 1;
-                        self.mesh.add_mesh(mesh);
+                        self.vertex_gpu_data.add_gpu_data_drain(&mut mesh.get_gpu_data());
                     }
                 }
             }
         }
 
         if meshes_generated > 0 {
-            self.vertex_buffers = self.mesh.get_vertex_buffers(&self.device);
-            self.index_buffers = self.mesh.get_index_buffers(&self.device);
-            self.index_buffers_lengths = self.mesh.get_index_buffers_lengths();
+            self.vertex_buffers = self.vertex_gpu_data.generate_vertex_buffers(&self.device);
+            self.index_buffers = self.vertex_gpu_data.generate_index_buffers(&self.device);
+            self.index_buffers_lengths = self.vertex_gpu_data.generate_index_buffer_lengths();
         }
     }
 
@@ -567,3 +574,4 @@ impl State {
         Ok(())
     }
 }
+

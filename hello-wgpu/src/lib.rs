@@ -3,6 +3,7 @@ mod camera;
 mod voxels;
 mod state;
 mod tasks;
+mod gpu_data;
 
 use winit::{
     event::*,
