@@ -12,6 +12,10 @@ impl Block {
         Block { block_type: bt as u16 }
     }
 
+    pub fn is_air(&self) -> bool {
+        self.block_type == 0
+    }
+
     pub fn get_block_type(&self) -> BlockType {
         let btype = num::FromPrimitive::from_u16(self.block_type);
         match btype {

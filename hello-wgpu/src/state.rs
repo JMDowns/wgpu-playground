@@ -317,8 +317,6 @@ impl State {
 
         let mesh = Mesh::new();
 
-        
-
         let vertex_gpu_data = mesh.get_gpu_data();
 
         let vertex_buffers = vertex_gpu_data.generate_vertex_buffers(&device);
@@ -404,6 +402,7 @@ impl State {
 
     pub fn update(&mut self, dt: instant::Duration) {
         self.camera_controller.update_camera(&mut self.camera, dt);
+        //self.frustum_cull
         self.camera_uniform.update_view_proj(&self.camera, &self.projection);
         self.queue.write_buffer(&self.camera_buffer, 0, bytemuck::cast_slice(&[self.camera_uniform]));
     }
@@ -466,7 +465,7 @@ impl State {
         let mut tasks_scheduled = 0;
         let mut empty_task_list = false;
         let mut task_schedules = Vec::new();
-        let number_tasks_per_thread = 1;
+        let number_tasks_per_thread = 15;
         for _ in 0..consts::NUM_THREADS-1 {
             task_schedules.push((Vec::new(), Vec::new()));
         }

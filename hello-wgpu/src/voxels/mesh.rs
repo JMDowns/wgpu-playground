@@ -71,7 +71,7 @@ impl Mesh {
                     let block = chunk.get_block_at(i, j, k);
                     let ambient_occlusion_on_vertices = Self::generate_ambient_occlusion_on_vertices(&solid_data, i+1, j+1, k+1);
                     let adjacent_blocks_data = Self::generate_adjacent_blocks(&solid_data, i+1, j+1, k+1);
-                    if block.get_block_type() != BlockType::AIR {
+                    if !block.is_air() {
                         mesh.add_vertices(
                             Self::generate_cube(chunk.get_absolute_coords_usize(i, j, k), block.get_texture_coords(), &ambient_occlusion_on_vertices, &adjacent_blocks_data), 
                             Self::generate_cube_indices(&adjacent_blocks_data, &ambient_occlusion_on_vertices)
@@ -95,7 +95,7 @@ impl Mesh {
                     let block = chunk.get_block_at(i, j, k);
                     let ambient_occlusion_on_vertices = Self::generate_ambient_occlusion_on_vertices(&solid_data, i+1, j+1, k+1);
                     let adjacent_blocks_data = Self::generate_adjacent_blocks(&solid_data, i+1, j+1, k+1);
-                    if block.get_block_type() != BlockType::AIR {
+                    if !block.is_air() {
                         mesh.add_vertices(
                             Self::generate_cube(chunk.get_absolute_coords_usize(i, j, k), block.get_texture_coords(), &ambient_occlusion_on_vertices, &adjacent_blocks_data), 
                             Self::generate_cube_indices(&adjacent_blocks_data, &ambient_occlusion_on_vertices)

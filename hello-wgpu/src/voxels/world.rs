@@ -41,7 +41,7 @@ impl World {
                     let offset_j = j + CHUNK_DIMENSION as usize-1;
                     let offset_k = k + CHUNK_DIMENSION as usize-1;
                     block_info[i][j][k] = match chunk_options[offset_i / CHUNK_DIMENSION as usize][offset_j / CHUNK_DIMENSION as usize][offset_k / CHUNK_DIMENSION as usize] {
-                        Some(chunk) => chunk.get_block_at(offset_i % CHUNK_DIMENSION as usize, offset_j % CHUNK_DIMENSION as usize, offset_k % CHUNK_DIMENSION as usize).get_block_type() != BlockType::AIR,
+                        Some(chunk) => !chunk.get_block_at(offset_i % CHUNK_DIMENSION as usize, offset_j % CHUNK_DIMENSION as usize, offset_k % CHUNK_DIMENSION as usize).is_air(),
                         None => false
                     };
                 }
