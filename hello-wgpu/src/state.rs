@@ -6,13 +6,12 @@ use crate::texture;
 use crossbeam::sync::WaitGroup;
 use fundamentals::consts;
 use crate::camera;
-use crate::voxels;
 use crate::voxels::world::World;
 use wgpu::util::DeviceExt;
-use crate::voxels::position::Position;
+use fundamentals::world_position::WorldPosition;
 use crate::voxels::mesh::Mesh;
 use std::collections::VecDeque;
-use crate::gpu_data::{vec_vertex_index_length_triple::VecVertexIndexLengthsTriple, vertex::Vertex, vertex_gpu_data::VertexGPUData};
+use crate::gpu_data::{vertex::Vertex, vertex_gpu_data::VertexGPUData};
 
 use winit::{
     event::*,
@@ -303,11 +302,11 @@ impl State {
 
         let world = World::new();
 
-        let player_position = Position::new(0,0,0);
+        let player_position = WorldPosition::new(0,0,0);
 
         let mut loaded_chunk_positions = Vec::new();
         for n in 0..(consts::RENDER_DISTANCE+1) as i32 {
-            loaded_chunk_positions.append(&mut player_position.generate_neighborhood_n_positions(n));
+            loaded_chunk_positions.append(&mut player_position.generate_neighborhood_n_world_positions(n));
         }
 
         let mut task_queue = VecDeque::new();

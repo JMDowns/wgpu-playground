@@ -3,6 +3,11 @@
     "use_all_system_threads": true,
     "render_radius": 1,
     "atlas_max_images_on_a_row": 4,
+    "atlas_max_images_on_a_column": 4,
+    "max_amount_of_blocktypes": 65536,
+    "max_lighting_level": 16,
+    "number_of_light_colors": 512,
+    "number_of_alpha_values": 4,
     "texture_dimension": 16,
     "chunk_dimension": 32
 }

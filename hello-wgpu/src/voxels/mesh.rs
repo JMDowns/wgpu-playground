@@ -1,8 +1,7 @@
 use crate::gpu_data::{vertex_gpu_data::VertexGPUData, vec_vertex_index_length_triple::VecVertexIndexLengthsTriple, vertex::Vertex};
 use fundamentals::texture_coords::TextureCoordinates;
-use super::position::Position;
+use fundamentals::world_position::WorldPosition;
 use fundamentals::consts::{TEXTURE_HEIGHT, TEXTURE_WIDTH, CHUNK_DIMENSION};
-use fundamentals::enums::block_type::BlockType;
 use super::chunk::Chunk;
 
 pub struct Mesh {
@@ -196,8 +195,8 @@ impl Mesh {
         return is_side_1_solid as u8 + is_side_2_solid as u8 + is_corner_solid as u8;
     }
     
-    fn generate_cube(pos: Position, tex_coords_arr: &[TextureCoordinates; 6], ambient_occlusion_on_vertices: &[[u8;3]; 8], adjacent_blocks_data: &[bool;6]) -> [Vec<Vertex>; 6] {
-        let positions = pos.generate_vertex_positions();
+    fn generate_cube(pos: WorldPosition, tex_coords_arr: &[TextureCoordinates; 6], ambient_occlusion_on_vertices: &[[u8;3]; 8], adjacent_blocks_data: &[bool;6]) -> [Vec<Vertex>; 6] {
+        let positions = pos.generate_vertex_world_positions();
         let mut vertices_arr = [Vec::new(),Vec::new(),Vec::new(),Vec::new(),Vec::new(),Vec::new(),];
         let all_vertices_arr = 
         [

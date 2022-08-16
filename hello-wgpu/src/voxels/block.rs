@@ -16,7 +16,15 @@ impl Block {
         self.block_type == 0
     }
 
-    pub fn get_block_type(&self) -> BlockType {
+    pub fn get_block_type_from_u16(n: u16) -> BlockType {
+        let btype = num::FromPrimitive::from_u16(n);
+        match btype {
+            Some(bt) => bt,
+            None => BlockType::AIR
+        }
+    }
+
+    pub fn _get_block_type(&self) -> BlockType {
         let btype = num::FromPrimitive::from_u16(self.block_type);
         match btype {
             Some(bt) => bt,

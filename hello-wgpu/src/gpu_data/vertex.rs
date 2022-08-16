@@ -9,7 +9,7 @@ pub struct Vertex {
 }
 
 impl Vertex {
-    pub fn new(pos: crate::voxels::position::Position, tc: TextureCoordinates, ambient_occlusion: f32) -> Self {
+    pub fn new(pos: fundamentals::world_position::WorldPosition, tc: TextureCoordinates, ambient_occlusion: f32) -> Self {
         Vertex { position: [pos.x, pos.y, pos.z], tex_coords: [tc.tx, tc.ty], ambient_occlusion }
     }
     pub fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {

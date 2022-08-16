@@ -10,16 +10,6 @@ pub struct VertexGPUData {
 }
 
 impl VertexGPUData {
-    pub fn new() -> Self {
-        Self { 
-            data_front: VecVertexIndexLengthsTriple::new(), 
-            data_back: VecVertexIndexLengthsTriple::new(), 
-            data_left: VecVertexIndexLengthsTriple::new(), 
-            data_right: VecVertexIndexLengthsTriple::new(), 
-            data_top: VecVertexIndexLengthsTriple::new(), 
-            data_bottom: VecVertexIndexLengthsTriple::new() }
-    }
-
     pub fn add_gpu_data_drain(&mut self, other_gpu_data: &mut Self) {
         self.data_front.add_triple_drain(&mut other_gpu_data.data_front);
         self.data_back.add_triple_drain(&mut other_gpu_data.data_back);

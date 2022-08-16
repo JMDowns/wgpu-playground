@@ -1,10 +1,11 @@
-use crate::voxels::{position::Position, mesh::Mesh, chunk::Chunk};
+use crate::voxels::{mesh::Mesh, chunk::Chunk};
+use fundamentals::world_position::WorldPosition;
 
 pub mod tasks_processors;
 
 pub enum Task {
-    GenerateChunkMesh { chunk_position: Position },
-    GenerateChunk { chunk_position: Position },
+    GenerateChunkMesh { chunk_position: WorldPosition },
+    GenerateChunk { chunk_position: WorldPosition },
 }
 
 pub enum TaskResult {
