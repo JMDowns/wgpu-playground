@@ -1,15 +1,22 @@
 use std::fmt::Display;
+use bytemuck::{Pod, Zeroable};
 
-#[derive(Hash, PartialEq, Eq, Clone, Copy)]
+#[repr(C)]
+#[derive(Hash, PartialEq, Eq, Clone, Copy, Pod, Zeroable)]
 pub struct WorldPosition {
     pub x: i32,
     pub y: i32,
-    pub z: i32
+    pub z: i32,
+    pub padding: i32, //This is so the struct is 16-byte aligned
 }
 
 impl WorldPosition {
     pub fn new(x: i32, y: i32, z: i32) -> Self {
-        WorldPosition { x, y, z}
+        WorldPosition { x, y, z, padding: 0}
+    }
+
+    pub fn from(p3: cgmath::Point3<f32>) -> Self {
+        WorldPosition { x: p3.x.floor() as i32, y: p3.y.floor() as i32, z: p3.z.floor() as i32, padding: 0}
     }
 
     pub fn generate_vertex_world_positions(&self) -> [WorldPosition; 8] {
@@ -30,7 +37,7 @@ impl WorldPosition {
         for k in 0..3 as i32 {
             for j in 0..3 as i32 {
                 for i in 0..3 as i32{
-                    world_positions[i as usize][j as usize][k as usize] = WorldPosition::new(self.x-i+1, self.y-j+1, self.z-k+1);
+                    world_positions[i as usize][j as usize][k as usize] = WorldPosition::new(self.x+i-1, self.y+j-1, self.z+k-1);
                 }
             }
         }

@@ -18,7 +18,7 @@ impl Chunk {
         let perlin = Perlin::new();
 
         for i in 0..CHUNK_SIZE as i32 {
-            let bposition = WorldPosition { x: (i % CHUNK_DIMENSION) - CHUNK_DIMENSION*position.x, y: ((i / CHUNK_DIMENSION) % CHUNK_DIMENSION) - CHUNK_DIMENSION*position.y, z: (i / (CHUNK_PLANE_SIZE)) - CHUNK_DIMENSION*position.z };
+            let bposition = WorldPosition::new((i % CHUNK_DIMENSION) - CHUNK_DIMENSION*position.x, ((i / CHUNK_DIMENSION) % CHUNK_DIMENSION) - CHUNK_DIMENSION*position.y, (i / (CHUNK_PLANE_SIZE)) - CHUNK_DIMENSION*position.z);
             let perlin_sample = perlin.get(bposition.to_perlin_pos(0.1));
             if perlin_sample < -0.2 || perlin_sample > 0.2 {
                 blocks_vec.push(Block::new(Block::get_block_type_from_u16(fastrand::u16(1..consts::NUM_BLOCK_TYPES))))
@@ -32,10 +32,6 @@ impl Chunk {
 
     pub fn get_block_at(&self, cx: usize, cy: usize, cz: usize) -> &Block{
         &self.blocks[cx+(CHUNK_DIMENSION as usize)*cy+(CHUNK_PLANE_SIZE as usize)*cz]
-    }
-
-    pub fn get_absolute_coords_usize(&self, cx: usize, cy: usize, cz: usize)  -> WorldPosition {
-        WorldPosition { x: cx as i32 - CHUNK_DIMENSION*self.position.x, y: cy as i32 - CHUNK_DIMENSION*self.position.y, z: cz as i32 - CHUNK_DIMENSION*self.position.z}
     }
 
     fn get_arr<T, const N: usize>(v: Vec<T>) -> [T; N] {

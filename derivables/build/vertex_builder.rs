@@ -1,19 +1,18 @@
 use fundamentals::consts::*;
-use std::env::var;
-use std::ops;
 use std::path::Path;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::string::String;
 
 pub const DATA_TOTAL_BITS: u32 = (BITS_PER_POSITION * 3 + BITS_PER_TEX_COORD_X + BITS_PER_TEX_COORD_Y + BITS_PER_AMBIENT_OCCLUSION) as u32;
-pub const VAR_SIZE_LIST: [(&str, u8);6] = [
+pub const VAR_SIZE_LIST: [(&str, u32);7] = [
         ("pos.x", BITS_PER_POSITION),
         ("pos.y", BITS_PER_POSITION),
         ("pos.z", BITS_PER_POSITION),
         ("tc.tx", BITS_PER_TEX_COORD_X),
         ("tc.ty", BITS_PER_TEX_COORD_Y),
-        ("ambient_occlusion", BITS_PER_AMBIENT_OCCLUSION)
+        ("ambient_occlusion", BITS_PER_AMBIENT_OCCLUSION),
+        ("chunk_index", BITS_PER_CHUNK_INDEX)
     ];
 
 pub fn build_vertex_file() {
@@ -29,7 +28,7 @@ pub fn build_vertex_file() {
 
 fn build_vertex_string() -> String {
     [
-        "use fundamentals::{world_position::WorldPosition, texture_coords::TextureCoordinates};",
+        "use fundamentals::{consts::*, world_position::WorldPosition, texture_coords::TextureCoordinates};",
         "#[repr(C)]",
         "#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]",
         build_vertex_struct().as_str(),
@@ -56,8 +55,11 @@ fn build_vertex_struct() -> String {
 
 fn build_vertex_new() -> String {
     [
-        "        pub fn new(pos: WorldPosition, tc: TextureCoordinates, ambient_occlusion: u8) -> Self {",
+        "        pub fn new(pos: WorldPosition, tc: TextureCoordinates, ambient_occlusion: u8, chunk_index: u32) -> Self {",
         "             ",
+        "if pos.x > CHUNK_DIMENSION || pos.y > CHUNK_DIMENSION || pos.z > CHUNK_DIMENSION {
+            println!(\"Vertex at {} is outside chunk boundaries\", pos);
+        }",
         build_new_bitops().as_str(),
         build_vertex_declaration().as_str(),
         "        }"
@@ -68,6 +70,9 @@ fn build_new_bitops() -> String {
     let mut data_bits_modified = 0;
     let mut ops_vec = vec![String::from("            let mut data0 = 0;")];
     for (var, size) in VAR_SIZE_LIST.into_iter() {
+        if var == "chunk_index" && size == 0 {
+            continue;
+        }
         if data_bits_modified % 32 + size < 32 {
             let mut shift_string = format!(" << {data_bits_modified}");
             if data_bits_modified % 32 == 0 {
@@ -86,7 +91,7 @@ fn build_new_bitops() -> String {
     ops_vec.join("\n")
 }
 
-fn get_first_chunk_binary_mask(chunk_size: u8) -> String {
+fn get_first_chunk_binary_mask(chunk_size: u32) -> String {
     let mut bit_string = String::from("0b");
     for _ in 0..chunk_size {
         bit_string.push('1');
@@ -94,7 +99,7 @@ fn get_first_chunk_binary_mask(chunk_size: u8) -> String {
     bit_string
 }
 
-fn get_second_chunk_binary_mask(chunk_size: u8, total_size: u8) -> String {
+fn get_second_chunk_binary_mask(chunk_size: u32, total_size: u32) -> String {
     let mut bit_string = String::from("0b");
     let positive_chunk = total_size - chunk_size;
     for _ in 0..positive_chunk {

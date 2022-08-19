@@ -3,8 +3,10 @@ use crate::tasks::TaskResult;
 use crate::tasks::tasks_processors::generate_chunk_mesh_processor::GenerateChunkMeshProcessor;
 use crate::tasks::tasks_processors::generate_chunk_processor::GenerateChunkProcessor;
 use crate::texture;
+use crate::voxels::chunk;
 use crossbeam::sync::WaitGroup;
 use fundamentals::consts;
+use fundamentals::consts::NUMBER_OF_CHUNKS_AROUND_PLAYER;
 use crate::camera;
 use crate::voxels::world::World;
 use wgpu::util::DeviceExt;
@@ -48,7 +50,11 @@ pub struct State {
     pub vertex_buffers: [wgpu::Buffer; 6],
     pub index_buffers: [wgpu::Buffer; 6],
     pub index_buffers_lengths: [u32; 6],
-    pub vertex_gpu_data: VertexGPUData
+    pub vertex_gpu_data: VertexGPUData,
+    pub chunk_positions_around_player: [WorldPosition; NUMBER_OF_CHUNKS_AROUND_PLAYER as usize],
+    pub chunk_index_buffer: wgpu::Buffer,
+    pub chunk_index_bind_group: wgpu::BindGroup,
+    pub chunk_pos_to_index: std::collections::HashMap<WorldPosition, u32>
 }
 
 impl State {
@@ -190,6 +196,44 @@ impl State {
 
         let depth_texture = texture::Texture::create_depth_texture(&device, &config, "depth_texture");
 
+        println!("Player position is {}", WorldPosition::from(camera.position));
+
+        let chunk_positions_around_player = fundamentals::consts::get_positions_around_player(WorldPosition::from(camera.position));
+
+        let chunk_index_buffer = device.create_buffer_init(
+            &wgpu::util::BufferInitDescriptor {
+            label: Some("Camera Buffer"),
+            contents: bytemuck::cast_slice(&chunk_positions_around_player),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+
+        let chunk_index_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer { 
+                        ty: wgpu::BufferBindingType::Uniform, 
+                        has_dynamic_offset: false, 
+                        min_binding_size: None 
+                    },
+                    count: None
+                }
+            ],
+            label: Some("chunk_offset_bind_group_layout")
+        });
+
+        let chunk_index_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &chunk_index_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: chunk_index_buffer.as_entire_binding()
+                }
+            ],
+            label: Some("chunk_index_bind_group")
+        });
+
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
@@ -201,6 +245,7 @@ impl State {
                 bind_group_layouts: &[
                     &camera_bind_group_layout,
                     &texture_bind_group_layout,
+                    &chunk_index_bind_group_layout
                 ],
                 push_constant_ranges: &[],
             });
@@ -303,15 +348,8 @@ impl State {
 
         let world = World::new();
 
-        let player_position = WorldPosition::new(0,0,0);
-
-        let mut loaded_chunk_positions = Vec::new();
-        for n in 0..(consts::RENDER_DISTANCE+1) as i32 {
-            loaded_chunk_positions.append(&mut player_position.generate_neighborhood_n_world_positions(n));
-        }
-
         let mut task_queue = VecDeque::new();
-        for pos in loaded_chunk_positions {
+        for pos in chunk_positions_around_player {
             task_queue.push_back(Task::GenerateChunk { chunk_position: pos });
         }
 
@@ -324,6 +362,12 @@ impl State {
         let index_buffers = vertex_gpu_data.generate_index_buffers(&device);
 
         let index_buffers_lengths = vertex_gpu_data.generate_index_buffer_lengths();
+
+        let mut chunk_pos_to_index = std::collections::HashMap::new();
+
+        for i in 0..chunk_positions_around_player.len() {
+            chunk_pos_to_index.insert(chunk_positions_around_player[i], i as u32);
+        }
 
         Self {
             surface,
@@ -352,6 +396,10 @@ impl State {
             index_buffers,
             index_buffers_lengths,
             vertex_gpu_data,
+            chunk_positions_around_player,
+            chunk_index_buffer,
+            chunk_index_bind_group,
+            chunk_pos_to_index,
         }
     }
 
@@ -402,7 +450,6 @@ impl State {
 
     pub fn update(&mut self, dt: instant::Duration) {
         self.camera_controller.update_camera(&mut self.camera, dt);
-        //self.frustum_cull
         self.camera_uniform.update_view_proj(&self.camera, &self.projection);
         self.queue.write_buffer(&self.camera_buffer, 0, bytemuck::cast_slice(&[self.camera_uniform]));
     }
@@ -422,7 +469,7 @@ impl State {
                                 task_results.push(GenerateChunkProcessor::process_task(&chunk_position))
                             },
                             Task::GenerateChunkMesh { chunk_position } => {
-                                task_results.push(GenerateChunkMeshProcessor::process_task(&chunk_position, &self.world))
+                                task_results.push(GenerateChunkMeshProcessor::process_task(&chunk_position, &self.world, &self.chunk_pos_to_index))
                             }
                         }
                     }
@@ -440,13 +487,13 @@ impl State {
                 match task_result {
                     TaskResult::Requeue { task } => self.task_queue.push_front(task),
                     TaskResult::GenerateChunk { chunk } => {
-                        println!("Generated chunk {}!", chunks_generated + 1);
+                        println!("Generated chunk {}!", chunks_generated);
                         chunks_generated += 1;
                         self.task_queue.push_front(Task::GenerateChunkMesh { chunk_position: chunk.position });
                         self.world.add_chunk(chunk);
                     },
                     TaskResult::GenerateChunkMesh { mesh } => {
-                        println!("Generated mesh {}!", meshes_generated + 1);
+                        println!("Generated mesh {}!", meshes_generated);
                         meshes_generated += 1;
                         self.vertex_gpu_data.add_gpu_data_drain(&mut mesh.get_gpu_data());
                     }
@@ -466,12 +513,12 @@ impl State {
         let mut empty_task_list = false;
         let mut task_schedules = Vec::new();
         let number_tasks_per_thread = 15;
-        for _ in 0..consts::NUM_THREADS-1 {
+        for _ in 0..std::cmp::max(1, consts::NUM_THREADS-1) {
             task_schedules.push((Vec::new(), Vec::new()));
         }
-        while tasks_scheduled < (consts::NUM_THREADS-1) * number_tasks_per_thread && !empty_task_list {
+        while tasks_scheduled < std::cmp::max(1, consts::NUM_THREADS-1) * number_tasks_per_thread && !empty_task_list {
             match self.task_queue.pop_front() {
-                Some(task) => task_schedules[tasks_scheduled % (consts::NUM_THREADS-1)].0.push(task),
+                Some(task) => task_schedules[tasks_scheduled % (std::cmp::max(1, consts::NUM_THREADS-1))].0.push(task),
                 None => empty_task_list = true
             }
             
@@ -523,6 +570,7 @@ impl State {
 
             render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
             render_pass.set_bind_group(1, &self.diffuse_bind_group, &[]);
+            render_pass.set_bind_group(2, &self.chunk_index_bind_group, &[]);
 
             let ycos = self.camera.yaw.0.cos();
             let ysin = self.camera.yaw.0.sin();

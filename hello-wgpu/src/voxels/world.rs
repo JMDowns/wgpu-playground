@@ -21,10 +21,11 @@ impl World {
         self.chunks.insert(chunk.position, chunk);
     }
     
-    pub fn generate_mesh_at(&self, pos: &WorldPosition) -> Option<Mesh> {
+    pub fn generate_mesh_at(&self, pos: &WorldPosition, index: u32) -> Option<Mesh> {
+        println!("Generating chunk at {} with index {}", pos, index);
         let block_solid_data = self.list_if_blocks_are_solid_in_and_surrounding_chunk(pos);
         match self.chunks.get(pos) {
-            Some(chunk) => Some(Mesh::cull_ambient_occlusion(chunk, block_solid_data)),
+            Some(chunk) => Some(Mesh::cull_ambient_occlusion(chunk, block_solid_data, index)),
             None => None
         }
         
@@ -40,7 +41,10 @@ impl World {
                     let offset_j = j + CHUNK_DIMENSION as usize-1;
                     let offset_k = k + CHUNK_DIMENSION as usize-1;
                     block_info[i][j][k] = match chunk_options[offset_i / CHUNK_DIMENSION as usize][offset_j / CHUNK_DIMENSION as usize][offset_k / CHUNK_DIMENSION as usize] {
-                        Some(chunk) => !chunk.get_block_at(offset_i % CHUNK_DIMENSION as usize, offset_j % CHUNK_DIMENSION as usize, offset_k % CHUNK_DIMENSION as usize).is_air(),
+                        Some(chunk) => {
+                            let is_block_air = chunk.get_block_at(offset_i % CHUNK_DIMENSION as usize, offset_j % CHUNK_DIMENSION as usize, offset_k % CHUNK_DIMENSION as usize).is_air();
+                            !is_block_air
+                        },
                         None => false
                     };
                 }

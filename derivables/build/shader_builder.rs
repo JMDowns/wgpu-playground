@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 
 use super::vertex_builder::{DATA_TOTAL_BITS, VAR_SIZE_LIST};
-use fundamentals::consts::{TEX_MAX_X, TEX_MAX_Y};
+use fundamentals::consts::{TEX_MAX_X, TEX_MAX_Y, NUMBER_OF_CHUNKS_AROUND_PLAYER, CHUNK_DIMENSION};
 
 pub fn build_shader_file() {
     let shader_path = Path::new("../hello-wgpu/src/shader.wgsl");
@@ -24,6 +24,11 @@ fn build_shader_string() -> String {
 "@group(0) @binding(0)",
 "var<uniform> camera: CameraUniform;",
 "",
+"struct ChunkPositions {",
+format!("    chunk_positions: array<vec4<i32>,{}>", NUMBER_OF_CHUNKS_AROUND_PLAYER).as_str(),
+"};",
+"@group(2) @binding(0)",
+"var<uniform> chunkPositions: ChunkPositions;",
 "struct VertexInput {",
 build_vertex_data().as_str(),
 "};",
@@ -66,31 +71,53 @@ fn build_vertex_data() -> String {
 
 fn build_vs_main_statements() -> String {
     let mut data_unpack_vec = Vec::new();
+    let mut chunk_index_statement = String::new();
     let mut data_bits_used = 0;
-    for (_, size) in VAR_SIZE_LIST.iter() {
-        if data_bits_used % 32 + size < 32 {
-            if data_bits_used % 32 == 0 {
-                data_unpack_vec.push(format!("f32(model.data{} & {}u)", data_bits_used / 32, get_mask(*size, 0)));
+    for (name, size) in VAR_SIZE_LIST.iter() {
+        if *name == "chunk_index" {
+            if *size == 0 {
+                chunk_index_statement = String::from("    let chunk_index = 0;");
+            } else if data_bits_used % 32 + size < 32 {
+                if data_bits_used % 32 == 0 {
+                    chunk_index_statement = format!("    let chunk_index = (model.data{} & {}u);", data_bits_used / 32, get_mask(*size, data_bits_used % 32));
+                } else {
+                    chunk_index_statement = format!("    let chunk_index = (model.data{} & {}u) >> {}u;", data_bits_used / 32, get_mask(*size, data_bits_used % 32), data_bits_used % 32);
+                }
+                
             } else {
-                data_unpack_vec.push(format!("f32((model.data{} & {}u) >> {}u)", data_bits_used / 32, get_mask(*size, data_bits_used % 32), data_bits_used % 32));
+                let data_chunk_1_size = 32 - (data_bits_used % 32);
+                let first_or = format!("((model.data{} & {}u) >> {}u)", data_bits_used / 32, get_mask(data_chunk_1_size, data_bits_used % 32), data_bits_used % 32);
+                let second_or = format!("((model.data{} & {}u) << {}u)", data_bits_used / 32, get_mask(size - data_chunk_1_size, 0), size-data_chunk_1_size);
+                chunk_index_statement = format!("    let chunk_index = ({} | {});", first_or, second_or);
             }
+
         } else {
-            let data_chunk_1_size = 32 - (data_bits_used % 32);
-            let first_or = format!("((model.data{} & {}u) >> {})", data_bits_used / 32, get_mask(data_chunk_1_size, data_bits_used % 32), data_bits_used % 32);
-            let second_or = format!("((model.data{} & {}u) << {})", data_bits_used / 32, get_mask(size - data_chunk_1_size, 0), size-data_chunk_1_size);
-            data_unpack_vec.push(format!("f32({} | {})", first_or, second_or));
+            if data_bits_used % 32 + size < 32 {
+                if data_bits_used % 32 == 0 {
+                    data_unpack_vec.push(format!("f32(model.data{} & {}u)", data_bits_used / 32, get_mask(*size, 0)));
+                } else {
+                    data_unpack_vec.push(format!("f32((model.data{} & {}u) >> {}u)", data_bits_used / 32, get_mask(*size, data_bits_used % 32), data_bits_used % 32));
+                }
+            } else {
+                let data_chunk_1_size = 32 - (data_bits_used % 32);
+                let first_or = format!("((model.data{} & {}u) >> {})", data_bits_used / 32, get_mask(data_chunk_1_size, data_bits_used % 32), data_bits_used % 32);
+                let second_or = format!("((model.data{} & {}u) << {})", data_bits_used / 32, get_mask(size - data_chunk_1_size, 0), size-data_chunk_1_size);
+                data_unpack_vec.push(format!("f32({} | {})", first_or, second_or));
+            }
         }
 
         data_bits_used += size;
     }
+
     [
-        format!("    out.clip_position = camera.view_proj * vec4<f32>({}, {}, {}, 1.0);", data_unpack_vec[0], data_unpack_vec[1], data_unpack_vec[2]),
+        chunk_index_statement,
+        format!("    out.clip_position = camera.view_proj * vec4<f32>({} + f32(chunkPositions.chunk_positions[chunk_index][0]*{CHUNK_DIMENSION}), {} + f32(chunkPositions.chunk_positions[chunk_index][1]*{CHUNK_DIMENSION}), {} + f32(chunkPositions.chunk_positions[chunk_index][2]*{CHUNK_DIMENSION}), 1.0);", data_unpack_vec[0], data_unpack_vec[1], data_unpack_vec[2]),
         format!("    out.tex_coords = vec2<f32>({} * {}, {} * {});", data_unpack_vec[3], 1.0 / TEX_MAX_X as f32, data_unpack_vec[4], 1.0 / TEX_MAX_Y as f32),
         format!("    out.ambient_occlusion = {};", data_unpack_vec[5]),
     ].join("\n")
 }
 
-fn get_mask(number_of_ones: u8, number_of_zeroes: u8) -> u32 {
+fn get_mask(number_of_ones: u32, number_of_zeroes: u32) -> u32 {
     let mut digit_place = 0;
     let mut mask = 0;
     for _ in 0..number_of_zeroes {

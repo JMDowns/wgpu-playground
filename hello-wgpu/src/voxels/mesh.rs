@@ -61,7 +61,7 @@ impl Mesh {
         }
     }
 
-    pub fn _stupid(chunk: &Chunk, solid_data: [[[bool; CHUNK_DIMENSION as usize+2]; CHUNK_DIMENSION as usize+2]; CHUNK_DIMENSION as usize+2]) -> Self {
+    pub fn cull_ambient_occlusion(chunk: &Chunk, solid_data: [[[bool; CHUNK_DIMENSION as usize+2]; CHUNK_DIMENSION as usize+2]; CHUNK_DIMENSION as usize+2], index: u32) -> Self {
 
         let mut mesh = Mesh::new();
 
@@ -73,31 +73,7 @@ impl Mesh {
                     let adjacent_blocks_data = Self::generate_adjacent_blocks(&solid_data, i+1, j+1, k+1);
                     if !block.is_air() {
                         mesh.add_vertices(
-                            Self::generate_cube(chunk.get_absolute_coords_usize(i, j, k), block.get_texture_coords(), &ambient_occlusion_on_vertices, &adjacent_blocks_data), 
-                            Self::generate_cube_indices(&adjacent_blocks_data, &ambient_occlusion_on_vertices)
-                        );
-                    }
-                    
-                }
-            }
-        }
-
-        mesh
-    }
-
-    pub fn cull_ambient_occlusion(chunk: &Chunk, solid_data: [[[bool; CHUNK_DIMENSION as usize+2]; CHUNK_DIMENSION as usize+2]; CHUNK_DIMENSION as usize+2]) -> Self {
-
-        let mut mesh = Mesh::new();
-
-        for k in 0..CHUNK_DIMENSION as usize {
-            for j in 0..CHUNK_DIMENSION as usize {
-                for i in 0..CHUNK_DIMENSION as usize {
-                    let block = chunk.get_block_at(i, j, k);
-                    let ambient_occlusion_on_vertices = Self::generate_ambient_occlusion_on_vertices(&solid_data, i+1, j+1, k+1);
-                    let adjacent_blocks_data = Self::generate_adjacent_blocks(&solid_data, i+1, j+1, k+1);
-                    if !block.is_air() {
-                        mesh.add_vertices(
-                            Self::generate_cube(chunk.get_absolute_coords_usize(i, j, k), block.get_texture_coords(), &ambient_occlusion_on_vertices, &adjacent_blocks_data), 
+                            Self::generate_cube(WorldPosition::new(i as i32,j as i32,k as i32), block.get_texture_coords(), &ambient_occlusion_on_vertices, &adjacent_blocks_data, index), 
                             Self::generate_cube_indices(&adjacent_blocks_data, &ambient_occlusion_on_vertices)
                         );
                     }
@@ -196,46 +172,46 @@ impl Mesh {
         return is_side_1_solid as u8 + is_side_2_solid as u8 + is_corner_solid as u8;
     }
     
-    fn generate_cube(pos: WorldPosition, tex_coords_arr: &[TextureCoordinates; 6], ambient_occlusion_on_vertices: &[[u8;3]; 8], adjacent_blocks_data: &[bool;6]) -> [Vec<Vertex>; 6] {
+    fn generate_cube(pos: WorldPosition, tex_coords_arr: &[TextureCoordinates; 6], ambient_occlusion_on_vertices: &[[u8;3]; 8], adjacent_blocks_data: &[bool;6], index: u32) -> [Vec<Vertex>; 6] {
         let positions = pos.generate_vertex_world_positions();
         let mut vertices_arr = [Vec::new(),Vec::new(),Vec::new(),Vec::new(),Vec::new(),Vec::new(),];
         let all_vertices_arr = 
         [
             [
-            Vertex::new(positions[0], tex_coords_arr[0].offset(0, 1), ambient_occlusion_on_vertices[0][0]),
-            Vertex::new(positions[1], tex_coords_arr[0].offset(1, 1), ambient_occlusion_on_vertices[1][0]),
-            Vertex::new(positions[2], tex_coords_arr[0].offset(0, 0), ambient_occlusion_on_vertices[2][0]),
-            Vertex::new(positions[3], tex_coords_arr[0].offset(1, 0), ambient_occlusion_on_vertices[3][0]),
+            Vertex::new(positions[0], tex_coords_arr[0].offset(0, 1), ambient_occlusion_on_vertices[0][0], index),
+            Vertex::new(positions[1], tex_coords_arr[0].offset(1, 1), ambient_occlusion_on_vertices[1][0], index),
+            Vertex::new(positions[2], tex_coords_arr[0].offset(0, 0), ambient_occlusion_on_vertices[2][0], index),
+            Vertex::new(positions[3], tex_coords_arr[0].offset(1, 0), ambient_occlusion_on_vertices[3][0], index),
             ].to_vec(),
             [
-            Vertex::new(positions[4], tex_coords_arr[1].offset(1, 1), ambient_occlusion_on_vertices[4][0]),
-            Vertex::new(positions[5], tex_coords_arr[1].offset(0, 1), ambient_occlusion_on_vertices[5][0]),
-            Vertex::new(positions[6], tex_coords_arr[1].offset(1, 0), ambient_occlusion_on_vertices[6][0]),
-            Vertex::new(positions[7], tex_coords_arr[1].offset(0, 0), ambient_occlusion_on_vertices[7][0]),
+            Vertex::new(positions[4], tex_coords_arr[1].offset(1, 1), ambient_occlusion_on_vertices[4][0], index),
+            Vertex::new(positions[5], tex_coords_arr[1].offset(0, 1), ambient_occlusion_on_vertices[5][0], index),
+            Vertex::new(positions[6], tex_coords_arr[1].offset(1, 0), ambient_occlusion_on_vertices[6][0], index),
+            Vertex::new(positions[7], tex_coords_arr[1].offset(0, 0), ambient_occlusion_on_vertices[7][0], index),
             ].to_vec(),
             [
-            Vertex::new(positions[0], tex_coords_arr[2].offset(1, 1), ambient_occlusion_on_vertices[0][1]),
-            Vertex::new(positions[2], tex_coords_arr[2].offset(1, 0), ambient_occlusion_on_vertices[2][1]),
-            Vertex::new(positions[4], tex_coords_arr[2].offset(0, 1), ambient_occlusion_on_vertices[4][1]),
-            Vertex::new(positions[6], tex_coords_arr[2].offset(0, 0), ambient_occlusion_on_vertices[6][1]),
+            Vertex::new(positions[0], tex_coords_arr[2].offset(1, 1), ambient_occlusion_on_vertices[0][1], index),
+            Vertex::new(positions[2], tex_coords_arr[2].offset(1, 0), ambient_occlusion_on_vertices[2][1], index),
+            Vertex::new(positions[4], tex_coords_arr[2].offset(0, 1), ambient_occlusion_on_vertices[4][1], index),
+            Vertex::new(positions[6], tex_coords_arr[2].offset(0, 0), ambient_occlusion_on_vertices[6][1], index),
             ].to_vec(),
             [
-            Vertex::new(positions[1], tex_coords_arr[3].offset(0, 1), ambient_occlusion_on_vertices[1][1]),
-            Vertex::new(positions[3], tex_coords_arr[3].offset(0, 0), ambient_occlusion_on_vertices[3][1]),
-            Vertex::new(positions[5], tex_coords_arr[3].offset(1, 1), ambient_occlusion_on_vertices[5][1]),
-            Vertex::new(positions[7], tex_coords_arr[3].offset(1, 0), ambient_occlusion_on_vertices[7][1]),
+            Vertex::new(positions[1], tex_coords_arr[3].offset(0, 1), ambient_occlusion_on_vertices[1][1], index),
+            Vertex::new(positions[3], tex_coords_arr[3].offset(0, 0), ambient_occlusion_on_vertices[3][1], index),
+            Vertex::new(positions[5], tex_coords_arr[3].offset(1, 1), ambient_occlusion_on_vertices[5][1], index),
+            Vertex::new(positions[7], tex_coords_arr[3].offset(1, 0), ambient_occlusion_on_vertices[7][1], index),
             ].to_vec(),
             [
-            Vertex::new(positions[2], tex_coords_arr[4].offset(0, 1), ambient_occlusion_on_vertices[2][2]),
-            Vertex::new(positions[3], tex_coords_arr[4].offset(1, 1), ambient_occlusion_on_vertices[3][2]),
-            Vertex::new(positions[6], tex_coords_arr[4].offset(0, 0), ambient_occlusion_on_vertices[6][2]),
-            Vertex::new(positions[7], tex_coords_arr[4].offset(1, 0), ambient_occlusion_on_vertices[7][2]),
+            Vertex::new(positions[2], tex_coords_arr[4].offset(0, 1), ambient_occlusion_on_vertices[2][2], index),
+            Vertex::new(positions[3], tex_coords_arr[4].offset(1, 1), ambient_occlusion_on_vertices[3][2], index),
+            Vertex::new(positions[6], tex_coords_arr[4].offset(0, 0), ambient_occlusion_on_vertices[6][2], index),
+            Vertex::new(positions[7], tex_coords_arr[4].offset(1, 0), ambient_occlusion_on_vertices[7][2], index),
             ].to_vec(),
             [
-            Vertex::new(positions[0], tex_coords_arr[5].offset(0, 0), ambient_occlusion_on_vertices[0][2]),
-            Vertex::new(positions[1], tex_coords_arr[5].offset(1, 0), ambient_occlusion_on_vertices[1][2]),
-            Vertex::new(positions[4], tex_coords_arr[5].offset(0, 1), ambient_occlusion_on_vertices[4][2]),
-            Vertex::new(positions[5], tex_coords_arr[5].offset(1, 1), ambient_occlusion_on_vertices[5][2]),
+            Vertex::new(positions[0], tex_coords_arr[5].offset(0, 0), ambient_occlusion_on_vertices[0][2], index),
+            Vertex::new(positions[1], tex_coords_arr[5].offset(1, 0), ambient_occlusion_on_vertices[1][2], index),
+            Vertex::new(positions[4], tex_coords_arr[5].offset(0, 1), ambient_occlusion_on_vertices[4][2], index),
+            Vertex::new(positions[5], tex_coords_arr[5].offset(1, 1), ambient_occlusion_on_vertices[5][2], index),
             ].to_vec()
         ];
     
