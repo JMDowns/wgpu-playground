@@ -11,7 +11,8 @@ use wgpu::util::DeviceExt;
 use fundamentals::world_position::WorldPosition;
 use crate::voxels::mesh::Mesh;
 use std::collections::VecDeque;
-use crate::gpu_data::{vertex::Vertex, vertex_gpu_data::VertexGPUData};
+use derivables::vertex::Vertex;
+use crate::gpu_data::vertex_gpu_data::VertexGPUData;
 
 use winit::{
     event::*,

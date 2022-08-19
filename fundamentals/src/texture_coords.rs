@@ -1,15 +1,15 @@
 #[derive(Clone, Copy)]
 pub struct TextureCoordinates {
-    pub tx: f32,
-    pub ty: f32,
+    pub tx: u32,
+    pub ty: u32,
 }
 
 impl TextureCoordinates {
-    pub fn new(tx: f32, ty: f32) -> Self {
+    pub fn new(tx: u32, ty: u32) -> Self {
         TextureCoordinates { tx, ty}
     }
 
-    pub fn offset(&self, w: f32, h: f32) -> Self {
+    pub fn offset(&self, w: u32, h: u32) -> Self {
         TextureCoordinates { tx: self.tx+w, ty: self.ty+h }
     }
 }

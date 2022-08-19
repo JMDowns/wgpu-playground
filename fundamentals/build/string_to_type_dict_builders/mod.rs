@@ -6,7 +6,7 @@ use ::formats::formats::block_format::BlockFormat;
 mod string_to_block_type;
 mod string_to_texture_coords;
 
-pub fn build_string_to_type_dictionaries(vec_block_format: &Vec<BlockFormat>, block_string_to_texture_coords: &Vec<(String, [(f32, f32);6])>) {
+pub fn build_string_to_type_dictionaries(vec_block_format: &Vec<BlockFormat>, block_string_to_texture_coords: &Vec<(String, [(u32, u32);6])>) {
     let string_to_block_type_path = Path::new("../string_to_type_dictionaries/build.rs");
     let mut string_to_dict_build_file = BufWriter::new(File::create(string_to_block_type_path).unwrap());
     writeln!(

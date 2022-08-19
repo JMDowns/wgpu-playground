@@ -1,5 +1,3 @@
-// Vertex Shader
-
 struct CameraUniform {
     view_proj: mat4x4<f32>,
 };
@@ -7,15 +5,13 @@ struct CameraUniform {
 var<uniform> camera: CameraUniform;
 
 struct VertexInput {
-    @location(0) position: vec3<i32>,
-    @location(1) tex_coords: vec2<f32>,
-    @location(2) ambient_occlusion: f32,
+    @location(0) data0: u32,
 };
 
 struct VertexOutput {
     @builtin(position) clip_position:vec4<f32>,
     @location(0) tex_coords: vec2<f32>,
-    @location(1) ambient_occlusion: f32
+    @location(1) ambient_occlusion: f32,
 };
 
 @vertex
@@ -23,9 +19,9 @@ fn vs_main(
     model: VertexInput,
 ) -> VertexOutput {
     var out: VertexOutput;
-    out.tex_coords = model.tex_coords;
-    out.ambient_occlusion = model.ambient_occlusion;
-    out.clip_position = camera.view_proj * vec4<f32>(f32(model.position.x), f32(model.position.y), f32(model.position.z), 1.0);
+    out.clip_position = camera.view_proj * vec4<f32>(f32(model.data0 & 31u), f32((model.data0 & 992u) >> 5u), f32((model.data0 & 31744u) >> 10u), 1.0);
+    out.tex_coords = vec2<f32>(f32((model.data0 & 229376u) >> 15u) * 0.25, f32((model.data0 & 1835008u) >> 18u) * 0.25);
+    out.ambient_occlusion = f32((model.data0 & 6291456u) >> 21u);
     return out;
 }
 

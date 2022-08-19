@@ -36,7 +36,7 @@ impl Block {
         let btype_option = num::FromPrimitive::from_u16(self.block_type);
         let btype = match btype_option {
             Some(bt) => bt,
-            None => BlockType::WOOD
+            None => BlockType::AIR
         };
         BLOCK_TYPE_TO_TEXTURE_COORDINATES.get(&btype).unwrap()
     }

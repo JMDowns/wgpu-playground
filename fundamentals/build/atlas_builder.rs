@@ -8,7 +8,7 @@ pub struct AtlasBuilder {
     pub atlas_index_height: u32,
     pub texture_width_str: String,
     pub texture_height_str: String,
-    pub block_string_to_texture_coords: Vec<(String, [(f32, f32);6])>,
+    pub block_string_to_texture_coords: Vec<(String, [(u32, u32);6])>,
 }
 
 impl AtlasBuilder {
@@ -70,7 +70,7 @@ impl AtlasBuilder {
             }
         };
 
-        let mut atlas_buf = <image::ImageBuffer<image::Rgba<u8>, _>>::new(atlas_index_width*config_format.texture_dimension, atlas_index_height*config_format.texture_dimension);
+        let mut atlas_buf = <image::ImageBuffer<image::Rgba<u8>, _>>::new(config_format.atlas_max_images_on_a_row*config_format.texture_dimension, config_format.atlas_max_images_on_a_column*config_format.texture_dimension);
     
         for ((tix,tiy), texture) in texture_vec {
             atlas_buf.copy_from(&texture, tix*config_format.texture_dimension, tiy*config_format.texture_dimension).unwrap();
@@ -90,7 +90,7 @@ impl AtlasBuilder {
             texture_height_str = String::from("1.0");
         }
     
-        let block_string_to_texture_coords = block_string_to_texture_indices.iter().map(|(s, t_arr)| (s.clone(), t_arr.map(|(tix, tiy)| (tix as f32 / atlas_index_width as f32, tiy as f32 / (atlas_index_height as f32))))).collect();
+        let block_string_to_texture_coords = block_string_to_texture_indices;
 
         AtlasBuilder { 
             atlas_index_width, 

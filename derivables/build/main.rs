@@ -6,6 +6,8 @@ use string_to_type_dictionaries::string_to_texture_coords::STRING_TO_TEXTURE_COO
 use formats::formats;
 use phf_codegen;
 use serde_json;
+mod vertex_builder;
+mod shader_builder;
 
 fn main() {
     let block_type_to_texture_coordinates_path = Path::new("src/dictionaries/").join("block_type_to_texture_coordinates.rs");
@@ -20,6 +22,9 @@ fn main() {
          get_imports(),
          get_map(&vec_block_format)
     ).unwrap();
+
+    vertex_builder::build_vertex_file();
+    shader_builder::build_shader_file();
 }
 
 fn get_imports() -> String {
@@ -37,16 +42,7 @@ fn get_map(vec_block_format: &Vec<formats::block_format::BlockFormat>) -> String
         let mut tex_arr = Vec::new();
 
         for i in 0..6 {
-            let mut string_tx = texture_coords[i].tx.to_string();
-            if texture_coords[i].tx == 0.0 {
-                string_tx = String::from("0.0");
-            }
-            let mut string_ty = texture_coords[i].ty.to_string();
-            if texture_coords[i].ty == 0.0 {
-                string_ty = String::from("0.0");
-            }
-
-            tex_arr.push((string_tx, string_ty));
+            tex_arr.push((texture_coords[i].tx.to_string(), texture_coords[i].ty.to_string()));
         }
 
         let entries = tex_arr.iter().map(|(tx,ty)| format!("TextureCoordinates {{ tx: {}, ty: {} }}", tx, ty)).collect::<Vec<String>>().join(",");
