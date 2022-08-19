@@ -14,7 +14,7 @@ impl World {
     }
 
     pub fn generate_chunk_at(pos: &WorldPosition) -> Chunk {
-        Chunk::perlin(pos)
+        Chunk::solid(pos)
     }
 
     pub fn add_chunk(&mut self, chunk: Chunk) {
@@ -22,7 +22,6 @@ impl World {
     }
     
     pub fn generate_mesh_at(&self, pos: &WorldPosition, index: u32) -> Option<Mesh> {
-        println!("Generating chunk at {} with index {}", pos, index);
         let block_solid_data = self.list_if_blocks_are_solid_in_and_surrounding_chunk(pos);
         match self.chunks.get(pos) {
             Some(chunk) => Some(Mesh::cull_ambient_occlusion(chunk, block_solid_data, index)),

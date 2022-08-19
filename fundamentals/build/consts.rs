@@ -53,7 +53,7 @@ fn generate_chunk_pos_around_player_fn(config_format: &ConfigFormat) -> Vec<(i32
 
                 let mut is_in_radius = true;
                 for (x,y,z) in vertex_positions {
-                    if ((x.pow(3)+y.pow(3)+z.pow(3)) as f32).cbrt() > (radius + 2) as f32 {
+                    if (((x as f32 - 0.5).powf(2.0)+(y as f32 - 0.5).powf(2.0)+(z as f32 - 0.5).powf(2.0)) as f32).sqrt() > radius as f32 + 1.0 {
                         is_in_radius = false;
                     }
                 }

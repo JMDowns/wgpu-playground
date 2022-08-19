@@ -28,7 +28,7 @@ fn build_shader_string() -> String {
 format!("    chunk_positions: array<vec4<i32>,{}>", NUMBER_OF_CHUNKS_AROUND_PLAYER).as_str(),
 "};",
 "@group(2) @binding(0)",
-"var<uniform> chunkPositions: ChunkPositions;",
+"var<storage> chunkPositions: ChunkPositions;",
 "struct VertexInput {",
 build_vertex_data().as_str(),
 "};",
@@ -87,7 +87,7 @@ fn build_vs_main_statements() -> String {
             } else {
                 let data_chunk_1_size = 32 - (data_bits_used % 32);
                 let first_or = format!("((model.data{} & {}u) >> {}u)", data_bits_used / 32, get_mask(data_chunk_1_size, data_bits_used % 32), data_bits_used % 32);
-                let second_or = format!("((model.data{} & {}u) << {}u)", data_bits_used / 32, get_mask(size - data_chunk_1_size, 0), size-data_chunk_1_size);
+                let second_or = format!("((model.data{} & {}u) << {}u)", data_bits_used / 32 + 1, get_mask(size - data_chunk_1_size, 0), data_chunk_1_size);
                 chunk_index_statement = format!("    let chunk_index = ({} | {});", first_or, second_or);
             }
 
@@ -101,7 +101,7 @@ fn build_vs_main_statements() -> String {
             } else {
                 let data_chunk_1_size = 32 - (data_bits_used % 32);
                 let first_or = format!("((model.data{} & {}u) >> {})", data_bits_used / 32, get_mask(data_chunk_1_size, data_bits_used % 32), data_bits_used % 32);
-                let second_or = format!("((model.data{} & {}u) << {})", data_bits_used / 32, get_mask(size - data_chunk_1_size, 0), size-data_chunk_1_size);
+                let second_or = format!("((model.data{} & {}u) << {})", data_bits_used / 32 + 1, get_mask(size - data_chunk_1_size, 0), data_chunk_1_size);
                 data_unpack_vec.push(format!("f32({} | {})", first_or, second_or));
             }
         }

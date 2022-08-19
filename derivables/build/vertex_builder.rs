@@ -4,7 +4,7 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::string::String;
 
-pub const DATA_TOTAL_BITS: u32 = (BITS_PER_POSITION * 3 + BITS_PER_TEX_COORD_X + BITS_PER_TEX_COORD_Y + BITS_PER_AMBIENT_OCCLUSION) as u32;
+pub const DATA_TOTAL_BITS: u32 = (BITS_PER_POSITION * 3 + BITS_PER_TEX_COORD_X + BITS_PER_TEX_COORD_Y + BITS_PER_AMBIENT_OCCLUSION + BITS_PER_CHUNK_INDEX) as u32;
 pub const VAR_SIZE_LIST: [(&str, u32);7] = [
         ("pos.x", BITS_PER_POSITION),
         ("pos.y", BITS_PER_POSITION),
@@ -81,9 +81,9 @@ fn build_new_bitops() -> String {
             ops_vec.push(format!("            data{} = data{} | ({var} as u32){};", data_bits_modified/32, data_bits_modified/32, shift_string));
         } else {
             let data_chunk_1_size = 32 - (data_bits_modified % 32);
-            ops_vec.push(format!("            data{} = data{} | (({var} as u32) & {} ) << {};", data_bits_modified/32, data_bits_modified/32+1, get_first_chunk_binary_mask(data_chunk_1_size), data_bits_modified % 32));
-            ops_vec.push(format!("            let mut data{} = 0;", data_bits_modified / 32 + 2));
-            ops_vec.push(format!("            data{} = data{} | (({var} as u32) & {} ) >> {};", data_bits_modified/32+1, data_bits_modified/32+2, get_second_chunk_binary_mask(data_chunk_1_size, size), data_chunk_1_size));
+            ops_vec.push(format!("            data{} = data{} | (({var} as u32) & {} ) << {};", data_bits_modified/32, data_bits_modified/32, get_first_chunk_binary_mask(data_chunk_1_size), data_bits_modified % 32));
+            ops_vec.push(format!("            let mut data{} = 0;", data_bits_modified / 32 + 1));
+            ops_vec.push(format!("            data{} = data{} | (({var} as u32) & {} ) >> {};", data_bits_modified/32+1, data_bits_modified/32+1, get_second_chunk_binary_mask(data_chunk_1_size, size), data_chunk_1_size));
         }
 
         data_bits_modified += size;

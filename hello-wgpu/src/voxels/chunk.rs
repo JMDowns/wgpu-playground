@@ -30,6 +30,16 @@ impl Chunk {
         Chunk { position: *position, blocks: Chunk::get_arr(blocks_vec) }
     }
 
+    pub fn solid(position: &WorldPosition) -> Self {
+        let mut blocks_vec = Vec::new();
+
+        for _ in 0..CHUNK_SIZE as i32 {
+            blocks_vec.push(Block::new(BlockType::DIRT));
+        }
+
+        Chunk { position: *position, blocks: Chunk::get_arr(blocks_vec) }
+    }
+
     pub fn get_block_at(&self, cx: usize, cy: usize, cz: usize) -> &Block{
         &self.blocks[cx+(CHUNK_DIMENSION as usize)*cy+(CHUNK_PLANE_SIZE as usize)*cz]
     }
