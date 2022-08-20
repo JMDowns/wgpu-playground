@@ -74,7 +74,7 @@ fn build_new_bitops() -> String {
             continue;
         }
         if data_bits_modified % 32 + size < 32 {
-            let mut shift_string = format!(" << {data_bits_modified}");
+            let mut shift_string = format!(" << {}", data_bits_modified % 32);
             if data_bits_modified % 32 == 0 {
                 shift_string = String::new();
             }

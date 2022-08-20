@@ -100,8 +100,8 @@ fn build_vs_main_statements() -> String {
                 }
             } else {
                 let data_chunk_1_size = 32 - (data_bits_used % 32);
-                let first_or = format!("((model.data{} & {}u) >> {})", data_bits_used / 32, get_mask(data_chunk_1_size, data_bits_used % 32), data_bits_used % 32);
-                let second_or = format!("((model.data{} & {}u) << {})", data_bits_used / 32 + 1, get_mask(size - data_chunk_1_size, 0), data_chunk_1_size);
+                let first_or = format!("((model.data{} & {}u) >> {}u)", data_bits_used / 32, get_mask(data_chunk_1_size, data_bits_used % 32), data_bits_used % 32);
+                let second_or = format!("((model.data{} & {}u) << {}u)", data_bits_used / 32 + 1, get_mask(size - data_chunk_1_size, 0), data_chunk_1_size);
                 data_unpack_vec.push(format!("f32({} | {})", first_or, second_or));
             }
         }

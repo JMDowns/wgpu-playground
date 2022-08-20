@@ -196,8 +196,6 @@ impl State {
 
         let depth_texture = texture::Texture::create_depth_texture(&device, &config, "depth_texture");
 
-        println!("Player position is {}", WorldPosition::from(camera.position));
-
         let chunk_positions_around_player = fundamentals::consts::get_positions_around_player(WorldPosition::from(camera.position));
 
         let chunk_index_buffer = device.create_buffer_init(
