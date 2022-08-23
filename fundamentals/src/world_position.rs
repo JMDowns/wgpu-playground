@@ -7,7 +7,7 @@ pub struct WorldPosition {
     pub x: i32,
     pub y: i32,
     pub z: i32,
-    pub padding: i32, //This is so the struct is 16-byte aligned
+    pub padding: i32, // Added to align WorldPosition to a 16-byte alignment
 }
 
 impl WorldPosition {

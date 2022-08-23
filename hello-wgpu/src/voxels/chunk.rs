@@ -8,7 +8,7 @@ use consts::{CHUNK_DIMENSION, CHUNK_PLANE_SIZE, CHUNK_SIZE};
 
 pub struct Chunk {
     pub position: WorldPosition,
-    pub blocks: [Block; CHUNK_SIZE],
+    pub blocks: Vec<Block>,
 }
 
 impl Chunk {
@@ -27,7 +27,7 @@ impl Chunk {
             }
         }
 
-        Chunk { position: *position, blocks: Chunk::get_arr(blocks_vec) }
+        Chunk { position: *position, blocks: blocks_vec }
     }
 
     pub fn solid(position: &WorldPosition) -> Self {
@@ -37,7 +37,7 @@ impl Chunk {
             blocks_vec.push(Block::new(BlockType::DIRT));
         }
 
-        Chunk { position: *position, blocks: Chunk::get_arr(blocks_vec) }
+        Chunk { position: *position, blocks: blocks_vec }
     }
 
     pub fn get_block_at(&self, cx: usize, cy: usize, cz: usize) -> &Block{

@@ -25,7 +25,7 @@ fn build_shader_string() -> String {
 "var<uniform> camera: CameraUniform;",
 "",
 "struct ChunkPositions {",
-format!("    chunk_positions: array<vec4<i32>,{}>", NUMBER_OF_CHUNKS_AROUND_PLAYER).as_str(),
+format!("    chunk_positions: array<vec3<i32>,{}>", NUMBER_OF_CHUNKS_AROUND_PLAYER).as_str(),
 "};",
 "@group(2) @binding(0)",
 "var<storage> chunkPositions: ChunkPositions;",
