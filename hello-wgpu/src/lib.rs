@@ -4,6 +4,7 @@ mod voxels;
 mod state;
 mod tasks;
 mod gpu_data;
+mod thread_task_manager;
 
 use winit::{
     event::*,

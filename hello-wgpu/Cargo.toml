@@ -34,6 +34,7 @@ fundamentals = { path = "../fundamentals" }
 derivables = { path = "../derivables" }
 crossbeam = "0.8.1"
 noise = "0.7.0"
+priority-queue="1.2.3"
 
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]

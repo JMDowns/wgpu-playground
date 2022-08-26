@@ -4,15 +4,19 @@ use crate::tasks::tasks_processors::generate_chunk_mesh_processor::GenerateChunk
 use crate::tasks::tasks_processors::generate_chunk_processor::GenerateChunkProcessor;
 use crate::texture;
 use crate::voxels::chunk;
+use crate::thread_task_manager::ThreadTaskManager;
 use crossbeam::sync::WaitGroup;
 use fundamentals::consts;
 use fundamentals::consts::NUMBER_OF_CHUNKS_AROUND_PLAYER;
+use fundamentals::consts::NUM_ADDITIONAL_THREADS;
 use crate::camera;
 use crate::voxels::world::World;
 use wgpu::util::DeviceExt;
 use fundamentals::world_position::WorldPosition;
 use crate::voxels::mesh::Mesh;
 use std::collections::VecDeque;
+use std::sync::Arc;
+use std::sync::RwLock;
 use derivables::vertex::Vertex;
 use crate::gpu_data::vertex_gpu_data::VertexGPUData;
 
@@ -23,6 +27,11 @@ use winit::{
 
 const SQRT_2_DIV_2: f32 = 0.7071;
 const NEG_SQRT_2_DIV_2: f32 = -0.7071;
+
+pub struct ThreadData {
+    pub world: Arc<RwLock<World>>,
+    pub vertex_gpu_data: Arc<RwLock<VertexGPUData>>
+}
 
 pub struct State {
     pub surface: wgpu::Surface,
@@ -43,18 +52,17 @@ pub struct State {
     pub camera_controller: camera::CameraController,
     pub mouse_pressed: bool,
     pub render_wireframe: bool,
-    pub world: World,
     pub diffuse_bind_group: wgpu::BindGroup,
     pub diffuse_texture: texture::Texture,
-    pub task_queue: VecDeque<Task>,
     pub vertex_buffers: [wgpu::Buffer; 6],
     pub index_buffers: [wgpu::Buffer; 6],
     pub index_buffers_lengths: [u32; 6],
-    pub vertex_gpu_data: VertexGPUData,
     pub chunk_positions_around_player: [WorldPosition; NUMBER_OF_CHUNKS_AROUND_PLAYER as usize],
     pub chunk_index_buffer: wgpu::Buffer,
     pub chunk_index_bind_group: wgpu::BindGroup,
-    pub chunk_pos_to_index: std::collections::HashMap<WorldPosition, u32>
+    pub chunk_pos_to_index: std::collections::HashMap<WorldPosition, u32>,
+    pub thread_data: ThreadData,
+    pub thread_task_manager: ThreadTaskManager
 }
 
 impl State {
@@ -344,22 +352,22 @@ impl State {
                 multiview: None,
             });
 
-        let world = World::new();
+        let world = Arc::new(RwLock::new(World::new()));
 
-        let mut task_queue = VecDeque::new();
+        let mut thread_task_manager = ThreadTaskManager::new();
         for pos in chunk_positions_around_player {
-            task_queue.push_back(Task::GenerateChunk { chunk_position: pos });
+            thread_task_manager.push_task(Task::GenerateChunk { chunk_position: pos, world: world.clone() });
         }
 
         let mesh = Mesh::new();
 
-        let vertex_gpu_data = mesh.get_gpu_data();
+        let vertex_gpu_data = Arc::new(RwLock::new(mesh.get_gpu_data()));
 
-        let vertex_buffers = vertex_gpu_data.generate_vertex_buffers(&device);
+        let vertex_buffers = vertex_gpu_data.read().unwrap().generate_vertex_buffers(&device);
 
-        let index_buffers = vertex_gpu_data.generate_index_buffers(&device);
+        let index_buffers = vertex_gpu_data.read().unwrap().generate_index_buffers(&device);
 
-        let index_buffers_lengths = vertex_gpu_data.generate_index_buffer_lengths();
+        let index_buffers_lengths = vertex_gpu_data.read().unwrap().generate_index_buffer_lengths();
 
         let mut chunk_pos_to_index = std::collections::HashMap::new();
 
@@ -386,18 +394,17 @@ impl State {
             camera_controller,
             mouse_pressed: false,
             render_wireframe: false,
-            world,
             diffuse_bind_group,
             diffuse_texture,
-            task_queue,
             vertex_buffers,
             index_buffers,
             index_buffers_lengths,
-            vertex_gpu_data,
             chunk_positions_around_player,
             chunk_index_buffer,
             chunk_index_bind_group,
             chunk_pos_to_index,
+            thread_data: ThreadData { world, vertex_gpu_data },
+            thread_task_manager
         }
     }
 
@@ -453,77 +460,32 @@ impl State {
     }
 
     pub fn process_tasks(&mut self) {
-        let mut task_schedules = self.schedule_tasks();
-
-        let wg = WaitGroup::new();
-
-        let _ = crossbeam::scope(|scope| {
-            for (ref mut tasks, ref mut task_results) in task_schedules.iter_mut() {
-                let wg = wg.clone();
-                scope.spawn(|_| {
-                    for task in tasks {
-                        match task {
-                            Task::GenerateChunk { chunk_position } => { 
-                                task_results.push(GenerateChunkProcessor::process_task(&chunk_position))
-                            },
-                            Task::GenerateChunkMesh { chunk_position } => {
-                                task_results.push(GenerateChunkMeshProcessor::process_task(&chunk_position, &self.world, &self.chunk_pos_to_index))
-                            }
-                        }
-                    }
-
-                    drop(wg);
-                });
-            }
-        });
+        let mut task_results = self.thread_task_manager.process_tasks();
 
         let mut chunks_generated = 0;
         let mut meshes_generated = 0;
 
-        for (_ ,task_results) in task_schedules.drain(0..) {
-            for task_result in task_results {
-                match task_result {
-                    TaskResult::Requeue { task } => self.task_queue.push_front(task),
-                    TaskResult::GenerateChunk { chunk } => {
-                        println!("Generated chunk {}!", chunks_generated);
-                        chunks_generated += 1;
-                        self.task_queue.push_front(Task::GenerateChunkMesh { chunk_position: chunk.position });
-                        self.world.add_chunk(chunk);
-                    },
-                    TaskResult::GenerateChunkMesh { mesh } => {
-                        println!("Generated mesh {}!", meshes_generated);
-                        meshes_generated += 1;
-                        self.vertex_gpu_data.add_gpu_data_drain(&mut mesh.get_gpu_data());
-                    }
+        for task_result in task_results.drain(..) {
+            match task_result {
+                TaskResult::Requeue { task } => self.thread_task_manager.push_task(task),
+                TaskResult::GenerateChunk { chunk_position } => {
+                    println!("Generated chunk {}!", chunks_generated);
+                    chunks_generated += 1;
+                    self.thread_task_manager.push_task(Task::GenerateChunkMesh { chunk_position, world: self.thread_data.world.clone(), chunk_index: *self.chunk_pos_to_index.get(&chunk_position).unwrap(), vertex_gpu_data: self.thread_data.vertex_gpu_data.clone() });
+                    
+                },
+                TaskResult::GenerateChunkMesh { } => {
+                    println!("Generated mesh {}!", meshes_generated);
+                    meshes_generated += 1;
                 }
             }
         }
 
         if meshes_generated > 0 {
-            self.vertex_buffers = self.vertex_gpu_data.generate_vertex_buffers(&self.device);
-            self.index_buffers = self.vertex_gpu_data.generate_index_buffers(&self.device);
-            self.index_buffers_lengths = self.vertex_gpu_data.generate_index_buffer_lengths();
+            self.vertex_buffers = self.thread_data.vertex_gpu_data.read().unwrap().generate_vertex_buffers(&self.device);
+            self.index_buffers = self.thread_data.vertex_gpu_data.read().unwrap().generate_index_buffers(&self.device);
+            self.index_buffers_lengths = self.thread_data.vertex_gpu_data.read().unwrap().generate_index_buffer_lengths();
         }
-    }
-
-    fn schedule_tasks(&mut self) -> Vec<(Vec<Task>, Vec<TaskResult>)> {
-        let mut tasks_scheduled = 0;
-        let mut empty_task_list = false;
-        let mut task_schedules = Vec::new();
-        let number_tasks_per_thread = 15;
-        for _ in 0..std::cmp::max(1, consts::NUM_THREADS-1) {
-            task_schedules.push((Vec::new(), Vec::new()));
-        }
-        while tasks_scheduled < std::cmp::max(1, consts::NUM_THREADS-1) * number_tasks_per_thread && !empty_task_list {
-            match self.task_queue.pop_front() {
-                Some(task) => task_schedules[tasks_scheduled % (std::cmp::max(1, consts::NUM_THREADS-1))].0.push(task),
-                None => empty_task_list = true
-            }
-            
-            tasks_scheduled = tasks_scheduled + 1;
-        }
-
-        task_schedules
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
@@ -536,9 +498,6 @@ impl State {
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("Render Encoder"),
             });
-
-        
-
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),

@@ -43,8 +43,4 @@ impl Chunk {
     pub fn get_block_at(&self, cx: usize, cy: usize, cz: usize) -> &Block{
         &self.blocks[cx+(CHUNK_DIMENSION as usize)*cy+(CHUNK_PLANE_SIZE as usize)*cz]
     }
-
-    fn get_arr<T, const N: usize>(v: Vec<T>) -> [T; N] {
-        v.try_into().unwrap_or_else(|v: Vec<T>| panic!("Expected a Vec of length {} but it was {}", N, v.len()))
-    }
 }
