@@ -57,7 +57,7 @@ pub async fn run() {
             .. // We're not using device_id currently
         } => if state.mouse_pressed {
             let sensitivity = 1.0;
-            state.camera_controller.process_mouse(delta.0, delta.1, sensitivity)
+            state.camera_state.camera_controller.process_mouse(delta.0, delta.1, sensitivity)
         }
         Event::WindowEvent {
             ref event,
@@ -95,7 +95,7 @@ pub async fn run() {
             match state.render() {
                 Ok(_) => {}
                 //Reconfigure if surface is lost
-                Err(wgpu::SurfaceError::Lost) => state.resize(state.size),
+                Err(wgpu::SurfaceError::Lost) => state.resize(state.surface_state.size),
                 //System is out of memory, so we should probably quit
                 Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
                 Err(e) => eprintln!("{:?}", e),

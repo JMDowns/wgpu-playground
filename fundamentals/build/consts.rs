@@ -1,7 +1,6 @@
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::Path;
-use std::vec;
 use formats::formats::config_format::ConfigFormat;
 
 pub fn generate_consts(config_format: &ConfigFormat, consts_model: &ConstsModel) {

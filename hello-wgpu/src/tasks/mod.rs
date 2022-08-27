@@ -2,7 +2,7 @@ use std::sync::{Arc, RwLock};
 use std::hash::{Hash, Hasher};
 
 use crate::gpu_data::vertex_gpu_data::VertexGPUData;
-use crate::voxels::{mesh::Mesh, chunk::Chunk, world::World};
+use crate::voxels::world::World;
 use fundamentals::world_position::WorldPosition;
 
 pub mod tasks_processors;

@@ -1,5 +1,4 @@
 use crossbeam::channel::{Sender, Receiver};
-use std::thread::JoinHandle;
 use priority_queue::PriorityQueue;
 use fundamentals::consts::NUM_ADDITIONAL_THREADS;
 use crate::tasks::{Task, TaskResult, get_task_priority};
@@ -34,10 +33,16 @@ impl ThreadTaskManager {
                             match task {
                                 Task::StopThread {  } => should_run = false,
                                 Task::GenerateChunk { chunk_position, world } => { 
-                                    s_task_result.send(GenerateChunkProcessor::process_task(&chunk_position, world)).unwrap();
+                                    match s_task_result.send(GenerateChunkProcessor::process_task(&chunk_position, world)) {
+                                        Ok(_) => {}
+                                        Err(_) => should_run = false
+                                    }
                                 },
                                 Task::GenerateChunkMesh { chunk_position, world, chunk_index, vertex_gpu_data } => {
-                                    s_task_result.send(GenerateChunkMeshProcessor::process_task(&chunk_position, world, chunk_index, vertex_gpu_data)).unwrap();
+                                    match s_task_result.send(GenerateChunkMeshProcessor::process_task(&chunk_position, world, chunk_index, vertex_gpu_data)) {
+                                        Ok(_) => {}
+                                        Err(_) => should_run = false
+                                    }
                                 }
                             }
                         },
