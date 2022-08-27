@@ -4,12 +4,13 @@ use std::hash::{Hash, Hasher};
 use crate::gpu_data::vertex_gpu_data::VertexGPUData;
 use crate::voxels::world::World;
 use fundamentals::world_position::WorldPosition;
+use wgpu::Device;
 
 pub mod tasks_processors;
 
 pub enum Task {
     StopThread,
-    GenerateChunkMesh { chunk_position: WorldPosition, world: Arc<RwLock<World>>, chunk_index: u32, vertex_gpu_data: Arc<RwLock<VertexGPUData>> },
+    GenerateChunkMesh { chunk_position: WorldPosition, world: Arc<RwLock<World>>, chunk_index: u32, vertex_gpu_data: Arc<RwLock<VertexGPUData>>, device: Arc<RwLock<Device>> },
     GenerateChunk { chunk_position: WorldPosition, world: Arc<RwLock<World>>},
 }
 

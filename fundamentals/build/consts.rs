@@ -16,6 +16,7 @@ pub fn generate_consts(config_format: &ConfigFormat, consts_model: &ConstsModel)
             format!("pub const NUM_BLOCK_TYPES: u16 = {};", consts_model.num_block_types),
             format!("pub const NUM_ADDITIONAL_THREADS: usize = {};", generate_num_threads(&config_format)),
             format!("pub const RENDER_DISTANCE: usize = {};", config_format.render_radius),
+            format!("pub const FOV_DISTANCE: usize = {};", config_format.render_radius*config_format.chunk_dimension as usize),
             format!("pub const CHUNK_DIMENSION: i32 = {};", config_format.chunk_dimension),
             format!("pub const CHUNK_PLANE_SIZE: i32 = {};", (config_format.chunk_dimension as u32)*(config_format.chunk_dimension as u32)),
             format!("pub const CHUNK_SIZE: usize = {};", (config_format.chunk_dimension as u32)*(config_format.chunk_dimension as u32)*(config_format.chunk_dimension as u32)),
@@ -26,7 +27,9 @@ pub fn generate_consts(config_format: &ConfigFormat, consts_model: &ConstsModel)
             format!("pub const BITS_PER_TEX_COORD_Y: u32 = {};", (((config_format.atlas_max_images_on_a_column + 1) as f32).log2().ceil())),
             format!("pub const BITS_PER_AMBIENT_OCCLUSION: u32 = 2;"),
             format!("pub const NUMBER_OF_CHUNKS_AROUND_PLAYER: u32 = {};", position_offset_vec.len()),
+            format!("pub const NUMBER_OF_CHUNKS_TO_RENDER: u32 = {};", (position_offset_vec.len() as f32 / 8 as f32).ceil() as u32),
             format!("pub const BITS_PER_CHUNK_INDEX: u32 = {};", ((position_offset_vec.len()) as f32).log2().ceil() as u32),
+            format!("pub const MESH_BUCKET_SIZE: u32 = {};", config_format.mesh_bucket_size),
             String::new(),
             generate_string_from_position_offsets(position_offset_vec),
         ].join("\n")

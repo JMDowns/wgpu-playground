@@ -1,3 +1,5 @@
+use crate::camera;
+
 pub struct CameraState {
     pub camera: camera::Camera,
     pub camera_uniform: camera::CameraUniform,

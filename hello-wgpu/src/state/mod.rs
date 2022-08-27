@@ -5,6 +5,7 @@ mod texture_state;
 
 use buffer_state::BufferState;
 use camera_state::CameraState;
+use fundamentals::consts::FOV_DISTANCE;
 use surface_state::SurfaceState;
 use texture_state::TextureState;
 use crate::tasks::Task;
@@ -32,7 +33,8 @@ const NEG_SQRT_2_DIV_2: f32 = -0.7071;
 
 pub struct ThreadData {
     pub world: Arc<RwLock<World>>,
-    pub vertex_gpu_data: Arc<RwLock<VertexGPUData>>
+    pub vertex_gpu_data: Arc<RwLock<VertexGPUData>>,
+    pub device: Arc<RwLock<wgpu::Device>>
 }
 
 pub struct State {
@@ -48,7 +50,8 @@ pub struct State {
     pub chunk_positions_around_player: [WorldPosition; NUMBER_OF_CHUNKS_AROUND_PLAYER as usize],
     pub chunk_pos_to_index: std::collections::HashMap<WorldPosition, u32>,
     pub thread_data: ThreadData,
-    pub thread_task_manager: ThreadTaskManager
+    pub thread_task_manager: ThreadTaskManager,
+    pub have_moved: bool,
 }
 
 impl State {
@@ -147,7 +150,7 @@ impl State {
         );
 
         let camera = camera::Camera::new((0.0,0.0,0.0), cgmath::Deg(0.0), cgmath::Deg(0.0));
-        let projection = camera::Projection::new(config.width, config.height, cgmath::Deg(45.0), 0.1, 100.0);
+        let projection = camera::Projection::new(config.width, config.height, cgmath::Deg(45.0), 0.1, FOV_DISTANCE as f32);
         let camera_controller = camera::CameraController::new(4.0, 0.4);
 
         let mut camera_uniform = camera::CameraUniform::new();
@@ -345,13 +348,7 @@ impl State {
             thread_task_manager.push_task(Task::GenerateChunk { chunk_position: pos, world: world.clone() });
         }
 
-        let vertex_gpu_data = Arc::new(RwLock::new(Mesh::new().get_gpu_data()));
-
-        let vertex_buffers = vertex_gpu_data.read().unwrap().generate_vertex_buffers(&device);
-
-        let index_buffers = vertex_gpu_data.read().unwrap().generate_index_buffers(&device);
-
-        let index_buffers_lengths = vertex_gpu_data.read().unwrap().generate_index_buffer_lengths();
+        let vertex_gpu_data = Arc::new(RwLock::new(Mesh::get_gpu_data(Mesh::new(), &device)));
 
         let mut chunk_pos_to_index = std::collections::HashMap::new();
 
@@ -362,7 +359,6 @@ impl State {
         Self {
             surface_state: SurfaceState {
                 surface,
-                device,
                 config,
                 size,
                 screen_color,
@@ -381,9 +377,6 @@ impl State {
                 camera_controller,
             },
             buffer_state: BufferState {
-                vertex_buffers,
-                index_buffers,
-                index_buffers_lengths,
                 chunk_index_buffer,
                 chunk_index_bind_group,
             },
@@ -394,8 +387,9 @@ impl State {
             render_wireframe: false,
             chunk_positions_around_player,
             chunk_pos_to_index,
-            thread_data: ThreadData { world, vertex_gpu_data },
-            thread_task_manager
+            thread_data: ThreadData { world, vertex_gpu_data, device: Arc::new(RwLock::new(device)) },
+            thread_task_manager,
+            have_moved: false,
         }
     }
 
@@ -404,8 +398,8 @@ impl State {
             self.surface_state.size = new_size;
             self.surface_state.config.width = new_size.width;
             self.surface_state.config.height = new_size.height;
-            self.surface_state.surface.configure(&self.surface_state.device, &self.surface_state.config);
-            self.texture_state.depth_texture = texture::Texture::create_depth_texture(&self.surface_state.device, &self.surface_state.config, "depth_texture");
+            self.surface_state.surface.configure(&self.thread_data.device.read().unwrap(), &self.surface_state.config);
+            self.texture_state.depth_texture = texture::Texture::create_depth_texture(&self.thread_data.device.read().unwrap(), &self.surface_state.config, "depth_texture");
             self.camera_state.projection.resize(new_size.width, new_size.height);
         }
     }
@@ -425,7 +419,9 @@ impl State {
                 if *key == VirtualKeyCode::LControl && *state == ElementState::Pressed {
                     self.render_wireframe = !self.render_wireframe;
                 }
-                self.camera_state.camera_controller.process_keyboard(*key, *state)
+                let movement = self.camera_state.camera_controller.process_keyboard(*key, *state);
+                self.have_moved = movement;
+                movement
             }
                 ,
             WindowEvent::MouseWheel { delta, .. } => {
@@ -447,7 +443,15 @@ impl State {
     pub fn update(&mut self, dt: instant::Duration) {
         self.camera_state.camera_controller.update_camera(&mut self.camera_state.camera, dt);
         self.camera_state.camera_uniform.update_view_proj(&self.camera_state.camera, &self.camera_state.projection);
+        self.frustum_cull();
         self.queue.write_buffer(&self.camera_state.camera_buffer, 0, bytemuck::cast_slice(&[self.camera_state.camera_uniform]));
+    }
+
+    fn frustum_cull(&mut self) {
+        if self.have_moved {
+
+            self.have_moved = false;
+        }
     }
 
     pub fn process_tasks(&mut self) {
@@ -462,7 +466,7 @@ impl State {
                 TaskResult::GenerateChunk { chunk_position } => {
                     println!("Generated chunk {}!", chunks_generated);
                     chunks_generated += 1;
-                    self.thread_task_manager.push_task(Task::GenerateChunkMesh { chunk_position, world: self.thread_data.world.clone(), chunk_index: *self.chunk_pos_to_index.get(&chunk_position).unwrap(), vertex_gpu_data: self.thread_data.vertex_gpu_data.clone() });
+                    self.thread_task_manager.push_task(Task::GenerateChunkMesh { chunk_position, world: self.thread_data.world.clone(), chunk_index: *self.chunk_pos_to_index.get(&chunk_position).unwrap(), vertex_gpu_data: self.thread_data.vertex_gpu_data.clone(), device: self.thread_data.device.clone() });
                     
                 },
                 TaskResult::GenerateChunkMesh { } => {
@@ -470,12 +474,6 @@ impl State {
                     meshes_generated += 1;
                 }
             }
-        }
-
-        if meshes_generated > 0 {
-            self.buffer_state.vertex_buffers = self.thread_data.vertex_gpu_data.read().unwrap().generate_vertex_buffers(&self.surface_state.device);
-            self.buffer_state.index_buffers = self.thread_data.vertex_gpu_data.read().unwrap().generate_index_buffers(&self.surface_state.device);
-            self.buffer_state.index_buffers_lengths = self.thread_data.vertex_gpu_data.read().unwrap().generate_index_buffer_lengths();
         }
     }
 
@@ -485,10 +483,12 @@ impl State {
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
         let mut encoder = self
-            .surface_state.device
+            .thread_data.device.read().unwrap()
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("Render Encoder"),
             });
+
+        let vertex_gpu_data = self.thread_data.vertex_gpu_data.read().unwrap();
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
@@ -524,41 +524,28 @@ impl State {
             let ysin = self.camera_state.camera.yaw.0.sin();
             let psin = self.camera_state.camera.pitch.0.sin();
 
-            //front
-            if ycos > NEG_SQRT_2_DIV_2 {
-                render_pass.set_vertex_buffer(0, self.buffer_state.vertex_buffers[0].slice(..));
-                render_pass.set_index_buffer(self.buffer_state.index_buffers[0].slice(..), wgpu::IndexFormat::Uint32);
-                render_pass.draw_indexed(0..self.buffer_state.index_buffers_lengths[0], 0, 0..1);
-            }
-            //back
-            if ycos < SQRT_2_DIV_2 {
-                render_pass.set_vertex_buffer(0, self.buffer_state.vertex_buffers[1].slice(..));
-                render_pass.set_index_buffer(self.buffer_state.index_buffers[1].slice(..), wgpu::IndexFormat::Uint32);
-                render_pass.draw_indexed(0..self.buffer_state.index_buffers_lengths[1], 0, 0..1);
-            }
-            //left
-            if ysin > NEG_SQRT_2_DIV_2 {
-                render_pass.set_vertex_buffer(0, self.buffer_state.vertex_buffers[2].slice(..));
-                render_pass.set_index_buffer(self.buffer_state.index_buffers[2].slice(..), wgpu::IndexFormat::Uint32);
-                render_pass.draw_indexed(0..self.buffer_state.index_buffers_lengths[2], 0, 0..1);
-            }
-            //right
-            if ysin < SQRT_2_DIV_2 {
-                render_pass.set_vertex_buffer(0, self.buffer_state.vertex_buffers[3].slice(..));
-                render_pass.set_index_buffer(self.buffer_state.index_buffers[3].slice(..), wgpu::IndexFormat::Uint32);
-                render_pass.draw_indexed(0..self.buffer_state.index_buffers_lengths[3], 0, 0..1);
-            }
-            //top
-            if psin < SQRT_2_DIV_2  {
-                render_pass.set_vertex_buffer(0, self.buffer_state.vertex_buffers[4].slice(..));
-                render_pass.set_index_buffer(self.buffer_state.index_buffers[4].slice(..), wgpu::IndexFormat::Uint32);
-                render_pass.draw_indexed(0..self.buffer_state.index_buffers_lengths[4], 0, 0..1);
-            }
-            //bottom
-            if psin > NEG_SQRT_2_DIV_2 {
-                render_pass.set_vertex_buffer(0, self.buffer_state.vertex_buffers[5].slice(..));
-                render_pass.set_index_buffer(self.buffer_state.index_buffers[5].slice(..), wgpu::IndexFormat::Uint32);
-                render_pass.draw_indexed(0..self.buffer_state.index_buffers_lengths[5], 0, 0..1);
+            //Front, Back, Left, Right, Top, Bottom
+            let lhs_comp_arr = [ycos, ycos, ysin, ysin, psin, psin];
+            let is_comp_lt = [false, true, false, true, true, false];
+            let angles = [NEG_SQRT_2_DIV_2, SQRT_2_DIV_2, NEG_SQRT_2_DIV_2, SQRT_2_DIV_2, SQRT_2_DIV_2, NEG_SQRT_2_DIV_2];
+            
+            for j in 0..vertex_gpu_data.data_front.vertex_buffers.len() as usize {
+                let gpu_data = vertex_gpu_data.get_buffers_at_index_i(j);
+                for i in 0..6 {
+                    if is_comp_lt[i] {
+                        if lhs_comp_arr[i] < angles[i] {
+                            render_pass.set_vertex_buffer(0, gpu_data[i].0.slice(..));
+                            render_pass.set_index_buffer(gpu_data[i].1.slice(..), wgpu::IndexFormat::Uint32);
+                            render_pass.draw_indexed(0..gpu_data[i].2, 0, 0..1);
+                        }
+                    } else {
+                        if lhs_comp_arr[i] > angles[i] {
+                            render_pass.set_vertex_buffer(0, gpu_data[i].0.slice(..));
+                            render_pass.set_index_buffer(gpu_data[i].1.slice(..), wgpu::IndexFormat::Uint32);
+                            render_pass.draw_indexed(0..gpu_data[i].2, 0, 0..1);
+                        }
+                    }
+                }
             }
         }
 

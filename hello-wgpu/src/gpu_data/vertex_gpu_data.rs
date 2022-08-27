@@ -19,36 +19,26 @@ impl VertexGPUData {
         self.data_bottom.add_triple_drain(&mut other_gpu_data.data_bottom);
     }
 
-    pub fn generate_vertex_buffers(&self, device: &wgpu::Device) -> [wgpu::Buffer; 6] {
-        [ 
-            self.data_front.generate_vertex_buffer(device, "Front mesh"),
-            self.data_back.generate_vertex_buffer(device, "Back mesh"),
-            self.data_left.generate_vertex_buffer(device, "Left mesh"),
-            self.data_right.generate_vertex_buffer(device, "Right mesh"),
-            self.data_top.generate_vertex_buffer(device, "Top mesh"),
-            self.data_bottom.generate_vertex_buffer(device, "Bottom mesh"),
-        ]
-    }
-
-    pub fn generate_index_buffers(&self, device: &wgpu::Device) -> [wgpu::Buffer; 6] {
-        [ 
-            self.data_front.generate_index_buffer(device, "Front mesh"),
-            self.data_back.generate_index_buffer(device, "Back mesh"),
-            self.data_left.generate_index_buffer(device, "Left mesh"),
-            self.data_right.generate_index_buffer(device, "Right mesh"),
-            self.data_top.generate_index_buffer(device, "Top mesh"),
-            self.data_bottom.generate_index_buffer(device, "Bottom mesh"),
-        ]
-    }
-
-    pub fn generate_index_buffer_lengths(&self) -> [u32; 6] {
+    pub fn get_buffers_at_index_i(&self, i: usize) -> [(&wgpu::Buffer, &wgpu::Buffer, u32); 6] {
         [
-            self.data_front.generate_index_buffer_length(),
-            self.data_back.generate_index_buffer_length(),
-            self.data_left.generate_index_buffer_length(),
-            self.data_right.generate_index_buffer_length(),
-            self.data_top.generate_index_buffer_length(),
-            self.data_bottom.generate_index_buffer_length(),
+            (&self.data_front.vertex_buffers[i],
+            &self.data_front.index_buffers[i],
+            self.data_front.index_lengths[i]),
+            (&self.data_back.vertex_buffers[i],
+            &self.data_back.index_buffers[i],
+            self.data_back.index_lengths[i]),
+            (&self.data_left.vertex_buffers[i],
+            &self.data_left.index_buffers[i],
+            self.data_left.index_lengths[i]),
+            (&self.data_right.vertex_buffers[i],
+            &self.data_right.index_buffers[i],
+            self.data_right.index_lengths[i]),
+            (&self.data_top.vertex_buffers[i],
+            &self.data_top.index_buffers[i],
+            self.data_top.index_lengths[i]),
+            (&self.data_bottom.vertex_buffers[i],
+            &self.data_bottom.index_buffers[i],
+            self.data_bottom.index_lengths[i]),
         ]
     }
 }

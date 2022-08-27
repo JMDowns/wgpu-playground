@@ -1,7 +1,7 @@
 {
     "num_additional_threads_specified": 14,
     "use_all_system_threads": false,
-    "render_radius": 5,
+    "render_radius": 3,
     "atlas_max_images_on_a_row": 16,
     "atlas_max_images_on_a_column": 16,
     "max_amount_of_blocktypes": 65536,
@@ -9,5 +9,6 @@
     "number_of_light_colors": 512,
     "number_of_alpha_values": 4,
     "texture_dimension": 16,
-    "chunk_dimension": 16
+    "chunk_dimension": 64,
+    "mesh_bucket_size": 4096
 }

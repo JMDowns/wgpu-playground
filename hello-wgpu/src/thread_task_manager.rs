@@ -38,8 +38,8 @@ impl ThreadTaskManager {
                                         Err(_) => should_run = false
                                     }
                                 },
-                                Task::GenerateChunkMesh { chunk_position, world, chunk_index, vertex_gpu_data } => {
-                                    match s_task_result.send(GenerateChunkMeshProcessor::process_task(&chunk_position, world, chunk_index, vertex_gpu_data)) {
+                                Task::GenerateChunkMesh { chunk_position, world, chunk_index, vertex_gpu_data, device } => {
+                                    match s_task_result.send(GenerateChunkMeshProcessor::process_task(&chunk_position, world, chunk_index, vertex_gpu_data, device)) {
                                         Ok(_) => {}
                                         Err(_) => should_run = false
                                     }

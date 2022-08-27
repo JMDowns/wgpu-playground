@@ -12,5 +12,6 @@ pub struct ConfigFormat {
     pub number_of_light_colors: u32,
     pub number_of_alpha_values: u8,
     pub texture_dimension: u32,
-    pub chunk_dimension: u8
+    pub chunk_dimension: u8,
+    pub mesh_bucket_size: u32,
 }

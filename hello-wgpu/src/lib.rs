@@ -57,6 +57,7 @@ pub async fn run() {
             .. // We're not using device_id currently
         } => if state.mouse_pressed {
             let sensitivity = 1.0;
+            state.have_moved = true;
             state.camera_state.camera_controller.process_mouse(delta.0, delta.1, sensitivity)
         }
         Event::WindowEvent {
