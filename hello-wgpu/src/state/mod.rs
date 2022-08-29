@@ -3,21 +3,17 @@ mod camera_state;
 mod surface_state;
 mod texture_state;
 
-use buffer_state::BufferState;
 use camera_state::CameraState;
-use fundamentals::consts::FOV_DISTANCE;
 use surface_state::SurfaceState;
 use texture_state::TextureState;
 use crate::tasks::Task;
 use crate::tasks::TaskResult;
 use crate::texture;
 use crate::thread_task_manager::ThreadTaskManager;
-use fundamentals::consts::NUMBER_OF_CHUNKS_AROUND_PLAYER;
 use crate::camera;
 use crate::voxels::world::World;
 use wgpu::util::DeviceExt;
 use fundamentals::world_position::WorldPosition;
-use crate::voxels::mesh::Mesh;
 use std::sync::Arc;
 use std::sync::RwLock;
 use derivables::vertex::Vertex;
@@ -49,7 +45,13 @@ pub struct State {
     pub thread_data: ThreadData,
     pub thread_task_manager: ThreadTaskManager,
     pub calculate_frustum: bool,
-    pub chunk_positions_to_load: Vec<WorldPosition>
+    pub chunk_positions_to_load: Vec<WorldPosition>,
+    pub is_lshift_pressed: bool,
+    pub is_lctrl_pressed: bool,
+    pub is_lalt_pressed: bool,
+    pub is_rshift_pressed: bool,
+    pub is_rctrl_pressed: bool,
+    pub is_ralt_pressed: bool,
 }
 
 impl State {
@@ -340,7 +342,13 @@ impl State {
             thread_data: ThreadData { world, vertex_gpu_data, device: Arc::new(RwLock::new(device)) },
             thread_task_manager,
             calculate_frustum: true,
-            chunk_positions_to_load: Vec::new()
+            chunk_positions_to_load: Vec::new(),
+            is_lshift_pressed: false,
+            is_lctrl_pressed: false,
+            is_lalt_pressed: false,
+            is_rshift_pressed: false,
+            is_rctrl_pressed: false,
+            is_ralt_pressed: false,
         }
     }
 
@@ -367,14 +375,79 @@ impl State {
                 ..
             } => 
             {
-                if *key == VirtualKeyCode::LControl && *state == ElementState::Pressed {
-                    self.render_wireframe = !self.render_wireframe;
+                let mut movement = false;
+                match key {
+                    VirtualKeyCode::LShift => {
+                        if *state == ElementState::Pressed && self.is_lshift_pressed == false {
+                            self.is_lshift_pressed = true;
+                            movement = self.camera_state.camera_controller.process_keyboard(VirtualKeyCode::LShift, ElementState::Pressed);
+                        }
+                        if *state == ElementState::Released && self.is_lshift_pressed == true {
+                            self.is_lshift_pressed = false;
+                            movement = self.camera_state.camera_controller.process_keyboard(VirtualKeyCode::LShift, ElementState::Released);
+                        }
+                    },
+                    VirtualKeyCode::RShift => {
+                        if *state == ElementState::Pressed && self.is_rshift_pressed == false {
+                            self.is_rshift_pressed = true;
+                            movement =  self.camera_state.camera_controller.process_keyboard(VirtualKeyCode::RShift, ElementState::Pressed);
+                        }
+                        if *state == ElementState::Released && self.is_rshift_pressed == true {
+                            self.is_rshift_pressed = false;
+                            movement =  self.camera_state.camera_controller.process_keyboard(VirtualKeyCode::RShift, ElementState::Released);
+                        }
+                    },
+                    VirtualKeyCode::LControl => {
+                        if *state == ElementState::Pressed && self.is_lctrl_pressed == false {
+                            self.is_lctrl_pressed = true;
+                            movement =  self.camera_state.camera_controller.process_keyboard(VirtualKeyCode::LControl, ElementState::Pressed);
+                        }
+                        if *state == ElementState::Released && self.is_lctrl_pressed == true {
+                            self.is_lctrl_pressed = false;
+                            movement =  self.camera_state.camera_controller.process_keyboard(VirtualKeyCode::LControl, ElementState::Released);
+                        }
+                    },
+                    VirtualKeyCode::RControl => {
+                        if *state == ElementState::Pressed && self.is_rctrl_pressed == false {
+                            self.is_rctrl_pressed = true;
+                            movement =  self.camera_state.camera_controller.process_keyboard(VirtualKeyCode::RControl, ElementState::Pressed);
+                        }
+                        if *state == ElementState::Released && self.is_rctrl_pressed == true {
+                            self.is_rctrl_pressed = false;
+                            movement =  self.camera_state.camera_controller.process_keyboard(VirtualKeyCode::RControl, ElementState::Released);
+                        }
+                    },
+                    VirtualKeyCode::LAlt => {
+                        if *state == ElementState::Pressed && self.is_lalt_pressed == false {
+                            self.is_lalt_pressed = true;
+                            movement =  self.camera_state.camera_controller.process_keyboard(VirtualKeyCode::LAlt, ElementState::Pressed);
+                        }
+                        if *state == ElementState::Released && self.is_lalt_pressed == true {
+                            self.is_lalt_pressed = false;
+                            movement =  self.camera_state.camera_controller.process_keyboard(VirtualKeyCode::LAlt, ElementState::Released);
+                        }
+                    },
+                    VirtualKeyCode::RAlt => {
+                        if *state == ElementState::Pressed && self.is_ralt_pressed == false {
+                            self.is_ralt_pressed = true;
+                            movement =  self.camera_state.camera_controller.process_keyboard(VirtualKeyCode::RAlt, ElementState::Pressed);
+                        }
+                        if *state == ElementState::Released && self.is_ralt_pressed == true {
+                            self.is_ralt_pressed = false;
+                            movement =  self.camera_state.camera_controller.process_keyboard(VirtualKeyCode::RAlt, ElementState::Released);
+                        }
+                    }
+                    _ => {
+                        if *key == VirtualKeyCode::LControl && *state == ElementState::Pressed {
+                            self.render_wireframe = !self.render_wireframe;
+                        }
+                        
+                        movement = self.camera_state.camera_controller.process_keyboard(*key, *state);
+                    }
                 }
-                let movement = self.camera_state.camera_controller.process_keyboard(*key, *state);
                 self.calculate_frustum = movement;
                 movement
             }
-                ,
             WindowEvent::MouseWheel { delta, .. } => {
                 self.camera_state.camera_controller.process_scroll(delta);
                 true
@@ -391,20 +464,38 @@ impl State {
         }
     }
 
+    pub fn input_nonrepeating_keys(&mut self) -> bool {
+        let mut movement = false;
+        if self.is_lshift_pressed {
+            movement =  movement || self.camera_state.camera_controller.process_keyboard(VirtualKeyCode::LShift, ElementState::Pressed);
+        }
+        if self.is_rshift_pressed {
+            movement =  movement || self.camera_state.camera_controller.process_keyboard(VirtualKeyCode::RShift, ElementState::Pressed);
+        }
+        if self.is_lctrl_pressed {
+            movement =  movement || self.camera_state.camera_controller.process_keyboard(VirtualKeyCode::LControl, ElementState::Pressed);
+        }
+        if self.is_rctrl_pressed {
+            movement =  movement || self.camera_state.camera_controller.process_keyboard(VirtualKeyCode::RControl, ElementState::Pressed);
+        }
+        if self.is_lalt_pressed {
+            movement =  movement || self.camera_state.camera_controller.process_keyboard(VirtualKeyCode::LAlt, ElementState::Pressed);
+        }
+        if self.is_ralt_pressed {
+            movement =  movement || self.camera_state.camera_controller.process_keyboard(VirtualKeyCode::RAlt, ElementState::Pressed);
+        }
+        self.calculate_frustum = self.calculate_frustum || movement;
+        movement
+    }
+
     pub fn update(&mut self, dt: instant::Duration) {
         self.camera_state.camera_controller.update_camera(&mut self.camera_state.camera, dt);
         self.camera_state.camera_uniform.update_view_proj(&self.camera_state.camera, &self.camera_state.projection);
-        match self.frustum_cull() {
-            Some(vec) => {
-                self.calculate_frustum = false;
-                self.chunk_positions_to_load = vec;
-            },
-            None => {}
-        }
+        self.frustum_cull();
         self.queue.write_buffer(&self.camera_state.camera_buffer, 0, bytemuck::cast_slice(&[self.camera_state.camera_uniform]));
     }
 
-    fn frustum_cull(&self) -> Option<Vec<WorldPosition>> {
+    fn frustum_cull(&mut self) -> Option<Vec<WorldPosition>> {
         if self.calculate_frustum {
             let mut chunks_in_frustum = Vec::new();
             let frustum = self.camera_state.projection.calculate_frustum(&self.camera_state.camera);
@@ -413,7 +504,8 @@ impl State {
                     chunks_in_frustum.push(*chunk_position);
                 }
             }
-            return Some(chunks_in_frustum);
+            self.calculate_frustum = false;
+            self.chunk_positions_to_load = chunks_in_frustum;
         }
 
         None
@@ -495,7 +587,7 @@ impl State {
             let is_comp_lt = [false, true, false, true, true, false];
             let angles = [NEG_SQRT_2_DIV_2, SQRT_2_DIV_2, NEG_SQRT_2_DIV_2, SQRT_2_DIV_2, SQRT_2_DIV_2, NEG_SQRT_2_DIV_2];
             
-            println!("Loading {} chunks!", self.chunk_positions_to_load.len());
+            //println!("Loading {} chunks!", self.chunk_positions_to_load.len());
 
             for pos in self.chunk_positions_to_load.iter() {
                 let gpu_data = vertex_gpu_data.get_buffers_at_position(pos);

@@ -227,6 +227,7 @@ impl CameraController {
 
     pub fn process_keyboard(&mut self, key: VirtualKeyCode, state: ElementState) -> bool{
         let amount = if state == ElementState::Pressed { self.speed } else { 0.0 };
+        println!("{:?} {:?}", key, state);
         match key {
             VirtualKeyCode::W | VirtualKeyCode::Up => {
                 self.amount_forward = amount;
@@ -248,7 +249,7 @@ impl CameraController {
                 self.amount_up = amount;
                 true
             }
-            VirtualKeyCode::E => {
+            VirtualKeyCode::LShift => {
                 self.amount_down = amount;
                 true
             }

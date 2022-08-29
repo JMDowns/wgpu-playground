@@ -60,6 +60,7 @@ pub async fn run() {
             state.calculate_frustum = true;
             state.camera_state.camera_controller.process_mouse(delta.0, delta.1, sensitivity)
         }
+
         Event::WindowEvent {
             ref event,
             window_id,
@@ -105,6 +106,7 @@ pub async fn run() {
 
         Event::MainEventsCleared => {
             // RedrawRequested will only trigger once, unless we manually request it.
+            state.input_nonrepeating_keys();
             state.process_tasks();
             window.request_redraw();
         }
