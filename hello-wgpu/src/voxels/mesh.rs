@@ -1,8 +1,10 @@
+use std::collections::HashMap;
+
 use crate::gpu_data::{vertex_gpu_data::VertexGPUData, vec_vertex_index_length_triple::VecVertexIndexLengthsTriple};
 use derivables::vertex::Vertex;
 use fundamentals::texture_coords::TextureCoordinates;
 use fundamentals::world_position::WorldPosition;
-use fundamentals::consts::{CHUNK_DIMENSION};
+use fundamentals::consts::CHUNK_DIMENSION;
 use wgpu::util::DeviceExt;
 use super::chunk::Chunk;
 
@@ -27,56 +29,21 @@ impl Mesh {
         }
     }
 
-    pub fn get_gpu_data(mesh: Mesh, device: &wgpu::Device) -> VertexGPUData {
-        VertexGPUData {
-            data_front: VecVertexIndexLengthsTriple {
-                vertex_buffers: vec![Mesh::generate_vertex_buffer(mesh.front.0, device, "Front Mesh")],
-                index_buffers: vec![Mesh::generate_index_buffer(mesh.front.1, device, "Front Mesh")],
-                index_lengths: vec![mesh.front.2]
-            },
-            data_back: VecVertexIndexLengthsTriple {
-                vertex_buffers: vec![Mesh::generate_vertex_buffer(mesh.back.0, device, "Front Mesh")],
-                index_buffers: vec![Mesh::generate_index_buffer(mesh.back.1, device, "Front Mesh")],
-                index_lengths: vec![mesh.back.2]
-            },
-            data_left: VecVertexIndexLengthsTriple {
-                vertex_buffers: vec![Mesh::generate_vertex_buffer(mesh.left.0, device, "Front Mesh")],
-                index_buffers: vec![Mesh::generate_index_buffer(mesh.left.1, device, "Front Mesh")],
-                index_lengths: vec![mesh.left.2]
-            },
-            data_right: VecVertexIndexLengthsTriple {
-                vertex_buffers: vec![Mesh::generate_vertex_buffer(mesh.right.0, device, "Front Mesh")],
-                index_buffers: vec![Mesh::generate_index_buffer(mesh.right.1, device, "Front Mesh")],
-                index_lengths: vec![mesh.right.2]
-            },
-            data_top: VecVertexIndexLengthsTriple {
-                vertex_buffers: vec![Mesh::generate_vertex_buffer(mesh.top.0, device, "Front Mesh")],
-                index_buffers: vec![Mesh::generate_index_buffer(mesh.top.1, device, "Front Mesh")],
-                index_lengths: vec![mesh.top.2]
-            },
-            data_bottom: VecVertexIndexLengthsTriple {
-                vertex_buffers: vec![Mesh::generate_vertex_buffer(mesh.bottom.0, device, "Front Mesh")],
-                index_buffers: vec![Mesh::generate_index_buffer(mesh.bottom.1, device, "Front Mesh")],
-                index_lengths: vec![mesh.bottom.2]
-            },
-        }
-    }
-
-    pub fn generate_vertex_buffer(vertex_vec: Vec<Vertex>, device: &wgpu::Device, label: &str) -> wgpu::Buffer {
+    pub fn generate_vertex_buffer(vertex_vec: &Vec<Vertex>, device: &wgpu::Device, label: &str) -> wgpu::Buffer {
         device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
                 label: Some(&String::from(format!("{} Vertex", label))),
-                contents: bytemuck::cast_slice(&vertex_vec),
+                contents: bytemuck::cast_slice(vertex_vec),
                 usage: wgpu::BufferUsages::VERTEX,
             }
         )
     }
 
-    pub fn generate_index_buffer(index_vec: Vec<u32>, device: &wgpu::Device, label: &str) -> wgpu::Buffer {
+    pub fn generate_index_buffer(index_vec: &Vec<u32>, device: &wgpu::Device, label: &str) -> wgpu::Buffer {
         device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
                 label: Some(&String::from(format!("{} Index", label))),
-                contents: bytemuck::cast_slice(&index_vec),
+                contents: bytemuck::cast_slice(index_vec),
                 usage: wgpu::BufferUsages::INDEX,
             }
         )

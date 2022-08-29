@@ -9,6 +9,6 @@
     "number_of_light_colors": 512,
     "number_of_alpha_values": 4,
     "texture_dimension": 16,
-    "chunk_dimension": 64,
+    "chunk_dimension": 16,
     "mesh_bucket_size": 4096
 }

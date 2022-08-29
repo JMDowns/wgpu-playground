@@ -574,6 +574,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "fastapprox"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d0031c93f37b5d18272de2d932ebff6a7eb32d4bc3bab6751a9af42da7d1a424"
+
+[[package]]
 name = "fastrand"
 version = "1.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -787,6 +793,7 @@ dependencies = [
  "crossbeam",
  "derivables",
  "env_logger",
+ "fastapprox",
  "fastrand",
  "fundamentals",
  "image 0.24.2",

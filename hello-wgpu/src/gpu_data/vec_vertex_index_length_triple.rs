@@ -9,6 +9,13 @@ pub struct VecVertexIndexLengthsTriple {
 }
 
 impl VecVertexIndexLengthsTriple {
+    pub fn new() -> Self {
+        Self {
+            vertex_buffers: Vec::new(),
+            index_buffers: Vec::new(),
+            index_lengths: Vec::new(),
+        }
+    }
 
     pub fn add_triple_drain(&mut self, triple: &mut Self) {
         self.vertex_buffers.append(&mut triple.vertex_buffers);

@@ -10,7 +10,7 @@ pub mod tasks_processors;
 
 pub enum Task {
     StopThread,
-    GenerateChunkMesh { chunk_position: WorldPosition, world: Arc<RwLock<World>>, chunk_index: u32, vertex_gpu_data: Arc<RwLock<VertexGPUData>>, device: Arc<RwLock<Device>> },
+    GenerateChunkMesh { chunk_position: WorldPosition, world: Arc<RwLock<World>>, vertex_gpu_data: Arc<RwLock<VertexGPUData>>, device: Arc<RwLock<Device>> },
     GenerateChunk { chunk_position: WorldPosition, world: Arc<RwLock<World>>},
 }
 

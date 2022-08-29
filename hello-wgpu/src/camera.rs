@@ -1,4 +1,7 @@
 use cgmath::*;
+use fastapprox::fast;
+use fundamentals::world_position::WorldPosition;
+use fundamentals::consts::CHUNK_DIMENSION;
 use winit::event::*;
 use winit::dpi::PhysicalPosition;
 use instant::Duration;
@@ -61,11 +64,78 @@ impl Camera {
     }
 }
 
+pub struct Plane {
+    d: f32,
+    normal: cgmath::Vector3<f32>
+}
+
+impl Plane {
+    pub fn distance_to_point(&self, point: cgmath::Vector3<f32>) -> f32 {
+        self.normal.dot(point) + self.d
+    }
+}
+
+pub struct Frustum {
+    front_plane: Plane,
+    back_plane: Plane,
+    left_plane: Plane,
+    right_plane: Plane,
+    top_plane: Plane,
+    bottom_plane: Plane
+}
+
+impl Frustum {
+    pub fn does_chunk_intersect_frustum(&self, chunk_position: &WorldPosition) -> bool {
+        if self.front_plane.distance_to_point(Frustum::calculate_positive_vertex(&self.front_plane, chunk_position).to_vec()) < 0.0 {
+            return false;
+        }
+        if self.back_plane.distance_to_point(Frustum::calculate_positive_vertex(&self.back_plane, chunk_position).to_vec()) < 0.0 {
+            return false;
+        }
+        if self.left_plane.distance_to_point(Frustum::calculate_positive_vertex(&self.left_plane, chunk_position).to_vec()) < 0.0 {
+            return false;
+        }
+        if self.right_plane.distance_to_point(Frustum::calculate_positive_vertex(&self.right_plane, chunk_position).to_vec()) < 0.0 {
+            return false;
+        }
+        if self.top_plane.distance_to_point(Frustum::calculate_positive_vertex(&self.top_plane, chunk_position).to_vec()) < 0.0 {
+            return false;
+        }
+        if self.bottom_plane.distance_to_point(Frustum::calculate_positive_vertex(&self.bottom_plane, chunk_position).to_vec()) < 0.0 {
+            return false;
+        }
+        true
+    }
+
+    fn calculate_positive_vertex(plane: &Plane, chunk_position: &WorldPosition) -> cgmath::Point3<f32> {
+        let xmin = (chunk_position.x * CHUNK_DIMENSION) as f32;
+        let ymin = (chunk_position.y * CHUNK_DIMENSION) as f32;
+        let zmin = (chunk_position.z * CHUNK_DIMENSION) as f32;
+        let xmax = xmin + CHUNK_DIMENSION as f32;
+        let ymax = ymin + CHUNK_DIMENSION as f32;
+        let zmax = zmin + CHUNK_DIMENSION as f32;
+
+        let mut p = cgmath::point3(xmin, ymin, zmin);
+        if plane.normal.x >= 0.0 {
+            p.x = xmax;
+        }
+        if plane.normal.y >= 0.0 {
+            p.y = ymax;
+        }
+        if plane.normal.z >= 0.0 {
+            p.z = zmax;
+        }
+        p
+    }
+}
+
 pub struct Projection {
     aspect: f32,
     fovy: Rad<f32>,
     znear: f32,
     zfar: f32,
+    wnear: f32,
+    hnear: f32,
 }
 
 impl Projection {
@@ -76,11 +146,18 @@ impl Projection {
         znear: f32,
         zfar: f32,
     ) -> Self {
+        let aspect = width as f32 / height as f32;
+        let fovy: Rad<f32> = fovy.into();
+        let tan_val = fast::tan(fovy.0);
+        let hnear = 2.0 * tan_val * znear;
+        let wnear = hnear * aspect;
         Self {
-            aspect: width as f32 / height as f32,
-            fovy: fovy.into(),
+            aspect,
+            fovy,
             znear,
             zfar,
+            wnear,
+            hnear,
         }
     }
 
@@ -90,6 +167,29 @@ impl Projection {
 
     pub fn calc_matrix(&self) -> Matrix4<f32> {
         OPENGL_TO_WGPU_MATRIX * perspective(self.fovy, self.aspect, self.znear, self.zfar)
+    }
+
+    pub fn calculate_frustum(&self, camera: &Camera) -> Frustum {
+        let camera_position = camera.position;
+        let forward_vec = camera.view_x_vec;
+        let up_vec = camera.view_y_vec;
+        let right_vec = camera.view_z_vec;
+
+        let near_point = camera_position + forward_vec*self.znear;
+        let far_point = camera_position + forward_vec*self.zfar;
+        let left_normal = ((near_point - right_vec * self.wnear / 2.0) - camera_position).normalize().cross(up_vec);
+        let right_normal = up_vec.cross(((near_point + right_vec * self.wnear / 2.0) - camera_position).normalize());
+        let bottom_normal = right_vec.cross(((near_point - up_vec * self.hnear / 2.0) - camera_position).normalize());
+        let top_normal = ((near_point + up_vec * self.hnear / 2.0) - camera_position).normalize().cross(right_vec);
+
+        Frustum {
+            front_plane: Plane { d: -1.0*forward_vec.dot(near_point.to_vec()), normal: forward_vec },
+            back_plane: Plane { d: forward_vec.dot(far_point.to_vec()), normal: -1.0*forward_vec },
+            left_plane: Plane { d: -1.0*left_normal.dot(camera_position.to_vec()), normal: left_normal },
+            right_plane: Plane { d: -1.0*right_normal.dot(camera_position.to_vec()), normal: right_normal },
+            top_plane: Plane { d: -1.0*top_normal.dot(camera_position.to_vec()), normal: top_normal },
+            bottom_plane: Plane { d: -1.0*bottom_normal.dot(camera_position.to_vec()), normal: bottom_normal },
+        }
     }
 }
 
@@ -148,7 +248,7 @@ impl CameraController {
                 self.amount_up = amount;
                 true
             }
-            VirtualKeyCode::LShift => {
+            VirtualKeyCode::E => {
                 self.amount_down = amount;
                 true
             }

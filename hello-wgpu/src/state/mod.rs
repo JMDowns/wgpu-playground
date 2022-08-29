@@ -34,7 +34,7 @@ const NEG_SQRT_2_DIV_2: f32 = -0.7071;
 pub struct ThreadData {
     pub world: Arc<RwLock<World>>,
     pub vertex_gpu_data: Arc<RwLock<VertexGPUData>>,
-    pub device: Arc<RwLock<wgpu::Device>>
+    pub device: Arc<RwLock<wgpu::Device>>,
 }
 
 pub struct State {
@@ -44,14 +44,12 @@ pub struct State {
     pub render_pipeline_wireframe: wgpu::RenderPipeline,
     pub camera_state: CameraState,
     pub texture_state: TextureState,
-    pub buffer_state: BufferState,
     pub mouse_pressed: bool,
     pub render_wireframe: bool,
-    pub chunk_positions_around_player: [WorldPosition; NUMBER_OF_CHUNKS_AROUND_PLAYER as usize],
-    pub chunk_pos_to_index: std::collections::HashMap<WorldPosition, u32>,
     pub thread_data: ThreadData,
     pub thread_task_manager: ThreadTaskManager,
-    pub have_moved: bool,
+    pub calculate_frustum: bool,
+    pub chunk_positions_to_load: Vec<WorldPosition>
 }
 
 impl State {
@@ -150,7 +148,7 @@ impl State {
         );
 
         let camera = camera::Camera::new((0.0,0.0,0.0), cgmath::Deg(0.0), cgmath::Deg(0.0));
-        let projection = camera::Projection::new(config.width, config.height, cgmath::Deg(45.0), 0.1, FOV_DISTANCE as f32);
+        let projection = camera::Projection::new(config.width, config.height, cgmath::Deg(45.0), 0.1, 100.0);
         let camera_controller = camera::CameraController::new(4.0, 0.4);
 
         let mut camera_uniform = camera::CameraUniform::new();
@@ -193,41 +191,7 @@ impl State {
 
         let depth_texture = texture::Texture::create_depth_texture(&device, &config, "depth_texture");
 
-        let chunk_positions_around_player = fundamentals::consts::get_positions_around_player(WorldPosition::from(camera.position));
-
-        let chunk_index_buffer = device.create_buffer_init(
-            &wgpu::util::BufferInitDescriptor {
-            label: Some("Camera Buffer"),
-            contents: bytemuck::cast_slice(&chunk_positions_around_player),
-            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
-        });
-
-        let chunk_index_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            entries: &[
-                wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX,
-                    ty: wgpu::BindingType::Buffer { 
-                        ty: wgpu::BufferBindingType::Storage { read_only: true }, 
-                        has_dynamic_offset: false, 
-                        min_binding_size: None 
-                    },
-                    count: None
-                }
-            ],
-            label: Some("chunk_offset_bind_group_layout")
-        });
-
-        let chunk_index_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &chunk_index_bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: chunk_index_buffer.as_entire_binding()
-                }
-            ],
-            label: Some("chunk_index_bind_group")
-        });
+        let vertex_gpu_data = Arc::new(RwLock::new(VertexGPUData::new(&camera, &device)));
 
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Shader"),
@@ -240,7 +204,7 @@ impl State {
                 bind_group_layouts: &[
                     &camera_bind_group_layout,
                     &texture_bind_group_layout,
-                    &chunk_index_bind_group_layout
+                    &vertex_gpu_data.read().unwrap().chunk_index_bind_group_layout
                 ],
                 push_constant_ranges: &[],
             });
@@ -344,16 +308,8 @@ impl State {
         let world = Arc::new(RwLock::new(World::new()));
 
         let mut thread_task_manager = ThreadTaskManager::new();
-        for pos in chunk_positions_around_player {
-            thread_task_manager.push_task(Task::GenerateChunk { chunk_position: pos, world: world.clone() });
-        }
-
-        let vertex_gpu_data = Arc::new(RwLock::new(Mesh::get_gpu_data(Mesh::new(), &device)));
-
-        let mut chunk_pos_to_index = std::collections::HashMap::new();
-
-        for i in 0..chunk_positions_around_player.len() {
-            chunk_pos_to_index.insert(chunk_positions_around_player[i], i as u32);
+        for pos in vertex_gpu_data.read().unwrap().chunk_index_array.iter() {
+            thread_task_manager.push_task(Task::GenerateChunk { chunk_position: *pos, world: world.clone() });
         }
 
         Self {
@@ -376,20 +332,15 @@ impl State {
                 projection,
                 camera_controller,
             },
-            buffer_state: BufferState {
-                chunk_index_buffer,
-                chunk_index_bind_group,
-            },
             queue,
             render_pipeline_regular,
             render_pipeline_wireframe,
             mouse_pressed: false,
             render_wireframe: false,
-            chunk_positions_around_player,
-            chunk_pos_to_index,
             thread_data: ThreadData { world, vertex_gpu_data, device: Arc::new(RwLock::new(device)) },
             thread_task_manager,
-            have_moved: false,
+            calculate_frustum: true,
+            chunk_positions_to_load: Vec::new()
         }
     }
 
@@ -420,7 +371,7 @@ impl State {
                     self.render_wireframe = !self.render_wireframe;
                 }
                 let movement = self.camera_state.camera_controller.process_keyboard(*key, *state);
-                self.have_moved = movement;
+                self.calculate_frustum = movement;
                 movement
             }
                 ,
@@ -443,15 +394,29 @@ impl State {
     pub fn update(&mut self, dt: instant::Duration) {
         self.camera_state.camera_controller.update_camera(&mut self.camera_state.camera, dt);
         self.camera_state.camera_uniform.update_view_proj(&self.camera_state.camera, &self.camera_state.projection);
-        self.frustum_cull();
+        match self.frustum_cull() {
+            Some(vec) => {
+                self.calculate_frustum = false;
+                self.chunk_positions_to_load = vec;
+            },
+            None => {}
+        }
         self.queue.write_buffer(&self.camera_state.camera_buffer, 0, bytemuck::cast_slice(&[self.camera_state.camera_uniform]));
     }
 
-    fn frustum_cull(&mut self) {
-        if self.have_moved {
-
-            self.have_moved = false;
+    fn frustum_cull(&self) -> Option<Vec<WorldPosition>> {
+        if self.calculate_frustum {
+            let mut chunks_in_frustum = Vec::new();
+            let frustum = self.camera_state.projection.calculate_frustum(&self.camera_state.camera);
+            for chunk_position in self.thread_data.vertex_gpu_data.read().unwrap().loaded_chunks.iter() {
+                if frustum.does_chunk_intersect_frustum(chunk_position) {
+                    chunks_in_frustum.push(*chunk_position);
+                }
+            }
+            return Some(chunks_in_frustum);
         }
+
+        None
     }
 
     pub fn process_tasks(&mut self) {
@@ -466,11 +431,12 @@ impl State {
                 TaskResult::GenerateChunk { chunk_position } => {
                     println!("Generated chunk {}!", chunks_generated);
                     chunks_generated += 1;
-                    self.thread_task_manager.push_task(Task::GenerateChunkMesh { chunk_position, world: self.thread_data.world.clone(), chunk_index: *self.chunk_pos_to_index.get(&chunk_position).unwrap(), vertex_gpu_data: self.thread_data.vertex_gpu_data.clone(), device: self.thread_data.device.clone() });
+                    self.thread_task_manager.push_task(Task::GenerateChunkMesh { chunk_position, world: self.thread_data.world.clone(), vertex_gpu_data: self.thread_data.vertex_gpu_data.clone(), device: self.thread_data.device.clone() });
                     
                 },
                 TaskResult::GenerateChunkMesh { } => {
                     println!("Generated mesh {}!", meshes_generated);
+                    self.calculate_frustum = true;
                     meshes_generated += 1;
                 }
             }
@@ -518,7 +484,7 @@ impl State {
 
             render_pass.set_bind_group(0, &self.camera_state.camera_bind_group, &[]);
             render_pass.set_bind_group(1, &self.texture_state.diffuse_bind_group, &[]);
-            render_pass.set_bind_group(2, &self.buffer_state.chunk_index_bind_group, &[]);
+            render_pass.set_bind_group(2, &vertex_gpu_data.chunk_index_bind_group, &[]);
 
             let ycos = self.camera_state.camera.yaw.0.cos();
             let ysin = self.camera_state.camera.yaw.0.sin();
@@ -529,8 +495,10 @@ impl State {
             let is_comp_lt = [false, true, false, true, true, false];
             let angles = [NEG_SQRT_2_DIV_2, SQRT_2_DIV_2, NEG_SQRT_2_DIV_2, SQRT_2_DIV_2, SQRT_2_DIV_2, NEG_SQRT_2_DIV_2];
             
-            for j in 0..vertex_gpu_data.data_front.vertex_buffers.len() as usize {
-                let gpu_data = vertex_gpu_data.get_buffers_at_index_i(j);
+            println!("Loading {} chunks!", self.chunk_positions_to_load.len());
+
+            for pos in self.chunk_positions_to_load.iter() {
+                let gpu_data = vertex_gpu_data.get_buffers_at_position(pos);
                 for i in 0..6 {
                     if is_comp_lt[i] {
                         if lhs_comp_arr[i] < angles[i] {
