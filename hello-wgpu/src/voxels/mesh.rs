@@ -73,6 +73,30 @@ impl Mesh {
         mesh
     }
 
+    pub fn greedy_cull_ambient_occlusion(chunk: &Chunk, solid_data: [[[bool; CHUNK_DIMENSION as usize+2]; CHUNK_DIMENSION as usize+2]; CHUNK_DIMENSION as usize+2], index: u32) -> Self {
+
+        let mut mesh = Mesh::new();
+
+        for k in 0..CHUNK_DIMENSION as usize {
+            for j in 0..CHUNK_DIMENSION as usize {
+                for i in 0..CHUNK_DIMENSION as usize {
+                    let block = chunk.get_block_at(i, j, k);
+                    let ambient_occlusion_on_vertices = Self::generate_ambient_occlusion_on_vertices(&solid_data, i+1, j+1, k+1);
+                    let adjacent_blocks_data = Self::generate_adjacent_blocks(&solid_data, i+1, j+1, k+1);
+                    if !block.is_air() {
+                        mesh.add_vertices(
+                            Self::generate_cube(WorldPosition::new(i as i32,j as i32,k as i32), block.get_texture_coords(), &ambient_occlusion_on_vertices, &adjacent_blocks_data, index), 
+                            Self::generate_cube_indices(&adjacent_blocks_data, &ambient_occlusion_on_vertices)
+                        );
+                    }
+                    
+                }
+            }
+        }
+
+        mesh
+    }
+
     pub fn add_vertices(&mut self, mut block_vertices: [Vec<Vertex>; 6], block_indices: [Vec<u32>; 6]) {
         self.front.1.append(&mut block_indices[0].iter().map(|e| e+self.front.0.len() as u32).collect());
         self.back.1.append(&mut block_indices[1].iter().map(|e| e+self.back.0.len() as u32).collect());

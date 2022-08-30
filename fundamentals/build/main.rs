@@ -1,5 +1,5 @@
 use std::path::Path;
-use ::formats::formats::{config_format::ConfigFormat, block_format::BlockFormat};
+use ::formats::formats::{config_format::ConfigFormat, block_format::BlockFormat, controls_format::ControlsFormat};
 use serde_json;
 mod atlas_builder;
 mod string_to_type_dict_builders;
@@ -12,6 +12,9 @@ fn main() {
 
     let config_json = std::fs::read_to_string("../data/config.json").unwrap();
     let config_format: ConfigFormat = serde_json::from_str(&config_json).unwrap();
+
+    let controls_json = std::fs::read_to_string("../data/controls.json").unwrap();
+    let controls_format: ControlsFormat = serde_json::from_str(&controls_json).unwrap();
 
     let atlas_path = Path::new("../hello-wgpu/src/atlas.png");
     let atlas_builder = atlas_builder::AtlasBuilder::build_and_save_atlas(&vec_block_format, &config_format, atlas_path);
@@ -26,5 +29,5 @@ fn main() {
         texture_width_str: &atlas_builder.texture_width_str,
         texture_height_str: &atlas_builder.texture_height_str
     };
-    consts::generate_consts(&config_format, &consts_model);
+    consts::generate_consts(&config_format, &consts_model, &controls_format);
 }

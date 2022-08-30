@@ -56,9 +56,8 @@ pub async fn run() {
             event: DeviceEvent::MouseMotion{ delta, },
             .. // We're not using device_id currently
         } => if state.mouse_pressed {
-            let sensitivity = 1.0;
-            state.calculate_frustum = true;
-            state.camera_state.camera_controller.process_mouse(delta.0, delta.1, sensitivity)
+            state.input_state.mouse_delta_x = delta.0;
+            state.input_state.mouse_delta_y = delta.1;
         }
 
         Event::WindowEvent {
@@ -86,6 +85,8 @@ pub async fn run() {
                     }
                     _ => {}
                 }
+            } else {
+                state.calculate_frustum = true;
             }
         }
 
@@ -93,6 +94,7 @@ pub async fn run() {
             let now = instant::Instant::now();
             let dt = now - last_render_time;
             last_render_time = now;
+            state.process_input();
             state.update(dt);
             match state.render() {
                 Ok(_) => {}
@@ -106,7 +108,6 @@ pub async fn run() {
 
         Event::MainEventsCleared => {
             // RedrawRequested will only trigger once, unless we manually request it.
-            state.input_nonrepeating_keys();
             state.process_tasks();
             window.request_redraw();
         }

@@ -33,6 +33,17 @@ pub struct ThreadData {
     pub device: Arc<RwLock<wgpu::Device>>,
 }
 
+pub struct InputState {
+    pub is_up_pressed: bool,
+    pub is_down_pressed: bool,
+    pub is_left_pressed: bool,
+    pub is_right_pressed: bool,
+    pub is_forward_pressed: bool,
+    pub is_backward_pressed: bool,
+    pub mouse_delta_x: f64,
+    pub mouse_delta_y: f64
+}
+
 pub struct State {
     pub surface_state: SurfaceState,
     pub queue: wgpu::Queue,
@@ -46,12 +57,7 @@ pub struct State {
     pub thread_task_manager: ThreadTaskManager,
     pub calculate_frustum: bool,
     pub chunk_positions_to_load: Vec<WorldPosition>,
-    pub is_lshift_pressed: bool,
-    pub is_lctrl_pressed: bool,
-    pub is_lalt_pressed: bool,
-    pub is_rshift_pressed: bool,
-    pub is_rctrl_pressed: bool,
-    pub is_ralt_pressed: bool,
+    pub input_state: InputState,
 }
 
 impl State {
@@ -343,12 +349,16 @@ impl State {
             thread_task_manager,
             calculate_frustum: true,
             chunk_positions_to_load: Vec::new(),
-            is_lshift_pressed: false,
-            is_lctrl_pressed: false,
-            is_lalt_pressed: false,
-            is_rshift_pressed: false,
-            is_rctrl_pressed: false,
-            is_ralt_pressed: false,
+            input_state: InputState {
+                is_up_pressed: false,
+                is_down_pressed: false,
+                is_left_pressed: false,
+                is_right_pressed: false,
+                is_forward_pressed: false,
+                is_backward_pressed: false,
+                mouse_delta_x: 0.0,
+                mouse_delta_y: 0.0
+            }
         }
     }
 
@@ -375,78 +385,33 @@ impl State {
                 ..
             } => 
             {
-                let mut movement = false;
-                match key {
-                    VirtualKeyCode::LShift => {
-                        if *state == ElementState::Pressed && self.is_lshift_pressed == false {
-                            self.is_lshift_pressed = true;
-                            movement = self.camera_state.camera_controller.process_keyboard(VirtualKeyCode::LShift, ElementState::Pressed);
-                        }
-                        if *state == ElementState::Released && self.is_lshift_pressed == true {
-                            self.is_lshift_pressed = false;
-                            movement = self.camera_state.camera_controller.process_keyboard(VirtualKeyCode::LShift, ElementState::Released);
-                        }
-                    },
-                    VirtualKeyCode::RShift => {
-                        if *state == ElementState::Pressed && self.is_rshift_pressed == false {
-                            self.is_rshift_pressed = true;
-                            movement =  self.camera_state.camera_controller.process_keyboard(VirtualKeyCode::RShift, ElementState::Pressed);
-                        }
-                        if *state == ElementState::Released && self.is_rshift_pressed == true {
-                            self.is_rshift_pressed = false;
-                            movement =  self.camera_state.camera_controller.process_keyboard(VirtualKeyCode::RShift, ElementState::Released);
-                        }
-                    },
-                    VirtualKeyCode::LControl => {
-                        if *state == ElementState::Pressed && self.is_lctrl_pressed == false {
-                            self.is_lctrl_pressed = true;
-                            movement =  self.camera_state.camera_controller.process_keyboard(VirtualKeyCode::LControl, ElementState::Pressed);
-                        }
-                        if *state == ElementState::Released && self.is_lctrl_pressed == true {
-                            self.is_lctrl_pressed = false;
-                            movement =  self.camera_state.camera_controller.process_keyboard(VirtualKeyCode::LControl, ElementState::Released);
-                        }
-                    },
-                    VirtualKeyCode::RControl => {
-                        if *state == ElementState::Pressed && self.is_rctrl_pressed == false {
-                            self.is_rctrl_pressed = true;
-                            movement =  self.camera_state.camera_controller.process_keyboard(VirtualKeyCode::RControl, ElementState::Pressed);
-                        }
-                        if *state == ElementState::Released && self.is_rctrl_pressed == true {
-                            self.is_rctrl_pressed = false;
-                            movement =  self.camera_state.camera_controller.process_keyboard(VirtualKeyCode::RControl, ElementState::Released);
-                        }
-                    },
-                    VirtualKeyCode::LAlt => {
-                        if *state == ElementState::Pressed && self.is_lalt_pressed == false {
-                            self.is_lalt_pressed = true;
-                            movement =  self.camera_state.camera_controller.process_keyboard(VirtualKeyCode::LAlt, ElementState::Pressed);
-                        }
-                        if *state == ElementState::Released && self.is_lalt_pressed == true {
-                            self.is_lalt_pressed = false;
-                            movement =  self.camera_state.camera_controller.process_keyboard(VirtualKeyCode::LAlt, ElementState::Released);
-                        }
-                    },
-                    VirtualKeyCode::RAlt => {
-                        if *state == ElementState::Pressed && self.is_ralt_pressed == false {
-                            self.is_ralt_pressed = true;
-                            movement =  self.camera_state.camera_controller.process_keyboard(VirtualKeyCode::RAlt, ElementState::Pressed);
-                        }
-                        if *state == ElementState::Released && self.is_ralt_pressed == true {
-                            self.is_ralt_pressed = false;
-                            movement =  self.camera_state.camera_controller.process_keyboard(VirtualKeyCode::RAlt, ElementState::Released);
-                        }
-                    }
-                    _ => {
-                        if *key == VirtualKeyCode::LControl && *state == ElementState::Pressed {
-                            self.render_wireframe = !self.render_wireframe;
-                        }
-                        
-                        movement = self.camera_state.camera_controller.process_keyboard(*key, *state);
-                    }
+                println!("{:?}, {:?}", key, state);
+                let mut input_movement_character = false;
+                if key == &fundamentals::consts::FORWARD_KEY {
+                    self.input_state.is_forward_pressed = state == &ElementState::Pressed;
+                    input_movement_character = true;
                 }
-                self.calculate_frustum = movement;
-                movement
+                if key == &fundamentals::consts::BACKWARD_KEY {
+                    self.input_state.is_backward_pressed = state == &ElementState::Pressed;
+                    input_movement_character = true;
+                }
+                if key == &fundamentals::consts::LEFT_KEY {
+                    self.input_state.is_left_pressed = state == &ElementState::Pressed;
+                    input_movement_character = true;
+                }
+                if key == &fundamentals::consts::RIGHT_KEY {
+                    self.input_state.is_right_pressed = state == &ElementState::Pressed;
+                    input_movement_character = true;
+                }
+                if key == &fundamentals::consts::UP_KEY {
+                    self.input_state.is_up_pressed = state == &ElementState::Pressed;
+                    input_movement_character = true;
+                }
+                if key == &fundamentals::consts::DOWN_KEY {
+                    self.input_state.is_down_pressed = state == &ElementState::Pressed;
+                    input_movement_character = true;
+                }
+                input_movement_character
             }
             WindowEvent::MouseWheel { delta, .. } => {
                 self.camera_state.camera_controller.process_scroll(delta);
@@ -457,35 +422,23 @@ impl State {
                 state,
                 ..
             } => {
-                self.mouse_pressed = *state == ElementState::Pressed;
+                if *state == ElementState::Pressed {
+                    self.mouse_pressed = true;
+                } else {
+                    self.mouse_pressed = false;
+                    self.input_state.mouse_delta_x = 0.0;
+                    self.input_state.mouse_delta_y = 0.0;
+                }
                 true
             }
             _ => false,
         }
     }
 
-    pub fn input_nonrepeating_keys(&mut self) -> bool {
-        let mut movement = false;
-        if self.is_lshift_pressed {
-            movement =  movement || self.camera_state.camera_controller.process_keyboard(VirtualKeyCode::LShift, ElementState::Pressed);
-        }
-        if self.is_rshift_pressed {
-            movement =  movement || self.camera_state.camera_controller.process_keyboard(VirtualKeyCode::RShift, ElementState::Pressed);
-        }
-        if self.is_lctrl_pressed {
-            movement =  movement || self.camera_state.camera_controller.process_keyboard(VirtualKeyCode::LControl, ElementState::Pressed);
-        }
-        if self.is_rctrl_pressed {
-            movement =  movement || self.camera_state.camera_controller.process_keyboard(VirtualKeyCode::RControl, ElementState::Pressed);
-        }
-        if self.is_lalt_pressed {
-            movement =  movement || self.camera_state.camera_controller.process_keyboard(VirtualKeyCode::LAlt, ElementState::Pressed);
-        }
-        if self.is_ralt_pressed {
-            movement =  movement || self.camera_state.camera_controller.process_keyboard(VirtualKeyCode::RAlt, ElementState::Pressed);
-        }
-        self.calculate_frustum = self.calculate_frustum || movement;
-        movement
+    pub fn process_input(&mut self) {
+        let sensitivity = 1.0;
+        self.calculate_frustum = self.camera_state.camera_controller.process_keyboard(&self.input_state) || self.calculate_frustum;
+        self.calculate_frustum = self.camera_state.camera_controller.process_mouse(&mut self.input_state, sensitivity) || self.calculate_frustum;
     }
 
     pub fn update(&mut self, dt: instant::Duration) {

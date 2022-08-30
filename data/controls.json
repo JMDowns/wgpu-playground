@@ -1,0 +1,9 @@
+{
+    "up": "VirtualKeyCode::Space",
+    "down": "VirtualKeyCode::LShift",
+    "left": "VirtualKeyCode::A",
+    "right": "VirtualKeyCode::D",
+    "forward": "VirtualKeyCode::W",
+    "backward": "VirtualKeyCode::S",
+    "mouse_sensitivity": 1.0
+}

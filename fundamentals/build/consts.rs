@@ -2,8 +2,9 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::Path;
 use formats::formats::config_format::ConfigFormat;
+use formats::formats::controls_format::ControlsFormat;
 
-pub fn generate_consts(config_format: &ConfigFormat, consts_model: &ConstsModel) {
+pub fn generate_consts(config_format: &ConfigFormat, consts_model: &ConstsModel, controls_format: &ControlsFormat) {
     let consts_path = Path::new("src/consts.rs");
     let mut consts_file = BufWriter::new(File::create(&consts_path).unwrap());
 
@@ -12,7 +13,8 @@ pub fn generate_consts(config_format: &ConfigFormat, consts_model: &ConstsModel)
         &mut consts_file,
         "{}",
         [
-            String::from("use crate::world_position::WorldPosition;\n"),
+            String::from("use crate::world_position::WorldPosition;"),
+            String::from("use winit::event::VirtualKeyCode;\n"),
             format!("pub const NUM_BLOCK_TYPES: u16 = {};", consts_model.num_block_types),
             format!("pub const NUM_ADDITIONAL_THREADS: usize = {};", generate_num_threads(&config_format)),
             format!("pub const RENDER_DISTANCE: usize = {};", config_format.render_radius),
@@ -21,6 +23,7 @@ pub fn generate_consts(config_format: &ConfigFormat, consts_model: &ConstsModel)
             format!("pub const CHUNK_PLANE_SIZE: i32 = {};", (config_format.chunk_dimension as u32)*(config_format.chunk_dimension as u32)),
             format!("pub const CHUNK_SIZE: usize = {};", (config_format.chunk_dimension as u32)*(config_format.chunk_dimension as u32)*(config_format.chunk_dimension as u32)),
             format!("pub const BITS_PER_POSITION: u32 = {};", ((config_format.chunk_dimension+1) as f32).log2().ceil() as u8),
+            format!("pub const TEXTURE_DIMENSION: u32 = {};", config_format.texture_dimension),
             format!("pub const TEX_MAX_X: u32 = {};", config_format.atlas_max_images_on_a_row),
             format!("pub const TEX_MAX_Y: u32 = {};", config_format.atlas_max_images_on_a_column),
             format!("pub const BITS_PER_TEX_COORD_X: u32 = {};", (((config_format.atlas_max_images_on_a_row + 1) as f32).log2().ceil())),
@@ -30,6 +33,14 @@ pub fn generate_consts(config_format: &ConfigFormat, consts_model: &ConstsModel)
             format!("pub const NUMBER_OF_CHUNKS_TO_RENDER: u32 = {};", (position_offset_vec.len() as f32 / 8 as f32).ceil() as u32),
             format!("pub const BITS_PER_CHUNK_INDEX: u32 = {};", ((position_offset_vec.len()) as f32).log2().ceil() as u32),
             format!("pub const MESH_BUCKET_SIZE: u32 = {};", config_format.mesh_bucket_size),
+            String::new(),
+            format!("pub const UP_KEY: VirtualKeyCode = {};", controls_format.up),
+            format!("pub const DOWN_KEY: VirtualKeyCode = {};", controls_format.down),
+            format!("pub const LEFT_KEY: VirtualKeyCode = {};", controls_format.left),
+            format!("pub const RIGHT_KEY: VirtualKeyCode = {};", controls_format.right),
+            format!("pub const FORWARD_KEY: VirtualKeyCode = {};", controls_format.forward),
+            format!("pub const BACKWARD_KEY: VirtualKeyCode = {};", controls_format.backward),
+            format!("pub const MOUSE_SENSITIVITY: f64 = {:.1};", controls_format.mouse_sensitivity),
             String::new(),
             generate_string_from_position_offsets(position_offset_vec),
         ].join("\n")

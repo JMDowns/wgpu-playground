@@ -7,6 +7,8 @@ use winit::dpi::PhysicalPosition;
 use instant::Duration;
 use std::f32::consts::FRAC_PI_2;
 
+use crate::state::InputState;
+
 #[rustfmt::skip]
 pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
     1.0, 0.0, 0.0, 0.0,
@@ -225,41 +227,46 @@ impl CameraController {
         }
     }
 
-    pub fn process_keyboard(&mut self, key: VirtualKeyCode, state: ElementState) -> bool{
-        let amount = if state == ElementState::Pressed { self.speed } else { 0.0 };
-        println!("{:?} {:?}", key, state);
-        match key {
-            VirtualKeyCode::W | VirtualKeyCode::Up => {
-                self.amount_forward = amount;
-                true
-            }
-            VirtualKeyCode::S | VirtualKeyCode::Down => {
-                self.amount_backward = amount;
-                true
-            }
-            VirtualKeyCode::A | VirtualKeyCode::Left => {
-                self.amount_left = amount;
-                true
-            }
-            VirtualKeyCode::D | VirtualKeyCode::Right => {
-                self.amount_right = amount;
-                true
-            }
-            VirtualKeyCode::Space => {
-                self.amount_up = amount;
-                true
-            }
-            VirtualKeyCode::LShift => {
-                self.amount_down = amount;
-                true
-            }
-            _ => false,
+    pub fn process_keyboard(&mut self, button_state: &InputState) -> bool {
+        let mut movement = false;
+        if button_state.is_forward_pressed {
+            self.amount_forward = self.speed;
+            movement = true;
         }
+        if button_state.is_backward_pressed {
+            self.amount_backward = self.speed;
+            movement = true;
+        }
+        if button_state.is_left_pressed {
+            self.amount_left = self.speed;
+            movement = true;
+        }
+        if button_state.is_right_pressed {
+            self.amount_right = self.speed;
+            movement = true;
+        }
+        if button_state.is_up_pressed {
+            self.amount_up = self.speed;
+            movement = true;
+        }
+        if button_state.is_down_pressed {
+            self.amount_down = self.speed;
+            movement = true;
+        }
+        movement
     }
 
-    pub fn process_mouse(&mut self, mouse_dx: f64, mouse_dy: f64, sensitivity: f64) {
-        self.rotate_horizontal = (mouse_dx*4.0*sensitivity) as f32;
-        self.rotate_vertical = (mouse_dy*4.0*sensitivity) as f32;
+    pub fn process_mouse(&mut self, input_state: &mut InputState, sensitivity: f64) -> bool {
+        let mut movement = false;
+        if input_state.mouse_delta_x.abs() > fundamentals::consts::MOUSE_SENSITIVITY {
+            self.rotate_horizontal = (input_state.mouse_delta_x*4.0*sensitivity) as f32;
+            movement = true;
+        }
+        if input_state.mouse_delta_y.abs() > fundamentals::consts::MOUSE_SENSITIVITY {
+            self.rotate_vertical = (input_state.mouse_delta_y*4.0*sensitivity) as f32;
+            movement = true;
+        }
+        movement
     }
 
     pub fn process_scroll(&mut self, delta: &MouseScrollDelta) {
@@ -319,6 +326,14 @@ impl CameraController {
         // when moving in a non cardinal direction.
         self.rotate_horizontal = 0.0;
         self.rotate_vertical = 0.0;
+
+        // Same for process_keyboard
+        self.amount_up = 0.0;
+        self.amount_down = 0.0;
+        self.amount_left = 0.0;
+        self.amount_right = 0.0;
+        self.amount_forward = 0.0;
+        self.amount_backward = 0.0;
 
         // Keep the camera's angle from going too high/low.
         if camera.pitch < -Rad(SAFE_FRAC_PI_2) {
