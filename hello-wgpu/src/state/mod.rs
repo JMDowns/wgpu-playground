@@ -316,7 +316,7 @@ impl State {
         let world = Arc::new(RwLock::new(World::new()));
 
         let mut thread_task_manager = ThreadTaskManager::new();
-        for pos in vertex_gpu_data.read().unwrap().chunk_index_array.iter() {
+        for pos in vertex_gpu_data.read().unwrap().chunk_index_array.iter().rev() {
             thread_task_manager.push_task(Task::GenerateChunk { chunk_position: *pos, world: world.clone() });
         }
 
@@ -385,7 +385,6 @@ impl State {
                 ..
             } => 
             {
-                println!("{:?}, {:?}", key, state);
                 let mut input_movement_character = false;
                 if key == &fundamentals::consts::FORWARD_KEY {
                     self.input_state.is_forward_pressed = state == &ElementState::Pressed;
@@ -450,15 +449,16 @@ impl State {
 
     fn frustum_cull(&mut self) -> Option<Vec<WorldPosition>> {
         if self.calculate_frustum {
-            let mut chunks_in_frustum = Vec::new();
-            let frustum = self.camera_state.projection.calculate_frustum(&self.camera_state.camera);
-            for chunk_position in self.thread_data.vertex_gpu_data.read().unwrap().loaded_chunks.iter() {
-                if frustum.does_chunk_intersect_frustum(chunk_position) {
-                    chunks_in_frustum.push(*chunk_position);
-                }
-            }
+            // let mut chunks_in_frustum = Vec::new();
+            // let frustum = self.camera_state.projection.calculate_frustum(&self.camera_state.camera);
+            // for chunk_position in self.thread_data.vertex_gpu_data.read().unwrap().loaded_chunks.iter() {
+            //     if frustum.does_chunk_intersect_frustum(chunk_position) {
+            //         chunks_in_frustum.push(*chunk_position);
+            //     }
+            // }
             self.calculate_frustum = false;
-            self.chunk_positions_to_load = chunks_in_frustum;
+            let frustum = self.camera_state.camera.calculate_frustum(&self.camera_state.projection);
+            self.chunk_positions_to_load = frustum.cull_chunks(&self.thread_data.vertex_gpu_data.read().unwrap().loaded_chunks);
         }
 
         None

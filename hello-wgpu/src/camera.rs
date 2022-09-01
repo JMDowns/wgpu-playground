@@ -1,5 +1,4 @@
 use cgmath::*;
-use fastapprox::fast;
 use fundamentals::world_position::WorldPosition;
 use fundamentals::consts::CHUNK_DIMENSION;
 use winit::event::*;
@@ -64,70 +63,116 @@ impl Camera {
             Vector3::unit_y(),
         )
     }
-}
 
-pub struct Plane {
-    d: f32,
-    normal: cgmath::Vector3<f32>
-}
+    pub fn calculate_frustum(&self, proj: &Projection) -> Frustum {
+        let view_proj_matrix = proj.calc_matrix() * self.calc_matrix();
 
-impl Plane {
-    pub fn distance_to_point(&self, point: cgmath::Vector3<f32>) -> f32 {
-        self.normal.dot(point) + self.d
+        let col1 = vec3(view_proj_matrix.x.x, view_proj_matrix.y.x, view_proj_matrix.z.x);
+        let col2 = vec3(view_proj_matrix.x.y, view_proj_matrix.y.y, view_proj_matrix.z.y);
+        let col3 = vec3(view_proj_matrix.x.z, view_proj_matrix.y.z, view_proj_matrix.z.z);
+        let col4 = vec3(view_proj_matrix.x.w, view_proj_matrix.y.w, view_proj_matrix.z.w);
+
+        let mut left_normal = col4 + col1;
+        let mut right_normal = col4 - col1;
+        let mut bottom_normal = col4 + col2;
+        let mut top_normal = col4-col2;
+        let mut front_normal = col3;
+        let mut back_normal = col4-col3;
+
+        let mut left_distance = view_proj_matrix.w.w + view_proj_matrix.w.x;
+        let mut right_distance = view_proj_matrix.w.w - view_proj_matrix.w.x;
+        let mut bottom_distance = view_proj_matrix.w.w + view_proj_matrix.w.y;
+        let mut top_distance = view_proj_matrix.w.w - view_proj_matrix.w.y;
+        let mut front_distance = view_proj_matrix.w.z;
+        let mut back_distance = view_proj_matrix.w.w - view_proj_matrix.w.z;
+
+        left_distance /= left_normal.magnitude();
+        left_normal = left_normal.normalize();
+        right_distance /= right_normal.magnitude();
+        right_normal = right_normal.normalize();
+        bottom_distance /= bottom_normal.magnitude();
+        bottom_normal = bottom_normal.normalize();
+        top_distance /= top_normal.magnitude();
+        top_normal = top_normal.normalize();
+        front_distance /= front_normal.magnitude();
+        front_normal = front_normal.normalize();
+        back_distance /= back_normal.magnitude();
+        back_normal = back_normal.normalize();
+
+        Frustum { 
+            top_plane: Plane { distance: top_distance, normal: top_normal }, 
+            bottom_plane: Plane { distance: bottom_distance, normal: bottom_normal }, 
+            left_plane: Plane { distance: left_distance, normal: left_normal }, 
+            right_plane: Plane { distance: right_distance, normal: right_normal }, 
+            front_plane: Plane { distance: front_distance, normal: front_normal }, 
+            back_plane: Plane { distance: back_distance, normal: back_normal } 
+        }
+
     }
 }
 
+pub struct Plane {
+    pub normal: cgmath::Vector3<f32>,
+    pub distance: f32,
+}
+
 pub struct Frustum {
-    front_plane: Plane,
-    back_plane: Plane,
-    left_plane: Plane,
-    right_plane: Plane,
-    top_plane: Plane,
-    bottom_plane: Plane
+    pub top_plane: Plane,
+    pub bottom_plane: Plane,
+    pub left_plane: Plane,
+    pub right_plane: Plane,
+    pub front_plane: Plane,
+    pub back_plane: Plane
 }
 
 impl Frustum {
-    pub fn does_chunk_intersect_frustum(&self, chunk_position: &WorldPosition) -> bool {
-        if self.front_plane.distance_to_point(Frustum::calculate_positive_vertex(&self.front_plane, chunk_position).to_vec()) < 0.0 {
+    pub fn intersects_frustum(&self, chunk_pos: &WorldPosition) -> bool {
+        let center_of_chunk = WorldPosition::new(chunk_pos.x * CHUNK_DIMENSION + CHUNK_DIMENSION / 2, chunk_pos.y * CHUNK_DIMENSION + CHUNK_DIMENSION / 2, chunk_pos.z * CHUNK_DIMENSION + CHUNK_DIMENSION / 2);
+        if Self::is_not_in_frustum_via_plane(&self.front_plane, &center_of_chunk) {
             return false;
         }
-        if self.back_plane.distance_to_point(Frustum::calculate_positive_vertex(&self.back_plane, chunk_position).to_vec()) < 0.0 {
+        if Self::is_not_in_frustum_via_plane(&self.back_plane, &center_of_chunk) {
             return false;
         }
-        if self.left_plane.distance_to_point(Frustum::calculate_positive_vertex(&self.left_plane, chunk_position).to_vec()) < 0.0 {
+        if Self::is_not_in_frustum_via_plane(&self.left_plane, &center_of_chunk) {
             return false;
         }
-        if self.right_plane.distance_to_point(Frustum::calculate_positive_vertex(&self.right_plane, chunk_position).to_vec()) < 0.0 {
+        if Self::is_not_in_frustum_via_plane(&self.right_plane, &center_of_chunk) {
             return false;
         }
-        if self.top_plane.distance_to_point(Frustum::calculate_positive_vertex(&self.top_plane, chunk_position).to_vec()) < 0.0 {
+        if Self::is_not_in_frustum_via_plane(&self.top_plane, &center_of_chunk) {
             return false;
         }
-        if self.bottom_plane.distance_to_point(Frustum::calculate_positive_vertex(&self.bottom_plane, chunk_position).to_vec()) < 0.0 {
+        if Self::is_not_in_frustum_via_plane(&self.bottom_plane, &center_of_chunk) {
             return false;
         }
         true
     }
 
-    fn calculate_positive_vertex(plane: &Plane, chunk_position: &WorldPosition) -> cgmath::Point3<f32> {
-        let xmin = (chunk_position.x * CHUNK_DIMENSION) as f32;
-        let ymin = (chunk_position.y * CHUNK_DIMENSION) as f32;
-        let zmin = (chunk_position.z * CHUNK_DIMENSION) as f32;
-        let xmax = xmin + CHUNK_DIMENSION as f32;
-        let ymax = ymin + CHUNK_DIMENSION as f32;
-        let zmax = zmin + CHUNK_DIMENSION as f32;
+    fn is_not_in_frustum_via_plane(plane: &Plane, center_of_chunk: &WorldPosition) -> bool {
+        let r = (plane.normal.x * (CHUNK_DIMENSION / 2) as f32).abs() 
+                        + (plane.normal.y * (CHUNK_DIMENSION / 2) as f32).abs() 
+                        + (plane.normal.z * (CHUNK_DIMENSION / 2) as f32).abs();
 
-        let mut p = cgmath::point3(xmin, ymin, zmin);
-        if plane.normal.x >= 0.0 {
-            p.x = xmax;
+        let d = plane.normal.dot(vec3(center_of_chunk.x as f32, center_of_chunk.y as f32, center_of_chunk.z as f32)) + plane.distance;
+
+        if d.abs() < r {
+            return false;
+        } else if d < 0.0 {
+            return d + r < 0.0;
         }
-        if plane.normal.y >= 0.0 {
-            p.y = ymax;
+        return d - r < 0.0;
+    }
+
+    pub fn cull_chunks<'a>(&self, chunk_positions: &'a Vec<WorldPosition>) -> Vec<WorldPosition> {
+        let mut chunks_to_render = Vec::new();
+        for chunk_pos in chunk_positions {
+            if self.intersects_frustum(chunk_pos) {
+                chunks_to_render.push(chunk_pos.clone());
+            }
         }
-        if plane.normal.z >= 0.0 {
-            p.z = zmax;
-        }
-        p
+        println!("{}", chunks_to_render.len());
+        chunks_to_render
     }
 }
 
@@ -136,8 +181,6 @@ pub struct Projection {
     fovy: Rad<f32>,
     znear: f32,
     zfar: f32,
-    wnear: f32,
-    hnear: f32,
 }
 
 impl Projection {
@@ -150,16 +193,11 @@ impl Projection {
     ) -> Self {
         let aspect = width as f32 / height as f32;
         let fovy: Rad<f32> = fovy.into();
-        let tan_val = fast::tan(fovy.0);
-        let hnear = 2.0 * tan_val * znear;
-        let wnear = hnear * aspect;
         Self {
             aspect,
             fovy,
             znear,
             zfar,
-            wnear,
-            hnear,
         }
     }
 
@@ -171,27 +209,64 @@ impl Projection {
         OPENGL_TO_WGPU_MATRIX * perspective(self.fovy, self.aspect, self.znear, self.zfar)
     }
 
-    pub fn calculate_frustum(&self, camera: &Camera) -> Frustum {
-        let camera_position = camera.position;
-        let forward_vec = camera.view_x_vec;
-        let up_vec = camera.view_y_vec;
-        let right_vec = camera.view_z_vec;
+    pub fn frustum_cull(&self, camera: &Camera, chunk_list: &Vec<WorldPosition>) -> Vec<WorldPosition> {
+        let clip_space_matrix = self.calc_matrix() * camera.calc_matrix();
+        let mut chunks_to_show = Vec::new();
+        for chunk_pos in chunk_list {
+            let mut in_clip = true;
+            let xmin = (chunk_pos.x * CHUNK_DIMENSION) as f32;
+            let ymin = (chunk_pos.y * CHUNK_DIMENSION) as f32;
+            let zmin = (chunk_pos.z * CHUNK_DIMENSION) as f32;
+            let xmax = xmin + CHUNK_DIMENSION as f32;
+            let ymax = ymin + CHUNK_DIMENSION as f32;
+            let zmax = zmin + CHUNK_DIMENSION as f32;
 
-        let near_point = camera_position + forward_vec*self.znear;
-        let far_point = camera_position + forward_vec*self.zfar;
-        let left_normal = ((near_point - right_vec * self.wnear / 2.0) - camera_position).normalize().cross(up_vec);
-        let right_normal = up_vec.cross(((near_point + right_vec * self.wnear / 2.0) - camera_position).normalize());
-        let bottom_normal = right_vec.cross(((near_point - up_vec * self.hnear / 2.0) - camera_position).normalize());
-        let top_normal = ((near_point + up_vec * self.hnear / 2.0) - camera_position).normalize().cross(right_vec);
-
-        Frustum {
-            front_plane: Plane { d: -1.0*forward_vec.dot(near_point.to_vec()), normal: forward_vec },
-            back_plane: Plane { d: forward_vec.dot(far_point.to_vec()), normal: -1.0*forward_vec },
-            left_plane: Plane { d: -1.0*left_normal.dot(camera_position.to_vec()), normal: left_normal },
-            right_plane: Plane { d: -1.0*right_normal.dot(camera_position.to_vec()), normal: right_normal },
-            top_plane: Plane { d: -1.0*top_normal.dot(camera_position.to_vec()), normal: top_normal },
-            bottom_plane: Plane { d: -1.0*bottom_normal.dot(camera_position.to_vec()), normal: bottom_normal },
+            let points = [
+                cgmath::point3(xmin, ymin, zmin),
+                cgmath::point3(xmax, ymin, zmin),
+                cgmath::point3(xmin, ymax, zmin),
+                cgmath::point3(xmax, ymax, zmin),
+                cgmath::point3(xmin, ymin, zmax),
+                cgmath::point3(xmax, ymin, zmax),
+                cgmath::point3(xmin, ymax, zmax),
+                cgmath::point3(xmax, ymax, zmax)
+            ];
+            let clip_points = points.iter().map(|point| {
+                let clip_pos = clip_space_matrix*cgmath::Vector4::new(point.x as f32, point.y as f32, point.z as f32, 1.0);
+                clip_pos / clip_pos.w
+            });
+            let mut max_min_vals = [1.0, -1.0, 1.0, -1.0, 1.0, -1.0];
+            for point in clip_points {
+                if point.x < max_min_vals[0] {
+                    max_min_vals[0] = point.x;
+                }
+                if point.x > max_min_vals[1] {
+                    max_min_vals[1] = point.x;
+                }
+                if point.y < max_min_vals[2] {
+                    max_min_vals[2] = point.y;
+                }
+                if point.y > max_min_vals[3] {
+                    max_min_vals[3] = point.y;
+                }
+                if point.z < max_min_vals[4] {
+                    max_min_vals[4] = point.z;
+                }
+                if point.z > max_min_vals[5] {
+                    max_min_vals[5] = point.z;
+                }
+            }
+            if max_min_vals[0] >= 1.0 || max_min_vals[1] <= -1.0 || max_min_vals[2] >= 1.0 || max_min_vals[3] <= -1.0 || max_min_vals[4] >= 1.0 || max_min_vals[5] <= -1.0 {
+                in_clip = false;
+            }
+            if in_clip {
+                chunks_to_show.push(chunk_pos.clone());
+            }
         }
+
+        println!("{}", chunks_to_show.len());
+
+        chunks_to_show
     }
 }
 

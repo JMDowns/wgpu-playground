@@ -5,7 +5,7 @@ struct CameraUniform {
 var<uniform> camera: CameraUniform;
 
 struct ChunkPositions {
-    chunk_positions: array<vec3<i32>,147>
+    chunk_positions: array<vec3<i32>,1045>
 };
 @group(2) @binding(0)
 var<storage> chunkPositions: ChunkPositions;
@@ -25,7 +25,7 @@ fn vs_main(
     model: VertexInput,
 ) -> VertexOutput {
     var out: VertexOutput;
-    let chunk_index = (((model.data0 & 4160749568u) >> 27u) | ((model.data1 & 7u) << 5u));
+    let chunk_index = (((model.data0 & 4160749568u) >> 27u) | ((model.data1 & 63u) << 5u));
     out.clip_position = camera.view_proj * vec4<f32>(f32(model.data0 & 31u) + f32(chunkPositions.chunk_positions[chunk_index][0]*16), f32((model.data0 & 992u) >> 5u) + f32(chunkPositions.chunk_positions[chunk_index][1]*16), f32((model.data0 & 31744u) >> 10u) + f32(chunkPositions.chunk_positions[chunk_index][2]*16), 1.0);
     out.tex_coords = vec2<f32>(f32((model.data0 & 1015808u) >> 15u) * 0.0625, f32((model.data0 & 32505856u) >> 20u) * 0.0625);
     out.ambient_occlusion = f32((model.data0 & 100663296u) >> 25u);
