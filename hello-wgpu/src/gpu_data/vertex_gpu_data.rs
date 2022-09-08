@@ -32,7 +32,7 @@ impl VertexGPUData {
         }
         let chunk_index_buffer = device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
-            label: Some("Camera Buffer"),
+            label: Some("Chunk Index Buffer"),
             contents: bytemuck::cast_slice(&chunk_index_array),
             usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
         });
@@ -106,30 +106,39 @@ impl VertexGPUData {
         self.loaded_chunks.push(*mesh_position);
     }
 
-    pub fn get_buffers_at_position(&self, pos: &WorldPosition) -> [(&wgpu::Buffer, &wgpu::Buffer, u32); 6] {
-        self.get_buffers_at_index_i(*self.pos_to_loaded_index.get(pos).unwrap())
+    pub fn get_buffers_at_position(&self, pos: &WorldPosition) -> Option<[(&wgpu::Buffer, &wgpu::Buffer, u32); 6]> {
+        match self.pos_to_loaded_index.get(pos) {
+            Some(index) => self.get_buffers_at_index_i(*index),
+            None => None
+        }
+        
     }
 
-    pub fn get_buffers_at_index_i(&self, i: usize) -> [(&wgpu::Buffer, &wgpu::Buffer, u32); 6] {
-        [
-            (&self.data_front.vertex_buffers[i],
-            &self.data_front.index_buffers[i],
-            self.data_front.index_lengths[i]),
-            (&self.data_back.vertex_buffers[i],
-            &self.data_back.index_buffers[i],
-            self.data_back.index_lengths[i]),
-            (&self.data_left.vertex_buffers[i],
-            &self.data_left.index_buffers[i],
-            self.data_left.index_lengths[i]),
-            (&self.data_right.vertex_buffers[i],
-            &self.data_right.index_buffers[i],
-            self.data_right.index_lengths[i]),
-            (&self.data_top.vertex_buffers[i],
-            &self.data_top.index_buffers[i],
-            self.data_top.index_lengths[i]),
-            (&self.data_bottom.vertex_buffers[i],
-            &self.data_bottom.index_buffers[i],
-            self.data_bottom.index_lengths[i]),
-        ]
+    pub fn get_buffers_at_index_i(&self, i: usize) -> Option<[(&wgpu::Buffer, &wgpu::Buffer, u32); 6]> {
+        if i >= self.pos_to_loaded_index.len() {
+            None
+        } else {
+            Some([
+                (&self.data_front.vertex_buffers[i],
+                &self.data_front.index_buffers[i],
+                self.data_front.index_lengths[i]),
+                (&self.data_back.vertex_buffers[i],
+                &self.data_back.index_buffers[i],
+                self.data_back.index_lengths[i]),
+                (&self.data_left.vertex_buffers[i],
+                &self.data_left.index_buffers[i],
+                self.data_left.index_lengths[i]),
+                (&self.data_right.vertex_buffers[i],
+                &self.data_right.index_buffers[i],
+                self.data_right.index_lengths[i]),
+                (&self.data_top.vertex_buffers[i],
+                &self.data_top.index_buffers[i],
+                self.data_top.index_lengths[i]),
+                (&self.data_bottom.vertex_buffers[i],
+                &self.data_bottom.index_buffers[i],
+                self.data_bottom.index_lengths[i]),
+            ])
+        }
+       
     }
 }

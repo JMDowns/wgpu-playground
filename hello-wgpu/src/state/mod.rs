@@ -4,6 +4,8 @@ mod surface_state;
 mod texture_state;
 
 use camera_state::CameraState;
+use cgmath::Point3;
+use futures_intrusive::buffer;
 use surface_state::SurfaceState;
 use texture_state::TextureState;
 use crate::tasks::Task;
@@ -58,6 +60,11 @@ pub struct State {
     pub calculate_frustum: bool,
     pub chunk_positions_to_load: Vec<WorldPosition>,
     pub input_state: InputState,
+    pub compute_pipeline: wgpu::ComputePipeline,
+    pub compute_bind_group: wgpu::BindGroup,
+    pub compute_input_buffer: wgpu::Buffer,
+    pub compute_output_buffer: wgpu::Buffer,
+    pub compute_staging_vec: Vec<u32>,
 }
 
 impl State {
@@ -155,7 +162,8 @@ impl State {
             }
         );
 
-        let camera = camera::Camera::new((0.0,0.0,0.0), cgmath::Deg(0.0), cgmath::Deg(0.0));
+        let camera_position = Point3::new(0.0, 0.0, 0.0);
+        let camera = camera::Camera::new(camera_position, cgmath::Deg(0.0), cgmath::Deg(0.0));
         let projection = camera::Projection::new(config.width, config.height, cgmath::Deg(45.0), 0.1, 100.0);
         let camera_controller = camera::CameraController::new(4.0, 0.4);
 
@@ -200,6 +208,96 @@ impl State {
         let depth_texture = texture::Texture::create_depth_texture(&device, &config, "depth_texture");
 
         let vertex_gpu_data = Arc::new(RwLock::new(VertexGPUData::new(&camera, &device)));
+
+        let chunks_around_player = fundamentals::consts::get_positions_around_player(WorldPosition::from(camera_position));
+
+        let compute_input_buffer = device.create_buffer_init( &wgpu::util::BufferInitDescriptor {
+            label: Some("Compute Input Buffer"),
+            contents: bytemuck::cast_slice(&chunks_around_player),
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE
+        });
+
+        let compute_output_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Compute Output Buffer"),
+            size: std::mem::size_of::<u32>() as u64 * fundamentals::consts::NUMBER_OF_CHUNKS_AROUND_PLAYER as u64,
+            usage: wgpu::BufferUsages::COPY_SRC | wgpu::BufferUsages::STORAGE,
+            mapped_at_creation: false
+        });
+
+        let compute_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("Compute Shader"),
+            source: wgpu::ShaderSource::Wgsl(include_str!("../frustum_compute.wgsl").into()),
+        });
+
+        let compute_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer { 
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer { 
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer { 
+                        ty: wgpu::BufferBindingType::Storage { read_only: false },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None
+                },
+            ],
+            label: Some("Compute Bind Group Layout")
+        });
+
+        let compute_bind_group = device.create_bind_group( &wgpu::BindGroupDescriptor {
+            label: Some("Compute Bind Group"),
+            layout: &compute_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: camera_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: compute_input_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: compute_output_buffer.as_entire_binding(),
+                }
+            ]
+        });
+
+        let compute_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("Compute Pipeline Layout"),
+            bind_group_layouts: &[
+                &compute_bind_group_layout,
+            ],
+            push_constant_ranges: &[],
+        });
+
+        let compute_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            label: Some("Compute Pipeline"),
+            layout: Some(&compute_pipeline_layout),
+            module: &compute_shader,
+            entry_point: "main"
+        });
 
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Shader"),
@@ -358,7 +456,12 @@ impl State {
                 is_backward_pressed: false,
                 mouse_delta_x: 0.0,
                 mouse_delta_y: 0.0
-            }
+            },
+            compute_bind_group,
+            compute_input_buffer,
+            compute_output_buffer,
+            compute_staging_vec: vec![0; fundamentals::consts::NUMBER_OF_CHUNKS_AROUND_PLAYER as usize],
+            compute_pipeline
         }
     }
 
@@ -443,25 +546,7 @@ impl State {
     pub fn update(&mut self, dt: instant::Duration) {
         self.camera_state.camera_controller.update_camera(&mut self.camera_state.camera, dt);
         self.camera_state.camera_uniform.update_view_proj(&self.camera_state.camera, &self.camera_state.projection);
-        self.frustum_cull();
         self.queue.write_buffer(&self.camera_state.camera_buffer, 0, bytemuck::cast_slice(&[self.camera_state.camera_uniform]));
-    }
-
-    fn frustum_cull(&mut self) -> Option<Vec<WorldPosition>> {
-        if self.calculate_frustum {
-            // let mut chunks_in_frustum = Vec::new();
-            // let frustum = self.camera_state.projection.calculate_frustum(&self.camera_state.camera);
-            // for chunk_position in self.thread_data.vertex_gpu_data.read().unwrap().loaded_chunks.iter() {
-            //     if frustum.does_chunk_intersect_frustum(chunk_position) {
-            //         chunks_in_frustum.push(*chunk_position);
-            //     }
-            // }
-            self.calculate_frustum = false;
-            let frustum = self.camera_state.camera.calculate_frustum(&self.camera_state.projection);
-            self.chunk_positions_to_load = frustum.cull_chunks(&self.thread_data.vertex_gpu_data.read().unwrap().loaded_chunks);
-        }
-
-        None
     }
 
     pub fn process_tasks(&mut self) {
@@ -500,6 +585,28 @@ impl State {
             });
 
         let vertex_gpu_data = self.thread_data.vertex_gpu_data.read().unwrap();
+
+        let compute_staging_buffer = self.thread_data.device.read().unwrap().create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Compute Staging Buffer"),
+            size: std::mem::size_of::<u32>() as u64 * fundamentals::consts::NUMBER_OF_CHUNKS_AROUND_PLAYER as u64,
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+            mapped_at_creation: false
+        });
+
+        {
+            let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+                label: Some("Compute Pass"),
+            });
+
+            compute_pass.set_pipeline(&self.compute_pipeline);
+            compute_pass.set_bind_group(0, &self.compute_bind_group, &[]);
+
+            compute_pass.dispatch_workgroups((fundamentals::consts::NUMBER_OF_CHUNKS_AROUND_PLAYER as f32 / 256.0).ceil() as u32, 1, 1);
+        }
+
+
+        encoder.copy_buffer_to_buffer(&self.compute_output_buffer, 0, &compute_staging_buffer, 0, std::mem::size_of::<u32>() as u64 * fundamentals::consts::NUMBER_OF_CHUNKS_AROUND_PLAYER as u64);
+
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
@@ -539,25 +646,31 @@ impl State {
             let lhs_comp_arr = [ycos, ycos, ysin, ysin, psin, psin];
             let is_comp_lt = [false, true, false, true, true, false];
             let angles = [NEG_SQRT_2_DIV_2, SQRT_2_DIV_2, NEG_SQRT_2_DIV_2, SQRT_2_DIV_2, SQRT_2_DIV_2, NEG_SQRT_2_DIV_2];
-            
-            //println!("Loading {} chunks!", self.chunk_positions_to_load.len());
 
-            for pos in self.chunk_positions_to_load.iter() {
-                let gpu_data = vertex_gpu_data.get_buffers_at_position(pos);
-                for i in 0..6 {
-                    if is_comp_lt[i] {
-                        if lhs_comp_arr[i] < angles[i] {
-                            render_pass.set_vertex_buffer(0, gpu_data[i].0.slice(..));
-                            render_pass.set_index_buffer(gpu_data[i].1.slice(..), wgpu::IndexFormat::Uint32);
-                            render_pass.draw_indexed(0..gpu_data[i].2, 0, 0..1);
+            for chunk_pos_index in 0..fundamentals::consts::NUMBER_OF_CHUNKS_AROUND_PLAYER as usize {
+                if self.compute_staging_vec[chunk_pos_index] == 0 {
+                    continue;
+                }
+                let gpu_data_result = vertex_gpu_data.get_buffers_at_position(&vertex_gpu_data.chunk_index_array[chunk_pos_index]);
+                match gpu_data_result {
+                    Some(gpu_data) => {
+                        for i in 0..6 {
+                            if is_comp_lt[i] {
+                                if lhs_comp_arr[i] < angles[i] {
+                                    render_pass.set_vertex_buffer(0, gpu_data[i].0.slice(..));
+                                    render_pass.set_index_buffer(gpu_data[i].1.slice(..), wgpu::IndexFormat::Uint32);
+                                    render_pass.draw_indexed(0..gpu_data[i].2, 0, 0..1);
+                                }
+                            } else {
+                                if lhs_comp_arr[i] > angles[i] {
+                                    render_pass.set_vertex_buffer(0, gpu_data[i].0.slice(..));
+                                    render_pass.set_index_buffer(gpu_data[i].1.slice(..), wgpu::IndexFormat::Uint32);
+                                    render_pass.draw_indexed(0..gpu_data[i].2, 0, 0..1);
+                                }
+                            }
                         }
-                    } else {
-                        if lhs_comp_arr[i] > angles[i] {
-                            render_pass.set_vertex_buffer(0, gpu_data[i].0.slice(..));
-                            render_pass.set_index_buffer(gpu_data[i].1.slice(..), wgpu::IndexFormat::Uint32);
-                            render_pass.draw_indexed(0..gpu_data[i].2, 0, 0..1);
-                        }
-                    }
+                    },
+                    None => {}
                 }
             }
         }
@@ -565,6 +678,28 @@ impl State {
         // submit will accept anything that implements IntoIter
         self.queue.submit(std::iter::once(encoder.finish()));
         output.present();
+
+        if self.calculate_frustum {
+            let compute_output_buffer_slice = compute_staging_buffer.slice(..);
+            let (sender, receiver) = futures_intrusive::channel::shared::oneshot_channel();
+            compute_output_buffer_slice.map_async(wgpu::MapMode::Read, move |v| sender.send(v).unwrap());
+
+            // Poll the device in a blocking manner so that our future resolves.
+            // In an actual application, `device.poll(...)` should
+            // be called in an event loop or on another thread.  
+            self.thread_data.device.read().unwrap().poll(wgpu::Maintain::Wait);
+            if let Some(Ok(())) = pollster::block_on(receiver.receive()) {
+                let data = compute_output_buffer_slice.get_mapped_range();
+                let result: Vec<u32> = bytemuck::cast_slice(&data).to_vec();
+                self.compute_staging_vec = result;
+
+                drop(data);
+                compute_staging_buffer.unmap();
+            }
+
+            self.calculate_frustum = false;
+        }
+        
 
         Ok(())
     }
