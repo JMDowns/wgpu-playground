@@ -111,7 +111,8 @@ fn build_vs_main_statements() -> String {
 
     [
         chunk_index_statement,
-        format!("    out.clip_position = camera.view_proj * vec4<f32>({} + f32(chunkPositions.chunk_positions[chunk_index][0]*{CHUNK_DIMENSION}), {} + f32(chunkPositions.chunk_positions[chunk_index][1]*{CHUNK_DIMENSION}), {} + f32(chunkPositions.chunk_positions[chunk_index][2]*{CHUNK_DIMENSION}), 1.0);", data_unpack_vec[0], data_unpack_vec[1], data_unpack_vec[2]),
+        format!("    var chunk_position = chunkPositions.chunk_positions[chunk_index];"),
+        format!("    out.clip_position = camera.view_proj * vec4<f32>({} + f32(chunk_position.x*{CHUNK_DIMENSION}), {} + f32(chunk_position.y*{CHUNK_DIMENSION}), {} + f32(chunk_position.z*{CHUNK_DIMENSION}), 1.0);", data_unpack_vec[0], data_unpack_vec[1], data_unpack_vec[2]),
         format!("    out.tex_coords = vec2<f32>({} * {}, {} * {});", data_unpack_vec[3], 1.0 / TEX_MAX_X as f32, data_unpack_vec[4], 1.0 / TEX_MAX_Y as f32),
         format!("    out.ambient_occlusion = {};", data_unpack_vec[5]),
     ].join("\n")
