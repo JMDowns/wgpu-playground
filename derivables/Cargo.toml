@@ -11,6 +11,9 @@ phf = "0.11"
 wgpu = "0.13.1"
 fundamentals = { path = "../fundamentals" }
 bytemuck = { version = "1.4", features = [ "derive" ] }
+num = "0.4.0"
+num-derive = "0.3.3"
+num-traits = "0.2.15"
 
 [build_dependencies]
 phf_codegen = "0.11"

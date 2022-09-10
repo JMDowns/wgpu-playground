@@ -1,6 +1,6 @@
 {
     "num_additional_threads_specified": 14,
-    "use_all_system_threads": false,
+    "use_all_system_threads": true,
     "render_radius": 5,
     "atlas_max_images_on_a_row": 16,
     "atlas_max_images_on_a_column": 16,

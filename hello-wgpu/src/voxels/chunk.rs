@@ -1,5 +1,5 @@
 use fundamentals::world_position::WorldPosition;
-use super::block::Block;
+use derivables::block::Block;
 use fundamentals::enums::block_type::BlockType;
 use fundamentals::consts;
 use noise::Perlin;
@@ -21,7 +21,7 @@ impl Chunk {
             let bposition = WorldPosition::new((i % CHUNK_DIMENSION) - CHUNK_DIMENSION*position.x, ((i / CHUNK_DIMENSION) % CHUNK_DIMENSION) - CHUNK_DIMENSION*position.y, (i / (CHUNK_PLANE_SIZE)) - CHUNK_DIMENSION*position.z);
             let perlin_sample = perlin.get(bposition.to_perlin_pos(0.1));
             if perlin_sample < -0.2 || perlin_sample > 0.2 {
-                blocks_vec.push(Block::new(Block::get_block_type_from_u16(fastrand::u16(1..consts::NUM_BLOCK_TYPES))))
+                blocks_vec.push(Block::new(BlockType::WOOD));
             } else {
                 blocks_vec.push(Block::new(BlockType::AIR));
             }
