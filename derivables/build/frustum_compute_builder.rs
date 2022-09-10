@@ -34,8 +34,6 @@ var<storage> chunkPositions: ChunkPositions;
 @group(0) @binding(2)
 var<storage, read_write> chunk_indexes_to_show: array<u32, CHUNKS_AROUND_PLAYER>;
 
-
-
 fn is_not_in_frustum_via_plane(center_point: vec3<f32>, plane_normal: vec3<f32>, plane_distance: f32) -> bool {{
     var r = abs(plane_normal.x * f32(CHUNK_DIMENSION / 2)) 
                         + abs(plane_normal.y * f32(CHUNK_DIMENSION / 2))

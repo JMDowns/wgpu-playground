@@ -79,15 +79,6 @@ impl VertexGPUData {
         }
     }
 
-    pub fn add_gpu_data_drain(&mut self, other_gpu_data: &mut Self) {
-        self.data_front.add_triple_drain(&mut other_gpu_data.data_front);
-        self.data_back.add_triple_drain(&mut other_gpu_data.data_back);
-        self.data_left.add_triple_drain(&mut other_gpu_data.data_left);
-        self.data_right.add_triple_drain(&mut other_gpu_data.data_right);
-        self.data_top.add_triple_drain(&mut other_gpu_data.data_top);
-        self.data_bottom.add_triple_drain(&mut other_gpu_data.data_bottom);
-    }
-
     pub fn add_mesh_data_drain(&mut self, mesh: Mesh, device: &Device, mesh_position: &WorldPosition) {
         let mesh_argument_arr = [
             (&mut self.data_front, &mesh.front, "front Mesh"),

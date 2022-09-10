@@ -1,25 +1,33 @@
-mod buffer_state;
 mod camera_state;
 mod surface_state;
 mod texture_state;
+pub mod input_state;
+mod compute_state;
+mod render_state;
+mod flag_state;
 
 use camera_state::CameraState;
-use cgmath::Point3;
-use futures_intrusive::buffer;
 use surface_state::SurfaceState;
 use texture_state::TextureState;
+use compute_state::ComputeState;
+use render_state::RenderState;
+use input_state::InputState;
+use flag_state::FlagState;
+
 use crate::tasks::Task;
 use crate::tasks::TaskResult;
 use crate::texture;
 use crate::thread_task_manager::ThreadTaskManager;
 use crate::camera;
 use crate::voxels::world::World;
+use crate::gpu_data::vertex_gpu_data::VertexGPUData;
+
 use wgpu::util::DeviceExt;
+use cgmath::Point3;
 use fundamentals::world_position::WorldPosition;
 use std::sync::Arc;
 use std::sync::RwLock;
 use derivables::vertex::Vertex;
-use crate::gpu_data::vertex_gpu_data::VertexGPUData;
 
 use winit::{
     event::*,
@@ -28,43 +36,23 @@ use winit::{
 
 const SQRT_2_DIV_2: f32 = 0.7071;
 const NEG_SQRT_2_DIV_2: f32 = -0.7071;
-
 pub struct ThreadData {
     pub world: Arc<RwLock<World>>,
     pub vertex_gpu_data: Arc<RwLock<VertexGPUData>>,
     pub device: Arc<RwLock<wgpu::Device>>,
 }
-
-pub struct InputState {
-    pub is_up_pressed: bool,
-    pub is_down_pressed: bool,
-    pub is_left_pressed: bool,
-    pub is_right_pressed: bool,
-    pub is_forward_pressed: bool,
-    pub is_backward_pressed: bool,
-    pub mouse_delta_x: f64,
-    pub mouse_delta_y: f64
-}
-
 pub struct State {
     pub surface_state: SurfaceState,
     pub queue: wgpu::Queue,
-    pub render_pipeline_regular: wgpu::RenderPipeline,
-    pub render_pipeline_wireframe: wgpu::RenderPipeline,
     pub camera_state: CameraState,
     pub texture_state: TextureState,
-    pub mouse_pressed: bool,
-    pub render_wireframe: bool,
+    pub render_state: RenderState,
+    pub compute_state: ComputeState,
+    pub flag_state: FlagState,
+    pub input_state: InputState,
     pub thread_data: ThreadData,
     pub thread_task_manager: ThreadTaskManager,
-    pub calculate_frustum: bool,
     pub chunk_positions_to_load: Vec<WorldPosition>,
-    pub input_state: InputState,
-    pub compute_pipeline: wgpu::ComputePipeline,
-    pub compute_bind_group: wgpu::BindGroup,
-    pub compute_input_buffer: wgpu::Buffer,
-    pub compute_output_buffer: wgpu::Buffer,
-    pub compute_staging_vec: Vec<u32>,
 }
 
 impl State {
@@ -439,15 +427,23 @@ impl State {
                 camera_controller,
             },
             queue,
-            render_pipeline_regular,
-            render_pipeline_wireframe,
-            mouse_pressed: false,
-            render_wireframe: false,
-            thread_data: ThreadData { world, vertex_gpu_data, device: Arc::new(RwLock::new(device)) },
+            render_state: RenderState {
+                render_pipeline_regular,
+                render_pipeline_wireframe,
+            },
+            flag_state: FlagState {
+                mouse_pressed: false,
+                render_wireframe: false,
+                calculate_frustum: true,
+            },
+            thread_data: ThreadData { 
+                world, 
+                vertex_gpu_data, 
+                device: Arc::new(RwLock::new(device)) 
+            },
             thread_task_manager,
-            calculate_frustum: true,
             chunk_positions_to_load: Vec::new(),
-            input_state: InputState {
+            input_state: input_state::InputState {
                 is_up_pressed: false,
                 is_down_pressed: false,
                 is_left_pressed: false,
@@ -457,11 +453,13 @@ impl State {
                 mouse_delta_x: 0.0,
                 mouse_delta_y: 0.0
             },
-            compute_bind_group,
-            compute_input_buffer,
-            compute_output_buffer,
-            compute_staging_vec: vec![0; fundamentals::consts::NUMBER_OF_CHUNKS_AROUND_PLAYER as usize],
-            compute_pipeline
+            compute_state: ComputeState {
+                compute_bind_group,
+                compute_input_buffer,
+                compute_output_buffer,
+                compute_pipeline,
+                compute_staging_vec: vec![0; fundamentals::consts::NUMBER_OF_CHUNKS_AROUND_PLAYER as usize]
+            }
         }
     }
 
@@ -525,9 +523,9 @@ impl State {
                 ..
             } => {
                 if *state == ElementState::Pressed {
-                    self.mouse_pressed = true;
+                    self.flag_state.mouse_pressed = true;
                 } else {
-                    self.mouse_pressed = false;
+                    self.flag_state.mouse_pressed = false;
                     self.input_state.mouse_delta_x = 0.0;
                     self.input_state.mouse_delta_y = 0.0;
                 }
@@ -539,8 +537,8 @@ impl State {
 
     pub fn process_input(&mut self) {
         let sensitivity = 1.0;
-        self.calculate_frustum = self.camera_state.camera_controller.process_keyboard(&self.input_state) || self.calculate_frustum;
-        self.calculate_frustum = self.camera_state.camera_controller.process_mouse(&mut self.input_state, sensitivity) || self.calculate_frustum;
+        self.flag_state.calculate_frustum = self.camera_state.camera_controller.process_keyboard(&self.input_state) || self.flag_state.calculate_frustum;
+        self.flag_state.calculate_frustum = self.camera_state.camera_controller.process_mouse(&mut self.input_state, sensitivity) || self.flag_state.calculate_frustum;
     }
 
     pub fn update(&mut self, dt: instant::Duration) {
@@ -566,7 +564,7 @@ impl State {
                 },
                 TaskResult::GenerateChunkMesh { } => {
                     println!("Generated mesh {}!", meshes_generated);
-                    self.calculate_frustum = true;
+                    self.flag_state.calculate_frustum = true;
                     meshes_generated += 1;
                 }
             }
@@ -593,19 +591,21 @@ impl State {
             mapped_at_creation: false
         });
 
-        {
-            let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-                label: Some("Compute Pass"),
-            });
+        if self.flag_state.calculate_frustum {
+            {
+                let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+                    label: Some("Compute Pass"),
+                });
 
-            compute_pass.set_pipeline(&self.compute_pipeline);
-            compute_pass.set_bind_group(0, &self.compute_bind_group, &[]);
+                compute_pass.set_pipeline(&self.compute_state.compute_pipeline);
+                compute_pass.set_bind_group(0, &self.compute_state.compute_bind_group, &[]);
 
-            compute_pass.dispatch_workgroups((fundamentals::consts::NUMBER_OF_CHUNKS_AROUND_PLAYER as f32 / 256.0).ceil() as u32, 1, 1);
+                compute_pass.dispatch_workgroups((fundamentals::consts::NUMBER_OF_CHUNKS_AROUND_PLAYER as f32 / 256.0).ceil() as u32, 1, 1);
+            }
+
+            encoder.copy_buffer_to_buffer(&self.compute_state.compute_output_buffer, 0, &compute_staging_buffer, 0, std::mem::size_of::<u32>() as u64 * fundamentals::consts::NUMBER_OF_CHUNKS_AROUND_PLAYER as u64);
+        
         }
-
-
-        encoder.copy_buffer_to_buffer(&self.compute_output_buffer, 0, &compute_staging_buffer, 0, std::mem::size_of::<u32>() as u64 * fundamentals::consts::NUMBER_OF_CHUNKS_AROUND_PLAYER as u64);
 
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -628,10 +628,10 @@ impl State {
                 }),
             });
 
-            if self.render_wireframe {
-                render_pass.set_pipeline(&self.render_pipeline_wireframe);
+            if self.flag_state.render_wireframe {
+                render_pass.set_pipeline(&self.render_state.render_pipeline_wireframe);
             } else {
-                render_pass.set_pipeline(&self.render_pipeline_regular);
+                render_pass.set_pipeline(&self.render_state.render_pipeline_regular);
             }
 
             render_pass.set_bind_group(0, &self.camera_state.camera_bind_group, &[]);
@@ -648,7 +648,7 @@ impl State {
             let angles = [NEG_SQRT_2_DIV_2, SQRT_2_DIV_2, NEG_SQRT_2_DIV_2, SQRT_2_DIV_2, SQRT_2_DIV_2, NEG_SQRT_2_DIV_2];
 
             for chunk_pos_index in 0..fundamentals::consts::NUMBER_OF_CHUNKS_AROUND_PLAYER as usize {
-                if self.compute_staging_vec[chunk_pos_index] == 0 {
+                if self.compute_state.compute_staging_vec[chunk_pos_index] == 0 {
                     continue;
                 }
                 let gpu_data_result = vertex_gpu_data.get_buffers_at_position(&vertex_gpu_data.chunk_index_array[chunk_pos_index]);
@@ -679,7 +679,7 @@ impl State {
         self.queue.submit(std::iter::once(encoder.finish()));
         output.present();
 
-        if self.calculate_frustum {
+        if self.flag_state.calculate_frustum {
             let compute_output_buffer_slice = compute_staging_buffer.slice(..);
             let (sender, receiver) = futures_intrusive::channel::shared::oneshot_channel();
             compute_output_buffer_slice.map_async(wgpu::MapMode::Read, move |v| sender.send(v).unwrap());
@@ -691,13 +691,13 @@ impl State {
             if let Some(Ok(())) = pollster::block_on(receiver.receive()) {
                 let data = compute_output_buffer_slice.get_mapped_range();
                 let result: Vec<u32> = bytemuck::cast_slice(&data).to_vec();
-                self.compute_staging_vec = result;
+                self.compute_state.compute_staging_vec = result;
 
                 drop(data);
                 compute_staging_buffer.unmap();
             }
 
-            self.calculate_frustum = false;
+            self.flag_state.calculate_frustum = false;
         }
         
 

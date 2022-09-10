@@ -10,6 +10,5 @@
     "number_of_alpha_values": 4,
     "texture_dimension": 16,
     "chunk_dimension": 32,
-    "mesh_bucket_size": 4096,
     "workgroup_size": 255
 }

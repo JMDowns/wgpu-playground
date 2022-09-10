@@ -1,12 +1,10 @@
 use cgmath::*;
-use fundamentals::world_position::WorldPosition;
-use fundamentals::consts::CHUNK_DIMENSION;
 use winit::event::*;
 use winit::dpi::PhysicalPosition;
 use instant::Duration;
 use std::f32::consts::FRAC_PI_2;
 
-use crate::state::InputState;
+use crate::state::input_state::InputState;
 
 #[rustfmt::skip]
 pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(

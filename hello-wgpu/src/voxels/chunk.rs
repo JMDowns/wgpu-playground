@@ -30,7 +30,7 @@ impl Chunk {
         Chunk { position: *position, blocks: blocks_vec }
     }
 
-    pub fn solid(position: &WorldPosition) -> Self {
+    pub fn _solid(position: &WorldPosition) -> Self {
         let mut blocks_vec = Vec::new();
 
         for _ in 0..CHUNK_SIZE as i32 {

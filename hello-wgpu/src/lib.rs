@@ -9,7 +9,7 @@ mod thread_task_manager;
 use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop},
-    window::{WindowBuilder},
+    window::WindowBuilder,
 };
 use state::State;
 
@@ -55,7 +55,7 @@ pub async fn run() {
         Event::DeviceEvent {
             event: DeviceEvent::MouseMotion{ delta, },
             .. // We're not using device_id currently
-        } => if state.mouse_pressed {
+        } => if state.flag_state.mouse_pressed {
             state.input_state.mouse_delta_x = delta.0;
             state.input_state.mouse_delta_y = delta.1;
         }
@@ -86,7 +86,7 @@ pub async fn run() {
                     _ => {}
                 }
             } else {
-                state.calculate_frustum = true;
+                state.flag_state.calculate_frustum = true;
             }
         }
 
