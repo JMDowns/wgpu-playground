@@ -25,7 +25,7 @@ fn build_shader_string() -> String {
 "var<uniform> camera: CameraUniform;",
 "",
 "struct ChunkPositions {",
-format!("    chunk_positions: array<vec4<i32>,{}>", NUMBER_OF_CHUNKS_AROUND_PLAYER).as_str(),
+format!("    chunk_positions: array<i32,{}>", NUMBER_OF_CHUNKS_AROUND_PLAYER * 3).as_str(),
 "};",
 "@group(2) @binding(0)",
 "var<storage> chunkPositions: ChunkPositions;",
@@ -111,7 +111,7 @@ fn build_vs_main_statements() -> String {
 
     [
         chunk_index_statement,
-        format!("    var chunk_position = chunkPositions.chunk_positions[chunk_index];"),
+        format!("    var chunk_position = vec3<i32>(chunkPositions.chunk_positions[3u*chunk_index], chunkPositions.chunk_positions[3u*chunk_index+1u], chunkPositions.chunk_positions[3u*chunk_index+2u]);"),
         format!("    out.clip_position = camera.view_proj * vec4<f32>({} + f32(chunk_position.x*{CHUNK_DIMENSION}), {} + f32(chunk_position.y*{CHUNK_DIMENSION}), {} + f32(chunk_position.z*{CHUNK_DIMENSION}), 1.0);", data_unpack_vec[0], data_unpack_vec[1], data_unpack_vec[2]),
         format!("    out.tex_coords = vec2<f32>({} * {}, {} * {});", data_unpack_vec[3], 1.0 / TEX_MAX_X as f32, data_unpack_vec[4], 1.0 / TEX_MAX_Y as f32),
         format!("    out.ambient_occlusion = {};", data_unpack_vec[5]),

@@ -7,16 +7,15 @@ pub struct WorldPosition {
     pub x: i32,
     pub y: i32,
     pub z: i32,
-    pub padding: i32, // Added to align WorldPosition to a 16-byte alignment
 }
 
 impl WorldPosition {
     pub fn new(x: i32, y: i32, z: i32) -> Self {
-        WorldPosition { x, y, z, padding: 0}
+        WorldPosition { x, y, z}
     }
 
     pub fn from(p3: cgmath::Point3<f32>) -> Self {
-        WorldPosition { x: p3.x.floor() as i32, y: p3.y.floor() as i32, z: p3.z.floor() as i32, padding: 0}
+        WorldPosition { x: p3.x.floor() as i32, y: p3.y.floor() as i32, z: p3.z.floor() as i32}
     }
 
     pub fn generate_vertex_world_positions(&self) -> [WorldPosition; 8] {

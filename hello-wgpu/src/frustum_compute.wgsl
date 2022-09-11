@@ -8,7 +8,7 @@ struct CameraUniform {
 var<uniform> camera: CameraUniform;
 
 struct ChunkPositions {
-    chunk_positions: array<vec4<i32>,CHUNKS_AROUND_PLAYER>
+    chunk_positions: array<i32,1833>
 };
 @group(0) @binding(1)
 var<storage> chunkPositions: ChunkPositions;
@@ -64,7 +64,7 @@ fn is_in_frustum(index: u32) -> bool {
     back_distance = back_distance / length(back_normal);
     back_normal = normalize(back_normal);
 
-    var chunk_pos = chunkPositions.chunk_positions[index];
+    var chunk_pos = vec3<i32>(chunkPositions.chunk_positions[3u*index], chunkPositions.chunk_positions[3u*index+1u], chunkPositions.chunk_positions[3u*index+2u]);
     var center_of_chunk = vec3<f32>(f32(chunk_pos.x) * f32(CHUNK_DIMENSION) + f32(CHUNK_DIMENSION / 2), f32(chunk_pos.y)  * f32(CHUNK_DIMENSION) + f32(CHUNK_DIMENSION / 2), f32(chunk_pos.z)  * f32(CHUNK_DIMENSION) + f32(CHUNK_DIMENSION / 2));
 
     if (is_not_in_frustum_via_plane(center_of_chunk, left_normal, left_distance)) {
