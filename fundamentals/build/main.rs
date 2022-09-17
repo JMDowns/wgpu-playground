@@ -27,7 +27,9 @@ fn main() {
     let consts_model = consts::ConstsModel {
         num_block_types,
         texture_width_str: &atlas_builder.texture_width_str,
-        texture_height_str: &atlas_builder.texture_height_str
+        texture_height_str: &atlas_builder.texture_height_str,
+        atlas_max_num_images_height: atlas_builder.atlas_index_height,
+        atlas_max_num_images_width: atlas_builder.atlas_index_width
     };
     consts::generate_consts(&config_format, &consts_model, &controls_format);
 }

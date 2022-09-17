@@ -25,11 +25,11 @@ fn vs_main(
     model: VertexInput,
 ) -> VertexOutput {
     var out: VertexOutput;
-    let chunk_index = (((model.data0 & 3221225472u) >> 30u) | ((model.data1 & 255u) << 2u));
+    let chunk_index = (((model.data0 & 4227858432u) >> 26u) | ((model.data1 & 15u) << 6u));
     var chunk_position = vec3<i32>(chunkPositions.chunk_positions[3u*chunk_index], chunkPositions.chunk_positions[3u*chunk_index+1u], chunkPositions.chunk_positions[3u*chunk_index+2u]);
     out.clip_position = camera.view_proj * vec4<f32>(f32(model.data0 & 63u) + f32(chunk_position.x*32), f32((model.data0 & 4032u) >> 6u) + f32(chunk_position.y*32), f32((model.data0 & 258048u) >> 12u) + f32(chunk_position.z*32), 1.0);
-    out.tex_coords = vec2<f32>(f32((model.data0 & 8126464u) >> 18u) * 0.0625, f32((model.data0 & 260046848u) >> 23u) * 0.0625);
-    out.ambient_occlusion = f32((model.data0 & 805306368u) >> 28u);
+    out.tex_coords = vec2<f32>(f32((model.data0 & 1835008u) >> 18u) * 0.25, f32((model.data0 & 14680064u) >> 21u) * 0.25);
+    out.ambient_occlusion = f32((model.data0 & 50331648u) >> 24u);
     return out;
 }
 

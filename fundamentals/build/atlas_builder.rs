@@ -1,5 +1,6 @@
+use formats::formats::texture_format::TextureFormat;
 use ::formats::formats::{block_format::BlockFormat, config_format::ConfigFormat};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use image::GenericImage;
 
@@ -16,11 +17,20 @@ impl AtlasBuilder {
         let mut image_coord_x = 0;
         let mut image_coord_y = 0;
     
-        let blocks = vec_block_format.iter().map(|bf| (bf.block_type.to_string(), &bf.texture));
+        let blocks = vec_block_format.iter().map(|bf| (bf.block_type.to_string(), &bf.texture)).collect::<Vec<(String, &TextureFormat)>>();
         let mut block_string_to_texture_indices = Vec::new();
         let mut texture_string_to_texture_indices = HashMap::new();
     
-        let atlas_num_images_width_max = config_format.atlas_max_images_on_a_row;
+        let mut set_of_textures = HashSet::new();
+
+        for (_, block_textures) in blocks.iter() {
+            for block_texture in block_textures.to_vec() {
+                set_of_textures.insert(block_texture);
+            }
+        }
+
+        let atlas_num_images_width_max = 2_u32.pow((set_of_textures.len() as f32).log(4.0).ceil() as u32); // Calculates the minimum power of 2 square that can fit
+        let altas_num_images_height_max = atlas_num_images_width_max;
     
         let mut texture_vec = Vec::new();
         
@@ -53,24 +63,7 @@ impl AtlasBuilder {
             
         }
 
-        println!("{:?}", block_string_to_texture_indices);
-        
-        let atlas_index_width = match image_coord_y {
-            0 => image_coord_x,
-            _ => config_format.atlas_max_images_on_a_row
-        };
-    
-        let atlas_index_height = match image_coord_y {
-            0 => 1,
-            // This is done because image_coord_y will increase before a block is placed in a row, causing an extra row of empty textures
-            // if the number of blocks is perfectly divided by the number of blocks per row
-            h => match image_coord_x % atlas_index_width {
-                0 => h,
-                _ => h+1
-            }
-        };
-
-        let mut atlas_buf = <image::ImageBuffer<image::Rgba<u8>, _>>::new(config_format.atlas_max_images_on_a_row*config_format.texture_dimension, config_format.atlas_max_images_on_a_column*config_format.texture_dimension);
+        let mut atlas_buf = <image::ImageBuffer<image::Rgba<u8>, _>>::new(atlas_num_images_width_max*config_format.texture_dimension, altas_num_images_height_max*config_format.texture_dimension);
     
         for ((tix,tiy), texture) in texture_vec {
             atlas_buf.copy_from(&texture, tix*config_format.texture_dimension, tiy*config_format.texture_dimension).unwrap();
@@ -78,13 +71,13 @@ impl AtlasBuilder {
     
         atlas_buf.save_with_format(atlas_path, image::ImageFormat::Png).unwrap();
     
-        let texture_width = 1.0 / atlas_index_width as f32;
+        let texture_width = 1.0 / atlas_num_images_width_max as f32;
         let mut texture_width_str = texture_width.to_string();
         if texture_width == 1.0 {
             texture_width_str = String::from("1.0");
         }
     
-        let texture_height = 1.0 / atlas_index_height as f32;
+        let texture_height = 1.0 / altas_num_images_height_max as f32;
         let mut texture_height_str = texture_height.to_string();
         if texture_height == 1.0 {
             texture_height_str = String::from("1.0");
@@ -93,8 +86,8 @@ impl AtlasBuilder {
         let block_string_to_texture_coords = block_string_to_texture_indices;
 
         AtlasBuilder { 
-            atlas_index_width, 
-            atlas_index_height, 
+            atlas_index_height: altas_num_images_height_max,
+            atlas_index_width: atlas_num_images_width_max, 
             texture_width_str, 
             texture_height_str, 
             block_string_to_texture_coords 

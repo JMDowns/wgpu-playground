@@ -33,5 +33,17 @@
             "top": "grass-block-top.png",
             "bottom": "dirt.png"
         }
+    },
+
+    {
+        "block_type": "WHITEGRASS",
+        "texture": {
+            "front": "grass-block-side.png",
+            "back": "grass-block-side.png",
+            "left": "grass-block-side.png",
+            "right": "grass-block-side.png",
+            "top": "White.png",
+            "bottom": "dirt.png"
+        }
     }
 ]
