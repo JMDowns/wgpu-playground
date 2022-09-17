@@ -17,13 +17,17 @@ impl Chunk {
 
         let perlin = Perlin::new();
 
-        for i in 0..CHUNK_SIZE as i32 {
-            let bposition = WorldPosition::new((i % CHUNK_DIMENSION) - CHUNK_DIMENSION*position.x, ((i / CHUNK_DIMENSION) % CHUNK_DIMENSION) - CHUNK_DIMENSION*position.y, (i / (CHUNK_PLANE_SIZE)) - CHUNK_DIMENSION*position.z);
-            let perlin_sample = perlin.get(bposition.to_perlin_pos(0.1));
-            if perlin_sample < -0.2 || perlin_sample > 0.2 {
-                blocks_vec.push(Block::new(BlockType::WOOD));
-            } else {
-                blocks_vec.push(Block::new(BlockType::AIR));
+        for i in 0..CHUNK_DIMENSION as i32 {
+            for j in 0..CHUNK_DIMENSION as i32 {
+                for k in 0..CHUNK_DIMENSION as i32 {
+                    let bposition = WorldPosition::new(i- CHUNK_DIMENSION*position.x, j - CHUNK_DIMENSION*position.y, k - CHUNK_DIMENSION*position.z);
+                    let perlin_sample = perlin.get(bposition.to_perlin_pos(0.1));
+                    if perlin_sample < -0.2 || perlin_sample > 0.2 {
+                        blocks_vec.push(Block::new(BlockType::WOOD));
+                    } else {
+                        blocks_vec.push(Block::new(BlockType::AIR));
+                    }
+                }
             }
         }
 
