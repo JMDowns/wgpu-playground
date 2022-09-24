@@ -1,7 +1,7 @@
 use std::sync::{Arc, RwLock};
 use std::hash::{Hash, Hasher};
 
-use crate::gpu_data::vertex_gpu_data::VertexGPUData;
+use crate::gpu_manager::gpu_data::vertex_gpu_data::VertexGPUData;
 use crate::voxels::world::World;
 use fundamentals::world_position::WorldPosition;
 use wgpu::Device;

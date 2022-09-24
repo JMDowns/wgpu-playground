@@ -26,11 +26,19 @@ struct CameraUniform {{
 @group(0) @binding(0)
 var<uniform> camera: CameraUniform;
 
-struct ChunkPositions {{
-    chunk_positions: array<i32,{chunk_position_array_length}>
+struct BucketData {{
+    buffer_index: i32,
+    bucket_index: i32,
+    vertex_count: u32
 }};
+
+struct ComputeData {{
+    world_position: array<i32,3>,
+    bucket_data: array<BucketData, 12>
+}};
+
 @group(0) @binding(1)
-var<storage> chunkPositions: ChunkPositions;
+var<storage> computeDataArray: array<ComputeData, {chunk_position_array_length}>;
 
 @group(0) @binding(2)
 var<storage, read_write> chunk_indexes_to_show: array<u32, CHUNKS_AROUND_PLAYER>;
@@ -83,7 +91,7 @@ fn is_in_frustum(index: u32) -> bool {{
     back_distance = back_distance / length(back_normal);
     back_normal = normalize(back_normal);
 
-    var chunk_pos = vec3<i32>(chunkPositions.chunk_positions[3u*index], chunkPositions.chunk_positions[3u*index+1u], chunkPositions.chunk_positions[3u*index+2u]);
+    var chunk_pos = vec3<i32>(computeDataArray[index].world_position[0], computeDataArray[index].world_position[1], computeDataArray[index].world_position[2]);
     var center_of_chunk = vec3<f32>(f32(chunk_pos.x) * f32(CHUNK_DIMENSION) + f32(CHUNK_DIMENSION / 2), f32(chunk_pos.y)  * f32(CHUNK_DIMENSION) + f32(CHUNK_DIMENSION / 2), f32(chunk_pos.z)  * f32(CHUNK_DIMENSION) + f32(CHUNK_DIMENSION / 2));
 
     if (is_not_in_frustum_via_plane(center_of_chunk, left_normal, left_distance)) {{

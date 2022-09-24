@@ -33,6 +33,10 @@ pub fn generate_consts(config_format: &ConfigFormat, consts_model: &ConstsModel,
             format!("pub const NUMBER_OF_CHUNKS_TO_RENDER: u32 = {};", (position_offset_vec.len() as f32 / 8 as f32).ceil() as u32),
             format!("pub const BITS_PER_CHUNK_INDEX: u32 = {};", ((position_offset_vec.len()) as f32).log2().ceil() as u32),
             format!("pub const WORKGROUP_SIZE: u16 = {};", config_format.workgroup_size),
+            //The maximum number of vertices is NxNxNx12, so having each bucket store NxNxN vertices means that we have at max 12 buckets for 1 chunk
+            //Usually the number of vertices is less, so having 10 buckets per chunk is usually enough
+            format!("pub const NUM_VERTICES_IN_BUCKET: u32 = {};", (config_format.chunk_dimension as u32)*(config_format.chunk_dimension as u32)*(config_format.chunk_dimension as u32)), 
+            format!("pub const NUM_BUCKETS_PER_CHUNK: usize = 10;"),
             String::new(),
             format!("pub const UP_KEY: VirtualKeyCode = {};", controls_format.up),
             format!("pub const DOWN_KEY: VirtualKeyCode = {};", controls_format.down),
@@ -126,8 +130,8 @@ fn generate_string_from_position_offsets(vec_of_position_offsets: Vec<(i32,i32,i
     }
 
     [
-    format!("pub fn get_positions_around_player(pos: WorldPosition) -> [WorldPosition; {}] {{", pos_new_vec.len()).as_str(),
-    "    [",
+    format!("pub fn get_positions_around_player(pos: WorldPosition) -> Vec<WorldPosition> {{").as_str(),
+    "    vec![",
     format!("        {}",pos_new_vec.join(",\n        ")).as_str(),
     "    ]",
     "}"

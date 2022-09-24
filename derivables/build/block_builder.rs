@@ -2,17 +2,23 @@ use std::path::Path;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 
-const fn get_num_string() -> &'static str {
+const fn get_block_type_size() -> u8 {
     if fundamentals::consts::NUM_BLOCK_TYPES < 256 {
-        return "8";
+        return 8;
     } else if (fundamentals::consts::NUM_BLOCK_TYPES as u32) < 65536 {
-        return "16";
+        return 16;
     } else if (fundamentals::consts::NUM_BLOCK_TYPES as u64) < 4294967296 {
-        return "32";
+        return 32;
     } else if (fundamentals::consts::NUM_BLOCK_TYPES as u128) < 18446744073709551616 {
-        return "64";
+        return 64;
     }
-    return "128";
+    return 128;
+}
+
+pub fn get_block_size() -> u32 {
+    let mut block_size: u32 = 0;
+    block_size += get_block_type_size() as u32;
+    return block_size;
 }
 
 pub fn build_block_file() {
@@ -27,7 +33,7 @@ pub fn build_block_file() {
 }
 
 fn build_block_string() -> String {
-    let num_str = get_num_string();
+    let num_str = get_block_type_size().to_string();
     [
         "use fundamentals::{enums::block_type::BlockType, texture_coords::TextureCoordinates};",
         "use crate::dictionaries::block_type_to_texture_coordinates::BLOCK_TYPE_TO_TEXTURE_COORDINATES;",

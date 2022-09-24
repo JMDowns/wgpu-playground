@@ -3,7 +3,6 @@ use fundamentals::{consts::*, world_position::WorldPosition, texture_coords::Tex
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Vertex {
 data0: u32,
-data1: u32,
 }
 impl Vertex {
         pub fn new(pos: WorldPosition, tc: TextureCoordinates, ambient_occlusion: u8, chunk_index: u32) -> Self {
@@ -18,10 +17,7 @@ if pos.x > CHUNK_DIMENSION || pos.y > CHUNK_DIMENSION || pos.z > CHUNK_DIMENSION
             data0 = data0 | (tc.tx as u32) << 18;
             data0 = data0 | (tc.ty as u32) << 21;
             data0 = data0 | (ambient_occlusion as u32) << 24;
-            data0 = data0 | ((chunk_index as u32) & 0b111111 ) << 26;
-            let mut data1 = 0;
-            data1 = data1 | ((chunk_index as u32) & 0b1111000000 ) >> 6;
-            Vertex{ data0, data1 }
+            Vertex{ data0 }
         }
         pub fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
             wgpu::VertexBufferLayout {
@@ -31,11 +27,6 @@ if pos.x > CHUNK_DIMENSION || pos.y > CHUNK_DIMENSION || pos.z > CHUNK_DIMENSION
                     wgpu::VertexAttribute {
                         offset: 0,
                         shader_location: 0,
-                        format: wgpu::VertexFormat::Uint32,
-                    },
-                    wgpu::VertexAttribute {
-                        offset: std::mem::size_of::<[u32;1]>() as wgpu::BufferAddress,
-                        shader_location: 1,
                         format: wgpu::VertexFormat::Uint32,
                     },
                 ]

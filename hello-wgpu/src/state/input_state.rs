@@ -6,5 +6,6 @@ pub struct InputState {
     pub is_forward_pressed: bool,
     pub is_backward_pressed: bool,
     pub mouse_delta_x: f64,
-    pub mouse_delta_y: f64
+    pub mouse_delta_y: f64,
+    pub mouse_scroll_delta: winit::event::MouseScrollDelta,
 }

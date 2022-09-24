@@ -76,7 +76,7 @@ fn build_vs_main_statements() -> String {
     for (name, size) in VAR_SIZE_LIST.iter() {
         if *name == "chunk_index" {
             if *size == 0 {
-                chunk_index_statement = String::from("    let chunk_index = 0;");
+                chunk_index_statement = String::from("    let chunk_index = 0u;");
             } else if data_bits_used % 32 + size < 32 {
                 if data_bits_used % 32 == 0 {
                     chunk_index_statement = format!("    let chunk_index = (model.data{} & {}u);", data_bits_used / 32, get_mask(*size, data_bits_used % 32));

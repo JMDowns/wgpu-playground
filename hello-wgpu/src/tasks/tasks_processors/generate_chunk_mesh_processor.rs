@@ -1,6 +1,6 @@
 use std::sync::{Arc, RwLock};
 
-use crate::{voxels::{world::World}, tasks::{TaskResult, Task}, gpu_data::vertex_gpu_data::VertexGPUData};
+use crate::{voxels::world::World, tasks::{TaskResult, Task}, gpu_manager::gpu_data::vertex_gpu_data::VertexGPUData};
 use fundamentals::world_position::WorldPosition;
 
 pub struct GenerateChunkMeshProcessor {}
