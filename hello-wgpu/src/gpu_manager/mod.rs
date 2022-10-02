@@ -2,7 +2,6 @@ use std::sync::{Arc, RwLock};
 
 mod camera_state;
 mod compute_state;
-mod compute_state_generated_helper;
 mod flag_state;
 mod render_state;
 mod surface_state;
@@ -27,7 +26,7 @@ const NEG_SQRT_2_DIV_2: f32 = -0.7071;
 
 pub struct GPUManager {
     pub device: Arc<RwLock<wgpu::Device>>,
-    pub queue: Arc<RwLock<wgpu::Queue>>,
+    pub queue: wgpu::Queue,
     pub compute_state: ComputeState,
     pub render_state: RenderState,
     pub surface_state: SurfaceState,
@@ -57,7 +56,7 @@ impl GPUManager {
         let (device, queue) = adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
-                    features: wgpu::Features::POLYGON_MODE_LINE | wgpu::Features::MULTI_DRAW_INDIRECT,
+                    features: wgpu::Features::POLYGON_MODE_LINE,
                     limits: if cfg!(target_arch = "wasm32") {
                         wgpu::Limits::downlevel_webgl2_defaults()
                     } else {
@@ -93,7 +92,7 @@ impl GPUManager {
 
         let vertex_gpu_data = Arc::new(RwLock::new(VertexGPUData::new(camera_state.camera.position, &device)));
 
-        let compute_state = ComputeState::new(camera_state.camera.position, &device, &camera_state.camera_buffer, &vertex_gpu_data.read().unwrap().indirect_pool_buffers);
+        let compute_state = ComputeState::new(camera_state.camera.position, &device, &camera_state.camera_buffer);
 
         let render_state = RenderState::new(
             &device, 
@@ -105,7 +104,7 @@ impl GPUManager {
 
         GPUManager {
             device: Arc::new(RwLock::new(device)),
-            queue: Arc::new(RwLock::new(queue)),
+            queue,
             compute_state,
             texture_state,
             camera_state,
@@ -142,7 +141,7 @@ impl GPUManager {
     pub fn update_camera_and_reset_conroller(&mut self, controller: &mut CameraController, dt: instant::Duration) {
         self.camera_state.camera.get_controller_updates_and_reset_controller(controller, dt);
         self.camera_state.camera_uniform.update_view_proj(&self.camera_state.camera, &self.camera_state.projection);
-        self.queue.read().unwrap().write_buffer(&self.camera_state.camera_buffer, 0, bytemuck::cast_slice(&[self.camera_state.camera_uniform]));
+        self.queue.write_buffer(&self.camera_state.camera_buffer, 0, bytemuck::cast_slice(&[self.camera_state.camera_uniform]));
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
@@ -156,29 +155,29 @@ impl GPUManager {
                 label: Some("Render Encoder"),
             });
 
-        let queue = self.queue.read().unwrap();
-
-        {
-            let mut vertex_gpu_data = self.vertex_gpu_data.write().unwrap();
-            for (mesh_position, side, side_offset, bucket_position, index_count) in vertex_gpu_data.return_frustum_bucket_data_to_update_and_empty_counts() {
-                self.compute_state.update_frustum_bucket_data(mesh_position, side, side_offset, bucket_position, index_count, &queue);
-            }
-        }
-
         let vertex_gpu_data = self.vertex_gpu_data.read().unwrap();
 
+        let compute_staging_buffer = self.device.read().unwrap().create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Compute Staging Buffer"),
+            size: std::mem::size_of::<u32>() as u64 * fundamentals::consts::NUMBER_OF_CHUNKS_AROUND_PLAYER as u64,
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+            mapped_at_creation: false
+        });
+
         if self.flag_state.should_calculate_frustum {
-            let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-                label: Some("Compute Pass"),
-            });
+            {
+                let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+                    label: Some("Compute Pass"),
+                });
 
-            compute_pass.set_pipeline(&self.compute_state.compute_pipeline);
-            compute_pass.set_bind_group(0, &self.compute_state.compute_bind_group, &[]);
-            compute_pass.set_bind_group(1, &self.compute_state.compute_indirect_bind_group, &[]);
+                compute_pass.set_pipeline(&self.compute_state.compute_pipeline);
+                compute_pass.set_bind_group(0, &self.compute_state.compute_bind_group, &[]);
 
-            compute_pass.dispatch_workgroups((fundamentals::consts::NUMBER_OF_CHUNKS_AROUND_PLAYER as f32 / 256.0).ceil() as u32, 1, 1);
+                compute_pass.dispatch_workgroups((fundamentals::consts::NUMBER_OF_CHUNKS_AROUND_PLAYER as f32 / 256.0).ceil() as u32, 1, 1);
+            }
 
-            self.flag_state.should_calculate_frustum = false;
+            encoder.copy_buffer_to_buffer(&self.compute_state.compute_output_buffer, 0, &compute_staging_buffer, 0, std::mem::size_of::<u32>() as u64 * fundamentals::consts::NUMBER_OF_CHUNKS_AROUND_PLAYER as u64);
+        
         }
 
         {
@@ -212,56 +211,67 @@ impl GPUManager {
             render_pass.set_bind_group(1, &self.texture_state.diffuse_bind_group, &[]);
             render_pass.set_bind_group(2, &vertex_gpu_data.chunk_index_bind_group, &[]);
 
-            for i in 0..vertex_gpu_data.vertex_pool_buffers.len() - 1 {
-                render_pass.set_vertex_buffer(0, vertex_gpu_data.vertex_pool_buffers[i].slice(..));
-                render_pass.set_index_buffer(vertex_gpu_data.index_pool_buffers[i].slice(..), wgpu::IndexFormat::Uint32);
-                render_pass.multi_draw_indexed_indirect(&vertex_gpu_data.indirect_pool_buffers[i], 0, vertex_gpu_data.number_of_buckets_per_buffer as u32);
+            let ycos = self.camera_state.camera.yaw.0.cos();
+            let ysin = self.camera_state.camera.yaw.0.sin();
+            let psin = self.camera_state.camera.pitch.0.sin();
+
+            //Front, Back, Left, Right, Top, Bottom
+            let lhs_comp_arr = [ycos, ycos, ysin, ysin, psin, psin];
+            let is_comp_lt = [false, true, false, true, true, false];
+            let angles = [NEG_SQRT_2_DIV_2, SQRT_2_DIV_2, NEG_SQRT_2_DIV_2, SQRT_2_DIV_2, SQRT_2_DIV_2, NEG_SQRT_2_DIV_2];
+
+            for chunk_pos_index in 0..fundamentals::consts::NUMBER_OF_CHUNKS_AROUND_PLAYER as usize {
+                if self.compute_state.compute_staging_vec[chunk_pos_index] == 0 {
+                    continue;
+                }
+                let gpu_data_result = vertex_gpu_data.get_buffers_at_position(&vertex_gpu_data.chunk_index_array[chunk_pos_index]);
+                match gpu_data_result {
+                    Some(gpu_data) => {
+                        for i in 0..6 {
+                            if is_comp_lt[i] {
+                                if lhs_comp_arr[i] < angles[i] {
+                                    render_pass.set_vertex_buffer(0, gpu_data[i].0.slice(..));
+                                    render_pass.set_index_buffer(gpu_data[i].1.slice(..), wgpu::IndexFormat::Uint32);
+                                    render_pass.draw_indexed(0..gpu_data[i].2, 0, 0..1);
+                                }
+                            } else {
+                                if lhs_comp_arr[i] > angles[i] {
+                                    render_pass.set_vertex_buffer(0, gpu_data[i].0.slice(..));
+                                    render_pass.set_index_buffer(gpu_data[i].1.slice(..), wgpu::IndexFormat::Uint32);
+                                    render_pass.draw_indexed(0..gpu_data[i].2, 0, 0..1);
+                                }
+                            }
+                        }
+                    },
+                    None => {}
+                }
             }
-
-            render_pass.set_vertex_buffer(0, vertex_gpu_data.vertex_pool_buffers[vertex_gpu_data.vertex_pool_buffers.len() - 1].slice(..));
-            render_pass.set_index_buffer(vertex_gpu_data.index_pool_buffers[vertex_gpu_data.vertex_pool_buffers.len() - 1].slice(..), wgpu::IndexFormat::Uint32);
-            render_pass.multi_draw_indexed_indirect(&vertex_gpu_data.indirect_pool_buffers[vertex_gpu_data.vertex_pool_buffers.len() - 1], 0, vertex_gpu_data.number_of_buckets_in_last_buffer as u32);
-
-            // let ycos = self.camera_state.camera.yaw.0.cos();indirect_buffer
-            // let ysin = self.camera_state.camera.yaw.0.sin();
-            // let psin = self.camera_state.camera.pitch.0.sin();
-
-            // //Front, Back, Left, Right, Top, Bottom
-            // let lhs_comp_arr = [ycos, ycos, ysin, ysin, psin, psin];
-            // let is_comp_lt = [false, true, false, true, true, false];
-            // let angles = [NEG_SQRT_2_DIV_2, SQRT_2_DIV_2, NEG_SQRT_2_DIV_2, SQRT_2_DIV_2, SQRT_2_DIV_2, NEG_SQRT_2_DIV_2];
-
-            // for chunk_pos_index in 0..fundamentals::consts::NUMBER_OF_CHUNKS_AROUND_PLAYER as usize {
-            //     if self.compute_state.compute_staging_vec[chunk_pos_index] == 0 {
-            //         continue;
-            //     }
-            //     let gpu_data_result = vertex_gpu_data.get_buffers_at_position(&vertex_gpu_data.chunk_index_array[chunk_pos_index]);
-            //     match gpu_data_result {
-            //         Some(gpu_data) => {
-            //             for i in 0..6 {
-            //                 if is_comp_lt[i] {
-            //                     if lhs_comp_arr[i] < angles[i] {
-            //                         render_pass.set_vertex_buffer(0, gpu_data[i].0.slice(..));
-            //                         render_pass.set_index_buffer(gpu_data[i].1.slice(..), wgpu::IndexFormat::Uint32);
-            //                         render_pass.draw_indexed(0..gpu_data[i].2, 0, 0..1);
-            //                     }
-            //                 } else {
-            //                     if lhs_comp_arr[i] > angles[i] {
-            //                         render_pass.set_vertex_buffer(0, gpu_data[i].0.slice(..));
-            //                         render_pass.set_index_buffer(gpu_data[i].1.slice(..), wgpu::IndexFormat::Uint32);
-            //                         render_pass.draw_indexed(0..gpu_data[i].2, 0, 0..1);
-            //                     }
-            //                 }
-            //             }
-            //         },
-            //         None => {}
-            //     }
-            // }
         }
 
         // submit will accept anything that implements IntoIter
-        queue.submit(std::iter::once(encoder.finish()));
+        self.queue.submit(std::iter::once(encoder.finish()));
         output.present();
+
+        if self.flag_state.should_calculate_frustum {
+            let compute_output_buffer_slice = compute_staging_buffer.slice(..);
+            let (sender, receiver) = futures_intrusive::channel::shared::oneshot_channel();
+            compute_output_buffer_slice.map_async(wgpu::MapMode::Read, move |v| sender.send(v).unwrap());
+
+            // Poll the device in a blocking manner so that our future resolves.
+            // In an actual application, `device.poll(...)` should
+            // be called in an event loop or on another thread.  
+            self.device.read().unwrap().poll(wgpu::Maintain::Wait);
+            if let Some(Ok(())) = pollster::block_on(receiver.receive()) {
+                let data = compute_output_buffer_slice.get_mapped_range();
+                let result: Vec<u32> = bytemuck::cast_slice(&data).to_vec();
+                self.compute_state.compute_staging_vec = result;
+
+                drop(data);
+                compute_staging_buffer.unmap();
+            }
+
+            self.flag_state.should_calculate_frustum = false;
+        }
         
         Ok(())
     }
@@ -270,8 +280,8 @@ impl GPUManager {
         Task::GenerateChunkMesh { 
             chunk_position, 
             world, 
-            vertex_gpu_data: self.vertex_gpu_data.clone(),
-            queue: self.queue.clone()
+            vertex_gpu_data: self.vertex_gpu_data.clone(), 
+            device: self.device.clone() 
         }
     }
 
