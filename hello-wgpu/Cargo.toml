@@ -23,7 +23,7 @@ log = "0.4"
 wgpu = "0.13.1"
 instant = "0.1"
 pollster = "0.2"
-bytemuck = { version = "1.12.1", features = [ "derive" ] }
+bytemuck = { version = "1.12.1", features = [ "derive", "min_const_generics" ] }
 num = "0.4.0"
 num-derive = "0.3.3"
 num-traits = "0.2.15"
@@ -37,6 +37,7 @@ noise = "0.7.0"
 priority-queue="1.2.3"
 fastapprox="0.3.0"
 futures-intrusive="0.4.0"
+lru = "0.8.0"
 
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]

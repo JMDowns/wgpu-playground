@@ -26,27 +26,7 @@ impl Mesh {
         }
     }
 
-    pub fn generate_vertex_buffer(vertex_vec: &Vec<Vertex>, device: &wgpu::Device, label: &str) -> wgpu::Buffer {
-        device.create_buffer_init(
-            &wgpu::util::BufferInitDescriptor {
-                label: Some(&String::from(format!("{} Vertex", label))),
-                contents: bytemuck::cast_slice(vertex_vec),
-                usage: wgpu::BufferUsages::VERTEX,
-            }
-        )
-    }
-
-    pub fn generate_index_buffer(index_vec: &Vec<u32>, device: &wgpu::Device, label: &str) -> wgpu::Buffer {
-        device.create_buffer_init(
-            &wgpu::util::BufferInitDescriptor {
-                label: Some(&String::from(format!("{} Index", label))),
-                contents: bytemuck::cast_slice(index_vec),
-                usage: wgpu::BufferUsages::INDEX,
-            }
-        )
-    }
-
-    pub fn cull_ambient_occlusion(chunk: &Chunk, solid_data: [[[bool; CHUNK_DIMENSION as usize+2]; CHUNK_DIMENSION as usize+2]; CHUNK_DIMENSION as usize+2], index: u32) -> Self {
+    pub fn cull_ambient_occlusion(chunk: &Chunk, solid_data: Vec<Vec<Vec<bool>>>, index: u32) -> Self {
 
         let mut mesh = Mesh::new();
 
@@ -62,7 +42,6 @@ impl Mesh {
                             Self::generate_cube_indices(&adjacent_blocks_data, &ambient_occlusion_on_vertices)
                         );
                     }
-                    
                 }
             }
         }
@@ -71,12 +50,12 @@ impl Mesh {
     }
 
     pub fn add_vertices(&mut self, mut block_vertices: [Vec<Vertex>; 6], block_indices: [Vec<u32>; 6]) {
-        self.front.1.append(&mut block_indices[0].iter().map(|e| e+self.front.0.len() as u32).collect());
-        self.back.1.append(&mut block_indices[1].iter().map(|e| e+self.back.0.len() as u32).collect());
-        self.left.1.append(&mut block_indices[2].iter().map(|e| e+self.left.0.len() as u32).collect());
-        self.right.1.append(&mut block_indices[3].iter().map(|e| e+self.right.0.len() as u32).collect());
-        self.top.1.append(&mut block_indices[4].iter().map(|e| e+self.top.0.len() as u32).collect());
-        self.bottom.1.append(&mut block_indices[5].iter().map(|e| e+self.bottom.0.len() as u32).collect());
+        self.front.1.append(&mut block_indices[0].iter().map(|e| (e+self.front.0.len() as u32) % fundamentals::consts::NUM_VERTICES_IN_BUCKET).collect());
+        self.back.1.append(&mut block_indices[1].iter().map(|e| (e+self.back.0.len() as u32) % fundamentals::consts::NUM_VERTICES_IN_BUCKET).collect());
+        self.left.1.append(&mut block_indices[2].iter().map(|e| (e+self.left.0.len() as u32) % fundamentals::consts::NUM_VERTICES_IN_BUCKET).collect());
+        self.right.1.append(&mut block_indices[3].iter().map(|e| (e+self.right.0.len() as u32) % fundamentals::consts::NUM_VERTICES_IN_BUCKET).collect());
+        self.top.1.append(&mut block_indices[4].iter().map(|e| (e+self.top.0.len() as u32) % fundamentals::consts::NUM_VERTICES_IN_BUCKET).collect());
+        self.bottom.1.append(&mut block_indices[5].iter().map(|e| (e+self.bottom.0.len() as u32) % fundamentals::consts::NUM_VERTICES_IN_BUCKET).collect());
 
         self.front.0.append(&mut block_vertices[0]);
         self.back.0.append(&mut block_vertices[1]);
@@ -93,7 +72,7 @@ impl Mesh {
         self.bottom.2 = self.bottom.1.len() as u32;
     }
 
-    fn generate_adjacent_blocks(solid_data: &[[[bool; CHUNK_DIMENSION as usize+2]; CHUNK_DIMENSION as usize+2]; CHUNK_DIMENSION as usize+2], i: usize, j: usize, k: usize) -> [bool; 6] {
+    fn generate_adjacent_blocks(solid_data: &Vec<Vec<Vec<bool>>>, i: usize, j: usize, k: usize) -> [bool; 6] {
         let mut adjacency_data = [false;6];
         adjacency_data[0] = solid_data[i-1][j][k];
         adjacency_data[1] = solid_data[i+1][j][k];
@@ -104,7 +83,7 @@ impl Mesh {
         adjacency_data
     }
     
-    fn generate_ambient_occlusion_on_vertices(solid_data: &[[[bool; CHUNK_DIMENSION as usize+2]; CHUNK_DIMENSION as usize+2]; CHUNK_DIMENSION as usize+2], i: usize, j: usize, k: usize) -> [[u8;3];8] {
+    fn generate_ambient_occlusion_on_vertices(solid_data: &Vec<Vec<Vec<bool>>>, i: usize, j: usize, k: usize) -> [[u8;3];8] {
         [
             [
                 Self::generate_ambient_occlusion_for_vertex(solid_data[i-1][j][k-1], solid_data[i-1][j-1][k], solid_data[i-1][j-1][k-1]),
