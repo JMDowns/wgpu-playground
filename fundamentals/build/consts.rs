@@ -9,6 +9,14 @@ pub fn generate_consts(config_format: &ConfigFormat, consts_model: &ConstsModel,
     let mut consts_file = BufWriter::new(File::create(&consts_path).unwrap());
 
     let position_offset_vec = generate_chunk_pos_around_player_fn(config_format);
+    let num_chunks_around_player = position_offset_vec.len();
+
+    let num_vertices_in_bucket = (config_format.chunk_dimension as u32)*(config_format.chunk_dimension as u32)*(config_format.chunk_dimension as u32);
+    let num_buckets_per_chunk = (config_format.chunk_dimension as u32)*(config_format.chunk_dimension as u32)*(config_format.chunk_dimension as u32) * 24 / num_vertices_in_bucket;
+
+    if config_format.chunk_dimension == 1 {
+        panic!("Chunk dimension cannot be 1, as this would cause the index buffer writes to have an alignment of 6, and it must be 4")
+    }
     writeln!(
         &mut consts_file,
         "{}",
@@ -29,14 +37,15 @@ pub fn generate_consts(config_format: &ConfigFormat, consts_model: &ConstsModel,
             format!("pub const BITS_PER_TEX_COORD_X: u32 = {};", (((consts_model.atlas_max_num_images_width + 1) as f32).log2().ceil())),
             format!("pub const BITS_PER_TEX_COORD_Y: u32 = {};", (((consts_model.atlas_max_num_images_height + 1) as f32).log2().ceil())),
             format!("pub const BITS_PER_AMBIENT_OCCLUSION: u32 = 2;"),
-            format!("pub const NUMBER_OF_CHUNKS_AROUND_PLAYER: u32 = {};", position_offset_vec.len()),
-            format!("pub const NUMBER_OF_CHUNKS_TO_RENDER: u32 = {};", (position_offset_vec.len() as f32 / 8 as f32).ceil() as u32),
-            format!("pub const BITS_PER_CHUNK_INDEX: u32 = {};", ((position_offset_vec.len()) as f32).log2().ceil() as u32),
-            format!("pub const WORKGROUP_SIZE: u16 = {};", config_format.workgroup_size),
-            //The maximum number of vertices is NxNxNx12, so having each bucket store NxNxN vertices means that we have at max 12 buckets for 1 chunk
-            //Usually the number of vertices is less, so having 10 buckets per chunk is usually enough
-            format!("pub const NUM_VERTICES_IN_BUCKET: u32 = {};", (config_format.chunk_dimension as u32)*(config_format.chunk_dimension as u32)*(config_format.chunk_dimension as u32)), 
-            format!("pub const NUM_BUCKETS_PER_CHUNK: usize = 10;"),
+            format!("pub const NUMBER_OF_CHUNKS_AROUND_PLAYER: u32 = {};", num_chunks_around_player),
+            format!("pub const NUMBER_OF_CHUNKS_TO_RENDER: u32 = {};", (num_chunks_around_player as f32 / 8 as f32).ceil() as u32),
+            format!("pub const BITS_PER_CHUNK_INDEX: u32 = {};", ((num_chunks_around_player) as f32).log2().ceil() as u32),
+            format!("pub const WORKGROUP_SIZE: u16 = {};", 255),
+            //The maximum number of vertices per chunk is NxNxNx12 for a checkerboard pattern.
+            format!("pub const NUM_VERTICES_IN_BUCKET: u32 = {};", num_vertices_in_bucket), 
+            format!("pub const NUM_BUCKETS_PER_CHUNK: usize = {};", num_buckets_per_chunk),
+            format!("pub const NUM_BUCKETS_PER_SIDE: u32 = {};", num_buckets_per_chunk / 6),
+            format!("pub const NUM_BUCKETS: usize = {};", num_buckets_per_chunk * num_chunks_around_player as u32),
             String::new(),
             format!("pub const UP_KEY: VirtualKeyCode = {};", controls_format.up),
             format!("pub const DOWN_KEY: VirtualKeyCode = {};", controls_format.down),

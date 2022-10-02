@@ -2,7 +2,7 @@ use std::fmt::Display;
 use bytemuck::{Pod, Zeroable};
 
 #[repr(C)]
-#[derive(Hash, PartialEq, Eq, Clone, Copy, Pod, Zeroable)]
+#[derive(Hash, PartialEq, Eq, Clone, Copy, Pod, Zeroable, Debug)]
 pub struct WorldPosition {
     pub x: i32,
     pub y: i32,

@@ -15,6 +15,10 @@ pub const VAR_SIZE_LIST: [(&str, u32);7] = [
         ("chunk_index", BITS_PER_CHUNK_INDEX)
     ];
 
+pub fn return_size_of_vertex_in_bytes() -> usize{
+   ((DATA_TOTAL_BITS as f32 / 32.0).ceil() * 4.0) as usize
+}
+
 pub fn build_vertex_file() {
     let vertex_path = Path::new("src/vertex.rs");
     let mut vertex_file = BufWriter::new(File::create(&vertex_path).unwrap());
@@ -73,7 +77,10 @@ fn build_new_bitops() -> String {
         if var == "chunk_index" && size == 0 {
             continue;
         }
-        if data_bits_modified % 32 + size < 32 {
+        if data_bits_modified % 32 + size <= 32 {
+            if data_bits_modified % 32 == 0 && data_bits_modified != 0 {
+                ops_vec.push(format!("            let mut data{} = 0;", data_bits_modified / 32))
+            }
             let mut shift_string = format!(" << {}", data_bits_modified % 32);
             if data_bits_modified % 32 == 0 {
                 shift_string = String::new();
@@ -113,7 +120,7 @@ fn get_second_chunk_binary_mask(chunk_size: u32, total_size: u32) -> String {
 
 fn build_vertex_declaration() -> String {
     let mut data_vec = Vec::new();
-    for i in 0..(DATA_TOTAL_BITS / 32)+1 {
+    for i in 0..(DATA_TOTAL_BITS as f32 / 32.0).ceil() as u32 {
         data_vec.push(format!("data{}", i))
     }
 
