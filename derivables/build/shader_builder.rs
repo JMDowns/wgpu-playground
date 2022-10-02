@@ -63,7 +63,7 @@ build_vs_main_statements().as_str(),
 
 fn build_vertex_data() -> String {
     let mut data_vec = Vec::new();
-    for i in 0..(DATA_TOTAL_BITS / 32) + 1 {
+    for i in 0..(DATA_TOTAL_BITS as f32 / 32.0).ceil() as u32 {
         data_vec.push(format!("    @location({i}) data{i}: u32,"));
     }
     data_vec.join("\n")
@@ -76,8 +76,8 @@ fn build_vs_main_statements() -> String {
     for (name, size) in VAR_SIZE_LIST.iter() {
         if *name == "chunk_index" {
             if *size == 0 {
-                chunk_index_statement = String::from("    let chunk_index = 0;");
-            } else if data_bits_used % 32 + size < 32 {
+                chunk_index_statement = String::from("    let chunk_index = 0u;");
+            } else if data_bits_used % 32 + size <= 32 {
                 if data_bits_used % 32 == 0 {
                     chunk_index_statement = format!("    let chunk_index = (model.data{} & {}u);", data_bits_used / 32, get_mask(*size, data_bits_used % 32));
                 } else {
@@ -92,7 +92,7 @@ fn build_vs_main_statements() -> String {
             }
 
         } else {
-            if data_bits_used % 32 + size < 32 {
+            if data_bits_used % 32 + size <= 32 {
                 if data_bits_used % 32 == 0 {
                     data_unpack_vec.push(format!("f32(model.data{} & {}u)", data_bits_used / 32, get_mask(*size, 0)));
                 } else {

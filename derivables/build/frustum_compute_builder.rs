@@ -2,7 +2,8 @@ use std::path::Path;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 
-use fundamentals::consts::{NUMBER_OF_CHUNKS_AROUND_PLAYER, CHUNK_DIMENSION, WORKGROUP_SIZE};
+use fundamentals::buffer_size_function;
+use fundamentals::consts::{NUMBER_OF_CHUNKS_AROUND_PLAYER, CHUNK_DIMENSION, NUM_BUCKETS_PER_CHUNK, NUM_BUCKETS_PER_SIDE, WORKGROUP_SIZE};
 
 pub fn build_compute_file() {
     let compute_path = Path::new("../hello-wgpu/src/frustum_compute.wgsl");
@@ -16,9 +17,14 @@ pub fn build_compute_file() {
 }
 
 fn build_compute_string() -> String {
-    let chunk_position_array_length = NUMBER_OF_CHUNKS_AROUND_PLAYER * 3;
+    let buffer_binding_string = generate_indirect_buffer_bindings();
+    let vertex_count_fn_string = generate_set_vertex_count_fn();
     format!("let CHUNKS_AROUND_PLAYER = {NUMBER_OF_CHUNKS_AROUND_PLAYER};
 let CHUNK_DIMENSION = {CHUNK_DIMENSION};
+let NUM_BUCKETS_PER_CHUNK = {NUM_BUCKETS_PER_CHUNK};
+let NUM_BUCKETS_PER_SIDE = {NUM_BUCKETS_PER_SIDE};
+let SQRT_2_DIV_2 = .7071;
+let NEG_SQRT_2_DIV_2 = -.7071;
 
 struct CameraUniform {{
     view_proj: mat4x4<f32>,
@@ -26,14 +32,30 @@ struct CameraUniform {{
 @group(0) @binding(0)
 var<uniform> camera: CameraUniform;
 
-struct ChunkPositions {{
-    chunk_positions: array<i32,{chunk_position_array_length}>
-}};
-@group(0) @binding(1)
-var<storage> chunkPositions: ChunkPositions;
+struct DrawIndexedIndirect {{
+    vertex_count: u32,
+    instance_count: u32,
+    base_index: u32,
+    vertex_offset: u32,
+    base_instance: u32,
+}}
 
-@group(0) @binding(2)
-var<storage, read_write> chunk_indexes_to_show: array<u32, CHUNKS_AROUND_PLAYER>;
+struct BucketData {{
+    buffer_index: i32,
+    bucket_index: i32,
+    vertex_count: u32,
+    side: u32,
+}};
+
+struct ComputeData {{
+    world_position: array<i32,3>,
+    bucket_data: array<BucketData, NUM_BUCKETS_PER_CHUNK>
+}};
+
+@group(0) @binding(1)
+var<storage> computeDataArray: array<ComputeData, CHUNKS_AROUND_PLAYER>;
+
+{buffer_binding_string}
 
 fn is_not_in_frustum_via_plane(center_point: vec3<f32>, plane_normal: vec3<f32>, plane_distance: f32) -> bool {{
     var r = abs(plane_normal.x * f32(CHUNK_DIMENSION / 2)) 
@@ -50,7 +72,14 @@ fn is_not_in_frustum_via_plane(center_point: vec3<f32>, plane_normal: vec3<f32>,
     return d - r < 0.0;
 }}
 
-fn is_in_frustum(index: u32) -> bool {{
+struct InFrustumResult {{
+    in_frustum: bool,
+    normal_x: f32,
+    normal_y: f32,
+    normal_z: f32,
+}}
+
+fn is_in_frustum(index: u32) -> InFrustumResult {{
     var col1 = vec3<f32>(camera.view_proj[0][0], camera.view_proj[1][0], camera.view_proj[2][0]);
     var col2 = vec3<f32>(camera.view_proj[0][1], camera.view_proj[1][1], camera.view_proj[2][1]);
     var col3 = vec3<f32>(camera.view_proj[0][2], camera.view_proj[1][2], camera.view_proj[2][2]);
@@ -83,29 +112,43 @@ fn is_in_frustum(index: u32) -> bool {{
     back_distance = back_distance / length(back_normal);
     back_normal = normalize(back_normal);
 
-    var chunk_pos = vec3<i32>(chunkPositions.chunk_positions[3u*index], chunkPositions.chunk_positions[3u*index+1u], chunkPositions.chunk_positions[3u*index+2u]);
+    var chunk_pos = vec3<i32>(computeDataArray[index].world_position[0], computeDataArray[index].world_position[1], computeDataArray[index].world_position[2]);
     var center_of_chunk = vec3<f32>(f32(chunk_pos.x) * f32(CHUNK_DIMENSION) + f32(CHUNK_DIMENSION / 2), f32(chunk_pos.y)  * f32(CHUNK_DIMENSION) + f32(CHUNK_DIMENSION / 2), f32(chunk_pos.z)  * f32(CHUNK_DIMENSION) + f32(CHUNK_DIMENSION / 2));
 
+    var frustum_result: InFrustumResult;
+    frustum_result.normal_x = front_normal.x;
+    frustum_result.normal_y = front_normal.y;
+    frustum_result.normal_z = front_normal.z;
+
     if (is_not_in_frustum_via_plane(center_of_chunk, left_normal, left_distance)) {{
-        return false;
+        frustum_result.in_frustum = false;
+        return frustum_result;
     }}
     if (is_not_in_frustum_via_plane(center_of_chunk, right_normal, right_distance)) {{
-        return false;
+        frustum_result.in_frustum = false;
+        return frustum_result;
     }}
     if (is_not_in_frustum_via_plane(center_of_chunk, bottom_normal, bottom_distance)) {{
-        return false;
+        frustum_result.in_frustum = false;
+        return frustum_result;
     }}
     if (is_not_in_frustum_via_plane(center_of_chunk, top_normal, top_distance)) {{
-        return false;
+        frustum_result.in_frustum = false;
+        return frustum_result;
     }}
     if (is_not_in_frustum_via_plane(center_of_chunk, front_normal, front_distance)) {{
-        return false;
+        frustum_result.in_frustum = false;
+        return frustum_result;
     }}
     if (is_not_in_frustum_via_plane(center_of_chunk, back_normal, back_distance)) {{
-        return false;
+        frustum_result.in_frustum = false;
+        return frustum_result;
     }}
-    return true;
+    frustum_result.in_frustum = true;
+    return frustum_result;
 }}
+
+{vertex_count_fn_string}
 
 @compute
 @workgroup_size({WORKGROUP_SIZE})
@@ -114,10 +157,114 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {{
     if (index >= u32(CHUNKS_AROUND_PLAYER)) {{
         return;
     }} 
-    if (is_in_frustum(index)) {{
-        chunk_indexes_to_show[index] = 1u;
+    var frustum_result = is_in_frustum(index);
+    if (frustum_result.in_frustum) {{
+
+        // //Front, Back, Left, Right, Top, Bottom
+        var lhs_comp_arr: array<f32, 6>;
+        lhs_comp_arr[0] = frustum_result.normal_x;
+        lhs_comp_arr[1] = frustum_result.normal_x; 
+        lhs_comp_arr[2] = frustum_result.normal_z;
+        lhs_comp_arr[3] = frustum_result.normal_z;
+        lhs_comp_arr[4] = frustum_result.normal_y;
+        lhs_comp_arr[5] = frustum_result.normal_y;
+        var is_comp_lt: array<bool, 6>;
+        is_comp_lt[0] = false; 
+        is_comp_lt[1] = true; 
+        is_comp_lt[2] = false; 
+        is_comp_lt[3] = true; 
+        is_comp_lt[4] = true; 
+        is_comp_lt[5] = false;
+        var angles: array<f32, 6>;
+        angles[0] = NEG_SQRT_2_DIV_2; 
+        angles[1] = SQRT_2_DIV_2; 
+        angles[2] = NEG_SQRT_2_DIV_2; 
+        angles[3] = SQRT_2_DIV_2; 
+        angles[4] = SQRT_2_DIV_2; 
+        angles[5] = NEG_SQRT_2_DIV_2;
+        for (var side: i32 = 0; side < 6; side++) {{
+            if (is_comp_lt[side]) {{
+                if (lhs_comp_arr[side] < angles[side]) {{
+                    for (var i: i32 = 0; i < NUM_BUCKETS_PER_SIDE; i++) {{
+                        var frustum_bucket_data = computeDataArray[index].bucket_data[side * NUM_BUCKETS_PER_SIDE + i];
+                        if (frustum_bucket_data.buffer_index != -1) {{
+                            set_vertex_count_in_bucket(frustum_bucket_data.buffer_index, frustum_bucket_data.bucket_index, frustum_bucket_data.vertex_count);
+                        }}
+                    }}
+                }} else {{
+                    for (var i: i32 = 0; i < NUM_BUCKETS_PER_SIDE; i++) {{
+                        var frustum_bucket_data = computeDataArray[index].bucket_data[side * NUM_BUCKETS_PER_SIDE + i];
+                        if (frustum_bucket_data.buffer_index != -1) {{
+                            set_vertex_count_in_bucket(frustum_bucket_data.buffer_index, frustum_bucket_data.bucket_index, 0u);
+                        }}
+                    }}
+                }}
+            }} else {{
+                if (lhs_comp_arr[side] > angles[side]) {{
+                    for (var i: i32 = 0; i < NUM_BUCKETS_PER_SIDE; i++) {{
+                        var frustum_bucket_data = computeDataArray[index].bucket_data[side * NUM_BUCKETS_PER_SIDE + i];
+                        if (frustum_bucket_data.buffer_index != -1) {{
+                            set_vertex_count_in_bucket(frustum_bucket_data.buffer_index, frustum_bucket_data.bucket_index, frustum_bucket_data.vertex_count);
+                        }}
+                    }}
+                }} else {{
+                    for (var i: i32 = 0; i < NUM_BUCKETS_PER_SIDE; i++) {{
+                        var frustum_bucket_data = computeDataArray[index].bucket_data[side * NUM_BUCKETS_PER_SIDE + i];
+                        if (frustum_bucket_data.buffer_index != -1) {{
+                            set_vertex_count_in_bucket(frustum_bucket_data.buffer_index, frustum_bucket_data.bucket_index, 0u);
+                        }}
+                    }}
+                }}
+            }}
+            
+        }}
     }} else {{
-        chunk_indexes_to_show[index] = 0u;
+        for (var i: i32 = 0; i < NUM_BUCKETS_PER_CHUNK; i++) {{
+            var frustum_bucket_data = computeDataArray[index].bucket_data[i];
+            if (frustum_bucket_data.buffer_index != -1) {{
+                set_vertex_count_in_bucket(frustum_bucket_data.buffer_index, frustum_bucket_data.bucket_index, 0u);
+            }}
+        }}
+    }}
+}}")
+}
+
+fn generate_indirect_buffer_bindings() -> String {
+    let buffer_size_fn_return = buffer_size_function::return_bucket_buffer_size_and_amount_information(super::vertex_builder::return_size_of_vertex_in_bytes());
+    let mut binding_string_list = Vec::new();
+    for i in 0..buffer_size_fn_return.number_of_buffers-1 {
+        let number_of_buckets = buffer_size_fn_return.number_of_buckets_per_buffer;
+        binding_string_list.push(format!(
+            "@group(1) @binding({i})
+var<storage, read_write> indirect_buffer_{i}: array<DrawIndexedIndirect, {number_of_buckets}>;"
+        ));
+    }
+    let last_buffer_number = buffer_size_fn_return.number_of_buffers - 1;
+    let number_of_buckets_in_last_buffer = buffer_size_fn_return.number_of_buckets_in_last_buffer;
+    binding_string_list.push(format!(
+        "@group(1) @binding({last_buffer_number})
+var<storage, read_write> indirect_buffer_{last_buffer_number}: array<DrawIndexedIndirect, {number_of_buckets_in_last_buffer}>;"
+    ));
+
+    binding_string_list.join("\n")
+}
+
+fn generate_set_vertex_count_fn() -> String {
+    let buffer_size_fn_return = buffer_size_function::return_bucket_buffer_size_and_amount_information(super::vertex_builder::return_size_of_vertex_in_bytes());
+    let mut switch_cases = Vec::new();
+    for i in 0..buffer_size_fn_return.number_of_buffers {
+        let case = format!(
+"case {i}: {{
+    indirect_buffer_{i}[bucket_number].vertex_count = vertex_count;
+}}");
+        switch_cases.push(case);
+    }
+    switch_cases.push(String::from("default: {{}}"));
+    let switch_cases_string = switch_cases.join("\n");
+    format!(
+"fn set_vertex_count_in_bucket(buffer_number: i32, bucket_number: i32, vertex_count: u32) {{
+    switch buffer_number {{
+        {switch_cases_string}
     }}
 }}")
 }

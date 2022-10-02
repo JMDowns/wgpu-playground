@@ -9,6 +9,5 @@
     "number_of_light_colors": 512,
     "number_of_alpha_values": 4,
     "texture_dimension": 16,
-    "chunk_dimension": 32,
-    "workgroup_size": 255
+    "chunk_dimension": 16
 }

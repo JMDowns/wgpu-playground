@@ -10,6 +10,7 @@ mod vertex_builder;
 mod shader_builder;
 mod frustum_compute_builder;
 mod block_builder;
+mod compute_state_helper_builder;
 
 fn main() {
     let block_type_to_texture_coordinates_path = Path::new("src/dictionaries/").join("block_type_to_texture_coordinates.rs");
@@ -28,6 +29,7 @@ fn main() {
     vertex_builder::build_vertex_file();
     shader_builder::build_shader_file();
     frustum_compute_builder::build_compute_file();
+    compute_state_helper_builder::build_compute_helper_file();
 
     block_builder::build_block_file();
 }

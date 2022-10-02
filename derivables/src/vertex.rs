@@ -13,14 +13,14 @@ if pos.x > CHUNK_DIMENSION || pos.y > CHUNK_DIMENSION || pos.z > CHUNK_DIMENSION
         }
             let mut data0 = 0;
             data0 = data0 | (pos.x as u32);
-            data0 = data0 | (pos.y as u32) << 6;
-            data0 = data0 | (pos.z as u32) << 12;
-            data0 = data0 | (tc.tx as u32) << 18;
-            data0 = data0 | (tc.ty as u32) << 21;
-            data0 = data0 | (ambient_occlusion as u32) << 24;
-            data0 = data0 | ((chunk_index as u32) & 0b111111 ) << 26;
+            data0 = data0 | (pos.y as u32) << 5;
+            data0 = data0 | (pos.z as u32) << 10;
+            data0 = data0 | (tc.tx as u32) << 15;
+            data0 = data0 | (tc.ty as u32) << 18;
+            data0 = data0 | (ambient_occlusion as u32) << 21;
+            data0 = data0 | ((chunk_index as u32) & 0b111111111 ) << 23;
             let mut data1 = 0;
-            data1 = data1 | ((chunk_index as u32) & 0b1111000000 ) >> 6;
+            data1 = data1 | ((chunk_index as u32) & 0b1000000000 ) >> 9;
             Vertex{ data0, data1 }
         }
         pub fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {

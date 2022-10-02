@@ -3,8 +3,8 @@ mod camera;
 mod voxels;
 mod state;
 mod tasks;
-mod gpu_data;
 mod thread_task_manager;
+mod gpu_manager;
 
 use winit::{
     event::*,
@@ -85,8 +85,6 @@ pub async fn run() {
                     }
                     _ => {}
                 }
-            } else {
-                state.flag_state.calculate_frustum = true;
             }
         }
 
@@ -99,7 +97,7 @@ pub async fn run() {
             match state.render() {
                 Ok(_) => {}
                 //Reconfigure if surface is lost
-                Err(wgpu::SurfaceError::Lost) => state.resize(state.surface_state.size),
+                Err(wgpu::SurfaceError::Lost) => state.resize(state.gpu_manager.surface_state.size),
                 //System is out of memory, so we should probably quit
                 Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
                 Err(e) => eprintln!("{:?}", e),
