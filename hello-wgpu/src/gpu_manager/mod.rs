@@ -12,6 +12,7 @@ pub mod gpu_data;
 use camera_state::CameraState;
 use compute_state::ComputeState;
 use flag_state::FlagState;
+use instant::Instant;
 use render_state::RenderState;
 use surface_state::SurfaceState;
 use texture_state::TextureState;
@@ -21,9 +22,6 @@ use fundamentals::world_position::WorldPosition;
 use winit::window::Window;
 
 use crate::{texture, camera::CameraController, tasks::Task, voxels::world::World};
-
-const SQRT_2_DIV_2: f32 = 0.7071;
-const NEG_SQRT_2_DIV_2: f32 = -0.7071;
 
 pub struct GPUManager {
     pub device: Arc<RwLock<wgpu::Device>>,
@@ -57,7 +55,7 @@ impl GPUManager {
         let (device, queue) = adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
-                    features: wgpu::Features::POLYGON_MODE_LINE | wgpu::Features::MULTI_DRAW_INDIRECT,
+                    features: wgpu::Features::POLYGON_MODE_LINE | wgpu::Features::MULTI_DRAW_INDIRECT | wgpu::Features::SAMPLED_TEXTURE_AND_STORAGE_BUFFER_ARRAY_NON_UNIFORM_INDEXING | wgpu::Features::TEXTURE_BINDING_ARRAY,
                     limits: if cfg!(target_arch = "wasm32") {
                         wgpu::Limits::downlevel_webgl2_defaults()
                     } else {
@@ -89,7 +87,7 @@ impl GPUManager {
 
         let camera_state = CameraState::new(&device, &config);
 
-        let texture_state = TextureState::new(&device, &queue, &config);        
+        let texture_state = TextureState::create_texture_binding_array_from_atlas(&device, &queue, &config);        
 
         let vertex_gpu_data = Arc::new(RwLock::new(VertexGPUData::new(camera_state.camera.position, &device)));
 
@@ -146,6 +144,7 @@ impl GPUManager {
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
+        let now = Instant::now();
         let output = self.surface_state.surface.get_current_texture()?;
         let view = output
             .texture
@@ -221,48 +220,14 @@ impl GPUManager {
             render_pass.set_vertex_buffer(0, vertex_gpu_data.vertex_pool_buffers[vertex_gpu_data.vertex_pool_buffers.len() - 1].slice(..));
             render_pass.set_index_buffer(vertex_gpu_data.index_pool_buffers[vertex_gpu_data.vertex_pool_buffers.len() - 1].slice(..), wgpu::IndexFormat::Uint32);
             render_pass.multi_draw_indexed_indirect(&vertex_gpu_data.indirect_pool_buffers[vertex_gpu_data.vertex_pool_buffers.len() - 1], 0, vertex_gpu_data.number_of_buckets_in_last_buffer as u32);
-
-            // let ycos = self.camera_state.camera.yaw.0.cos();indirect_buffer
-            // let ysin = self.camera_state.camera.yaw.0.sin();
-            // let psin = self.camera_state.camera.pitch.0.sin();
-
-            // //Front, Back, Left, Right, Top, Bottom
-            // let lhs_comp_arr = [ycos, ycos, ysin, ysin, psin, psin];
-            // let is_comp_lt = [false, true, false, true, true, false];
-            // let angles = [NEG_SQRT_2_DIV_2, SQRT_2_DIV_2, NEG_SQRT_2_DIV_2, SQRT_2_DIV_2, SQRT_2_DIV_2, NEG_SQRT_2_DIV_2];
-
-            // for chunk_pos_index in 0..fundamentals::consts::NUMBER_OF_CHUNKS_AROUND_PLAYER as usize {
-            //     if self.compute_state.compute_staging_vec[chunk_pos_index] == 0 {
-            //         continue;
-            //     }
-            //     let gpu_data_result = vertex_gpu_data.get_buffers_at_position(&vertex_gpu_data.chunk_index_array[chunk_pos_index]);
-            //     match gpu_data_result {
-            //         Some(gpu_data) => {
-            //             for i in 0..6 {
-            //                 if is_comp_lt[i] {
-            //                     if lhs_comp_arr[i] < angles[i] {
-            //                         render_pass.set_vertex_buffer(0, gpu_data[i].0.slice(..));
-            //                         render_pass.set_index_buffer(gpu_data[i].1.slice(..), wgpu::IndexFormat::Uint32);
-            //                         render_pass.draw_indexed(0..gpu_data[i].2, 0, 0..1);
-            //                     }
-            //                 } else {
-            //                     if lhs_comp_arr[i] > angles[i] {
-            //                         render_pass.set_vertex_buffer(0, gpu_data[i].0.slice(..));
-            //                         render_pass.set_index_buffer(gpu_data[i].1.slice(..), wgpu::IndexFormat::Uint32);
-            //                         render_pass.draw_indexed(0..gpu_data[i].2, 0, 0..1);
-            //                     }
-            //                 }
-            //             }
-            //         },
-            //         None => {}
-            //     }
-            // }
         }
 
         // submit will accept anything that implements IntoIter
         queue.submit(std::iter::once(encoder.finish()));
         output.present();
         
+        let after_render = Instant::now();
+        println!("{}", (after_render - now).as_millis());
         Ok(())
     }
 

@@ -12,7 +12,17 @@ pub struct Chunk {
 }
 
 impl Chunk {
-    pub fn perlin(position: &WorldPosition) -> Self {
+    pub fn _corner(position: &WorldPosition) -> Self {
+        let mut blocks = vec![Block::new(BlockType::WOOD)];
+
+        for i in 1..CHUNK_SIZE {
+            blocks.push(Block::new(BlockType::AIR));
+        }
+
+        Chunk { position: *position, blocks}
+    }
+
+    pub fn _perlin(position: &WorldPosition) -> Self {
         let mut blocks_vec = Vec::new();
 
         let perlin = Perlin::new();
@@ -38,7 +48,7 @@ impl Chunk {
         let mut blocks_vec = Vec::new();
 
         for _ in 0..CHUNK_SIZE as i32 {
-            blocks_vec.push(Block::new(BlockType::DIRT));
+            blocks_vec.push(Block::new(BlockType::WOOD));
         }
 
         Chunk { position: *position, blocks: blocks_vec }
@@ -53,7 +63,7 @@ impl Chunk {
             if push_air {
                 blocks_vec.push(Block::new(BlockType::AIR));
             } else {
-                blocks_vec.push(Block::new(BlockType::DIRT));
+                blocks_vec.push(Block::new(BlockType::WOOD));
             }
 
             push_air = !push_air;

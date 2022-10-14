@@ -32,6 +32,7 @@ pub fn generate_consts(config_format: &ConfigFormat, consts_model: &ConstsModel,
             format!("pub const CHUNK_SIZE: usize = {};", (config_format.chunk_dimension as u32)*(config_format.chunk_dimension as u32)*(config_format.chunk_dimension as u32)),
             format!("pub const BITS_PER_POSITION: u32 = {};", ((config_format.chunk_dimension+1) as f32).log2().ceil() as u8),
             format!("pub const TEXTURE_DIMENSION: u32 = {};", config_format.texture_dimension),
+            format!("pub const NUM_TEXTURES: usize = {};", consts_model.num_textures),
             format!("pub const TEX_MAX_X: u32 = {};", consts_model.atlas_max_num_images_width),
             format!("pub const TEX_MAX_Y: u32 = {};", consts_model.atlas_max_num_images_height),
             format!("pub const BITS_PER_TEX_COORD_X: u32 = {};", (((consts_model.atlas_max_num_images_width + 1) as f32).log2().ceil())),
@@ -155,10 +156,9 @@ fn generate_num_threads(cf: &ConfigFormat) -> usize {
     }
 }
 
-pub struct ConstsModel<'a> {
+pub struct ConstsModel {
     pub num_block_types: u16,
-    pub texture_width_str: &'a str,
-    pub texture_height_str: &'a str,
     pub atlas_max_num_images_width: u32,
     pub atlas_max_num_images_height: u32,
+    pub num_textures: usize,
 }

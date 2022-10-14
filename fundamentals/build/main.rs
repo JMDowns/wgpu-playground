@@ -21,15 +21,14 @@ fn main() {
 
     enums::build_enums(&vec_block_format);
 
-    string_to_type_dict_builders::build_string_to_type_dictionaries(&vec_block_format, &atlas_builder.block_string_to_texture_coords);
+    string_to_type_dict_builders::build_string_to_type_dictionaries(&vec_block_format, &atlas_builder.block_string_to_texture_indices);
 
     let num_block_types = (vec_block_format.len()+1) as u16;
     let consts_model = consts::ConstsModel {
         num_block_types,
-        texture_width_str: &atlas_builder.texture_width_str,
-        texture_height_str: &atlas_builder.texture_height_str,
         atlas_max_num_images_height: atlas_builder.atlas_index_height,
-        atlas_max_num_images_width: atlas_builder.atlas_index_width
+        atlas_max_num_images_width: atlas_builder.atlas_index_width,
+        num_textures: atlas_builder.num_textures
     };
     consts::generate_consts(&config_format, &consts_model, &controls_format);
 }

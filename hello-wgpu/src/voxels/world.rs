@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use derivables::block;
 use fundamentals::consts::CHUNK_DIMENSION;
 use super::chunk::Chunk;
 use crate::voxels::mesh::Mesh;

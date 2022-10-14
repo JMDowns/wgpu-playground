@@ -232,8 +232,9 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {{
 fn generate_indirect_buffer_bindings() -> String {
     let buffer_size_fn_return = buffer_size_function::return_bucket_buffer_size_and_amount_information(super::vertex_builder::return_size_of_vertex_in_bytes());
     let mut binding_string_list = Vec::new();
+    let number_of_buckets = buffer_size_fn_return.number_of_buckets_per_buffer;
     for i in 0..buffer_size_fn_return.number_of_buffers-1 {
-        let number_of_buckets = buffer_size_fn_return.number_of_buckets_per_buffer;
+        
         binding_string_list.push(format!(
             "@group(1) @binding({i})
 var<storage, read_write> indirect_buffer_{i}: array<DrawIndexedIndirect, {number_of_buckets}>;"

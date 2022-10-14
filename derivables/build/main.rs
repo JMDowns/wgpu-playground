@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::Path;
 use string_to_type_dictionaries::string_to_block_type::STRING_TO_BLOCK_TYPE;
-use string_to_type_dictionaries::string_to_texture_coords::STRING_TO_TEXTURE_COORDINATES;
+use string_to_type_dictionaries::string_to_texture_indices::STRING_TO_TEXTURE_INDICES;
 use formats::formats;
 use phf_codegen;
 use serde_json;
@@ -21,7 +21,7 @@ fn main() {
 
     writeln!(
         &mut block_type_to_texture_coordinates_file,
-         "{}\npub static BLOCK_TYPE_TO_TEXTURE_COORDINATES: phf::Map<BlockType, [TextureCoordinates; 6]> = \n{};\n",
+         "{}\npub static BLOCK_TYPE_TO_TEXTURE_INDICES: phf::Map<BlockType, [usize; 6]> = \n{};\n",
          get_imports(),
          get_map(&vec_block_format)
     ).unwrap();
@@ -44,17 +44,9 @@ fn get_imports() -> String {
 fn get_map(vec_block_format: &Vec<formats::block_format::BlockFormat>) -> String {
     let mut map = phf_codegen::Map::new();
     for block in vec_block_format {
-        let texture_coords = STRING_TO_TEXTURE_COORDINATES.get(&block.block_type).unwrap();
+        let texture_coords = STRING_TO_TEXTURE_INDICES.get(&block.block_type).unwrap();
 
-        let mut tex_arr = Vec::new();
-
-        for i in 0..6 {
-            tex_arr.push((texture_coords[i].tx.to_string(), texture_coords[i].ty.to_string()));
-        }
-
-        let entries = tex_arr.iter().map(|(tx,ty)| format!("TextureCoordinates {{ tx: {}, ty: {} }}", tx, ty)).collect::<Vec<String>>().join(",");
-
-        map.entry(STRING_TO_BLOCK_TYPE.get(&block.block_type).unwrap(), &format!("[{}]", entries));
+        map.entry(STRING_TO_BLOCK_TYPE.get(&block.block_type).unwrap(), &format!("{:?}", texture_coords));
     }
     map.build().to_string()
 }

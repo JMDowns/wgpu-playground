@@ -9,41 +9,5 @@
             "top": "wooden-plank.png",
             "bottom": "wooden-plank.png"
         }
-    },
-
-    {
-        "block_type": "DIRT",
-        "texture": {
-            "front": "dirt.png",
-            "back": "dirt.png",
-            "left": "dirt.png",
-            "right": "dirt.png",
-            "top": "dirt.png",
-            "bottom": "dirt.png"
-        }
-    },
-
-    {
-        "block_type": "GRASS",
-        "texture": {
-            "front": "grass-block-side.png",
-            "back": "grass-block-side.png",
-            "left": "grass-block-side.png",
-            "right": "grass-block-side.png",
-            "top": "grass-block-top.png",
-            "bottom": "dirt.png"
-        }
-    },
-
-    {
-        "block_type": "WHITEGRASS",
-        "texture": {
-            "front": "grass-block-side.png",
-            "back": "grass-block-side.png",
-            "left": "grass-block-side.png",
-            "right": "grass-block-side.png",
-            "top": "White.png",
-            "bottom": "dirt.png"
-        }
     }
 ]

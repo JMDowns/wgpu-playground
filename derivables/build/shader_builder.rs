@@ -35,8 +35,8 @@ build_vertex_data().as_str(),
 "",
 "struct VertexOutput {",
 "    @builtin(position) clip_position:vec4<f32>,",
-"    @location(0) tex_coords: vec2<f32>,",
-"    @location(1) ambient_occlusion: f32,",
+"    @location(0) tex_index: u32,",
+"    @location(2) tex_coords: vec2<f32>,",
 "};",
 "",
 "@vertex",
@@ -49,14 +49,16 @@ build_vs_main_statements().as_str(),
 "}",
 "",
 "@group(1) @binding(0)",
-"var t_diffuse: texture_2d<f32>;",
+"var diffuse_texture_array: binding_array<texture_2d<f32>>;",
 "@group(1) @binding(1)",
-"var s_diffuse: sampler;",
+"var sampler_diffuse: sampler;",
 "",
 "@fragment",
 "fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {",
-"    var tex_color = textureSample(t_diffuse, s_diffuse, in.tex_coords);",
-"    return mix(tex_color, vec4<f32>(0.05, 0.05, 0.05, 0.0), 0.3*in.ambient_occlusion);",
+"   ",
+"   var tex_color = textureSample(diffuse_texture_array[in.tex_index], sampler_diffuse, in.tex_coords);
+    return tex_color;",
+"    ",
 "}",
     ].join("\n")
 }
@@ -94,15 +96,15 @@ fn build_vs_main_statements() -> String {
         } else {
             if data_bits_used % 32 + size <= 32 {
                 if data_bits_used % 32 == 0 {
-                    data_unpack_vec.push(format!("f32(model.data{} & {}u)", data_bits_used / 32, get_mask(*size, 0)));
+                    data_unpack_vec.push(format!("(model.data{} & {}u)", data_bits_used / 32, get_mask(*size, 0)));
                 } else {
-                    data_unpack_vec.push(format!("f32((model.data{} & {}u) >> {}u)", data_bits_used / 32, get_mask(*size, data_bits_used % 32), data_bits_used % 32));
+                    data_unpack_vec.push(format!("(model.data{} & {}u) >> {}u", data_bits_used / 32, get_mask(*size, data_bits_used % 32), data_bits_used % 32));
                 }
             } else {
                 let data_chunk_1_size = 32 - (data_bits_used % 32);
                 let first_or = format!("((model.data{} & {}u) >> {}u)", data_bits_used / 32, get_mask(data_chunk_1_size, data_bits_used % 32), data_bits_used % 32);
                 let second_or = format!("((model.data{} & {}u) << {}u)", data_bits_used / 32 + 1, get_mask(size - data_chunk_1_size, 0), data_chunk_1_size);
-                data_unpack_vec.push(format!("f32({} | {})", first_or, second_or));
+                data_unpack_vec.push(format!("{} | {}", first_or, second_or));
             }
         }
 
@@ -111,10 +113,14 @@ fn build_vs_main_statements() -> String {
 
     [
         chunk_index_statement,
-        format!("    var chunk_position = vec3<i32>(chunkPositions.chunk_positions[3u*chunk_index], chunkPositions.chunk_positions[3u*chunk_index+1u], chunkPositions.chunk_positions[3u*chunk_index+2u]);"),
-        format!("    out.clip_position = camera.view_proj * vec4<f32>({} + f32(chunk_position.x*{CHUNK_DIMENSION}), {} + f32(chunk_position.y*{CHUNK_DIMENSION}), {} + f32(chunk_position.z*{CHUNK_DIMENSION}), 1.0);", data_unpack_vec[0], data_unpack_vec[1], data_unpack_vec[2]),
-        format!("    out.tex_coords = vec2<f32>({} * {}, {} * {});", data_unpack_vec[3], 1.0 / TEX_MAX_X as f32, data_unpack_vec[4], 1.0 / TEX_MAX_Y as f32),
-        format!("    out.ambient_occlusion = {};", data_unpack_vec[5]),
+        format!("    out.clip_position = camera.view_proj * vec4<f32>(f32({}) + f32(chunkPositions.chunk_positions[3u*chunk_index]*{CHUNK_DIMENSION}), f32({}) + f32(chunkPositions.chunk_positions[3u*chunk_index+1u]*{CHUNK_DIMENSION}), f32({}) + f32(chunkPositions.chunk_positions[3u*chunk_index+2u]*{CHUNK_DIMENSION}), 1.0);", data_unpack_vec[0], data_unpack_vec[1], data_unpack_vec[2]),
+        format!("    out.tex_index = {};", data_unpack_vec[3]),
+        format!("    var tex_coords: array<vec2<f32>, 4>;
+        tex_coords[0] = vec2<f32>(0.0,0.0);
+        tex_coords[1] = vec2<f32>(0.0,1.0);
+        tex_coords[2] = vec2<f32>(1.0,0.0);
+        tex_coords[3] = vec2<f32>(1.0,1.0);"),
+        format!("    out.tex_coords = tex_coords[{}];", data_unpack_vec[4])
     ].join("\n")
 }
 

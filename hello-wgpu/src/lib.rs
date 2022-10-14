@@ -91,16 +91,18 @@ pub async fn run() {
         Event::RedrawRequested(window_id) if window_id == window.id() => {
             let now = instant::Instant::now();
             let dt = now - last_render_time;
-            last_render_time = now;
-            state.process_input();
-            state.update(dt);
-            match state.render() {
-                Ok(_) => {}
-                //Reconfigure if surface is lost
-                Err(wgpu::SurfaceError::Lost) => state.resize(state.gpu_manager.surface_state.size),
-                //System is out of memory, so we should probably quit
-                Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
-                Err(e) => eprintln!("{:?}", e),
+            if dt.as_millis() > 0 {
+                last_render_time = now;
+                state.process_input();
+                state.update(dt);
+                match state.render() {
+                    Ok(_) => {}
+                    //Reconfigure if surface is lost
+                    Err(wgpu::SurfaceError::Lost) => state.resize(state.gpu_manager.surface_state.size),
+                    //System is out of memory, so we should probably quit
+                    Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
+                    Err(e) => eprintln!("{:?}", e),
+                }
             }
         }
 
