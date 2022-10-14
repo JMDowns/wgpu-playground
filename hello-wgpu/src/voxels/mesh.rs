@@ -1,8 +1,6 @@
 use derivables::vertex::Vertex;
-use fundamentals::texture_coords::TextureCoordinates;
 use fundamentals::world_position::WorldPosition;
 use fundamentals::consts::CHUNK_DIMENSION;
-use wgpu::util::DeviceExt;
 use super::chunk::Chunk;
 
 pub struct Mesh {

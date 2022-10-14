@@ -1,6 +1,4 @@
 use cgmath::*;
-use winit::event::*;
-use winit::dpi::PhysicalPosition;
 use instant::Duration;
 use std::f32::consts::FRAC_PI_2;
 
@@ -232,17 +230,6 @@ impl CameraController {
             movement = true;
         }
         movement
-    }
-
-    pub fn process_scroll(&mut self, delta: &MouseScrollDelta) {
-        self.scroll = -match delta {
-            // I'm assuming a line is about 100 pixels
-            MouseScrollDelta::LineDelta(_, scroll) => scroll * 100.0,
-            MouseScrollDelta::PixelDelta(PhysicalPosition {
-                y: scroll,
-                ..
-            }) => *scroll as f32,
-        };
     }
 }
 

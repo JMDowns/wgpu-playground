@@ -1,9 +1,6 @@
-use std::{sync::Arc, num::NonZeroU32};
-
+use std::num::NonZeroU32;
 use wgpu::{Device, Queue, SurfaceConfiguration};
-
 use crate::texture;
-use anyhow::*;
 
 pub struct TextureState {
     pub diffuse_bind_group_layout: wgpu::BindGroupLayout,
@@ -13,63 +10,7 @@ pub struct TextureState {
 
 impl TextureState {
     pub fn new(device: &Device, queue: &Queue, config: &SurfaceConfiguration) -> Self {
-        let diffuse_bytes = include_bytes!("../atlas.png");
-        let diffuse_texture = texture::Texture::from_bytes(&device, &queue, diffuse_bytes, "atlas.png").unwrap();
-
-        let diffuse_bind_group_layout = 
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                entries: &[
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Texture { 
-                            multisampled: false,
-                            view_dimension: wgpu::TextureViewDimension::D2,
-                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                        },
-                        count: None
-                    },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 1,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        // This should match the filterable field of the corresponding Texture entry above.
-                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                        count: None,
-                    },
-                ],
-                label: Some("texture_bind_group_layout"),
-            });
-
-        let diffuse_bind_group = device.create_bind_group(
-            &wgpu::BindGroupDescriptor {
-                layout: &diffuse_bind_group_layout,
-                entries: &[
-                    wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: wgpu::BindingResource::TextureView(&diffuse_texture.view),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 1,
-                        resource: wgpu::BindingResource::Sampler(&diffuse_texture.sampler),
-                    }
-                ],
-                label: Some("diffuse_bind_group"),
-            }
-        );
-
-        let depth_texture = texture::Texture::create_depth_texture(&device, &config, "depth_texture");
-
-        TextureState {
-            diffuse_bind_group_layout,
-            diffuse_bind_group,
-            depth_texture,
-        }
-    }
-
-    pub fn create_texture_binding_array_from_atlas(device: &Device, queue: &Queue, config: &SurfaceConfiguration) -> Self {
         let atlas_rgba_bytes = include_bytes!("../data.atl");
-
-        println!("{:?}", atlas_rgba_bytes);
 
         let mut block_texture_vec = Vec::new();
         let mut block_texture_view_vec = Vec::new();

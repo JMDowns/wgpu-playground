@@ -37,7 +37,6 @@ fn main() {
 fn get_imports() -> String {
     String::from([
         "use fundamentals::enums::block_type::BlockType;",
-        "use fundamentals::texture_coords::TextureCoordinates;"
     ].join("\n"))
 }
 

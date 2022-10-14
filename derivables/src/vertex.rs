@@ -1,4 +1,4 @@
-use fundamentals::{consts::*, world_position::WorldPosition, texture_coords::TextureCoordinates};
+use fundamentals::{consts::*, world_position::WorldPosition};
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Vertex {

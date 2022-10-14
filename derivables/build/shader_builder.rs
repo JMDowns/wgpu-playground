@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 
 use super::vertex_builder::{DATA_TOTAL_BITS, VAR_SIZE_LIST};
-use fundamentals::consts::{TEX_MAX_X, TEX_MAX_Y, NUMBER_OF_CHUNKS_AROUND_PLAYER, CHUNK_DIMENSION};
+use fundamentals::consts::{NUMBER_OF_CHUNKS_AROUND_PLAYER, CHUNK_DIMENSION};
 
 pub fn build_shader_file() {
     let shader_path = Path::new("../hello-wgpu/src/shader.wgsl");

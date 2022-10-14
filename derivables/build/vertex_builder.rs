@@ -31,7 +31,7 @@ pub fn build_vertex_file() {
 
 fn build_vertex_string() -> String {
     [
-        "use fundamentals::{consts::*, world_position::WorldPosition, texture_coords::TextureCoordinates};",
+        "use fundamentals::{consts::*, world_position::WorldPosition};",
         "#[repr(C)]",
         "#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]",
         build_vertex_struct().as_str(),

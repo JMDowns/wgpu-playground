@@ -3,7 +3,6 @@ use ::formats::formats::{block_format::BlockFormat, config_format::ConfigFormat}
 use std::collections::{HashMap, HashSet};
 use std::io::Write;
 use std::path::Path;
-use image::GenericImage;
 
 pub struct AtlasBuilder {
     pub atlas_index_width: u32,
@@ -13,7 +12,7 @@ pub struct AtlasBuilder {
 }
 
 impl AtlasBuilder {
-    pub fn build_and_save_atlas(vec_block_format: &Vec<BlockFormat>, config_format: &ConfigFormat, atlas_path: &Path) -> Self {
+    pub fn build_and_save_atlas(vec_block_format: &Vec<BlockFormat>, config_format: &ConfigFormat) -> Self {
         let mut image_index = 0;
     
         let blocks = vec_block_format.iter().map(|bf| (bf.block_type.to_string(), &bf.texture)).collect::<Vec<(String, &TextureFormat)>>();
@@ -66,12 +65,8 @@ impl AtlasBuilder {
         for (index, texture) in texture_vec {
             data_buf[(index*texdim as usize*4)..((index+1)*texdim as usize*4)].copy_from_slice(&texture.to_rgba8().as_flat_samples().as_slice());
         }
-        let mut f = std::fs::File::create("../hello-wgpu/src/data.atl").expect("Unable to create file");
-        f.write_all(&data_buf).expect("Unable to create file");
-        let mut test_buf = <image::ImageBuffer<image::Rgba<u8>, _>>::new(num_textures as u32*texdim, 1);
-        test_buf.copy_from_slice(&data_buf);
-
-        test_buf.save_with_format(Path::new("test.png"), image::ImageFormat::Png).unwrap();
+        let mut data_atl = std::fs::File::create("../hello-wgpu/src/data.atl").expect("Unable to create file");
+        data_atl.write_all(&data_buf).expect("Unable to create file");
 
         AtlasBuilder { 
             atlas_index_height: altas_num_images_height_max,

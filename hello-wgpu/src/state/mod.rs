@@ -1,4 +1,3 @@
-mod camera_state;
 pub mod input_state;
 mod flag_state;
 

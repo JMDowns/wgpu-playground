@@ -1,4 +1,3 @@
-use std::path::Path;
 use ::formats::formats::{config_format::ConfigFormat, block_format::BlockFormat, controls_format::ControlsFormat};
 use serde_json;
 mod atlas_builder;
@@ -16,8 +15,7 @@ fn main() {
     let controls_json = std::fs::read_to_string("../data/controls.json").unwrap();
     let controls_format: ControlsFormat = serde_json::from_str(&controls_json).unwrap();
 
-    let atlas_path = Path::new("../hello-wgpu/src/atlas.png");
-    let atlas_builder = atlas_builder::AtlasBuilder::build_and_save_atlas(&vec_block_format, &config_format, atlas_path);
+    let atlas_builder = atlas_builder::AtlasBuilder::build_and_save_atlas(&vec_block_format, &config_format);
 
     enums::build_enums(&vec_block_format);
 

@@ -87,7 +87,7 @@ impl GPUManager {
 
         let camera_state = CameraState::new(&device, &config);
 
-        let texture_state = TextureState::create_texture_binding_array_from_atlas(&device, &queue, &config);        
+        let texture_state = TextureState::new(&device, &queue, &config);        
 
         let vertex_gpu_data = Arc::new(RwLock::new(VertexGPUData::new(camera_state.camera.position, &device)));
 

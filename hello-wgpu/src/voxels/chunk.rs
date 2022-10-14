@@ -15,7 +15,7 @@ impl Chunk {
     pub fn _corner(position: &WorldPosition) -> Self {
         let mut blocks = vec![Block::new(BlockType::WOOD)];
 
-        for i in 1..CHUNK_SIZE {
+        for _ in 1..CHUNK_SIZE {
             blocks.push(Block::new(BlockType::AIR));
         }
 
