@@ -27,12 +27,29 @@ fn vs_main(
     let chunk_index = 0u;
     out.clip_position = camera.view_proj * vec4<f32>(f32((model.data0 & 3u)) + f32(chunkPositions.chunk_positions[3u*chunk_index]*2), f32((model.data0 & 12u) >> 2u) + f32(chunkPositions.chunk_positions[3u*chunk_index+1u]*2), f32((model.data0 & 48u) >> 4u) + f32(chunkPositions.chunk_positions[3u*chunk_index+2u]*2), 1.0);
     out.tex_index = (model.data0 & 192u) >> 6u;
-    var tex_coords: array<vec2<f32>, 4>;
-        tex_coords[0] = vec2<f32>(0.0,0.0);
-        tex_coords[1] = vec2<f32>(0.0,1.0);
-        tex_coords[2] = vec2<f32>(1.0,0.0);
-        tex_coords[3] = vec2<f32>(1.0,1.0);
-    out.tex_coords = tex_coords[(model.data0 & 768u) >> 8u];
+    let tex_corner_index = (model.data0 & 768u) >> 8u;
+    switch tex_corner_index { 
+        case 0u: {
+            out.tex_coords = vec2<f32>(0.0,0.0); 
+            break;
+        }
+        case 1u: {
+            out.tex_coords = vec2<f32>(0.0,1.0); 
+            break;
+        }
+        case 2u: {
+            out.tex_coords = vec2<f32>(1.0,0.0); 
+            break;
+        }
+        case 3u: {
+            out.tex_coords = vec2<f32>(1.0,1.0); 
+            break;
+        }
+        default: {
+            out.tex_coords = vec2<f32>(0.0,0.0); 
+            break;
+        }
+    };
     return out;
 }
 

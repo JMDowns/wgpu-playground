@@ -1,5 +1,5 @@
 use derivables::vertex::Vertex;
-use wgpu::{SurfaceConfiguration, BindGroupLayout};
+use wgpu::{SurfaceConfiguration, BindGroupLayout, util::DeviceExt};
 
 use crate::texture;
 
@@ -21,7 +21,7 @@ impl RenderState {
                 bind_group_layouts: &[
                     camera_bind_group_layout,
                     diffuse_bind_group_layout,
-                    chunk_index_bind_group_layout
+                    chunk_index_bind_group_layout,
                 ],
                 push_constant_ranges: &[],
             });
