@@ -1,5 +1,5 @@
 use std::num::NonZeroU32;
-use wgpu::{Device, Queue, SurfaceConfiguration};
+use wgpu::{Device, Queue, SurfaceConfiguration, util::DeviceExt};
 use crate::texture;
 
 pub struct TextureState {
@@ -35,28 +35,37 @@ impl TextureState {
         let tex_dim_squared = (fundamentals::consts::TEXTURE_DIMENSION * fundamentals::consts::TEXTURE_DIMENSION) as usize;
 
         for i in 0..fundamentals::consts::NUM_TEXTURES {
-            let block_texture = device.create_texture(&wgpu::TextureDescriptor {
-                label: Some("Texture 1"),
-                ..texture_descriptor
-            });
+            let block_texture = device.create_texture_with_data(
+                queue,
+                &wgpu::TextureDescriptor {
+                    size: texture_size,
+                    mip_level_count: fundamentals::consts::MIP_LEVEL,
+                    sample_count: 1,
+                    dimension: wgpu::TextureDimension::D2,
+                    format: wgpu::TextureFormat::Rgba8UnormSrgb,
+                    usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+                    label: Some(&format!("Texture {i}")),
+                }, 
+                &atlas_rgba_bytes[i*fundamentals::consts::TEXTURE_LENGTH_WITH_MIPMAPS*4..(i+1)*fundamentals::consts::TEXTURE_LENGTH_WITH_MIPMAPS*4]
+            );
 
             let block_texture_view = block_texture.create_view(&wgpu::TextureViewDescriptor::default());
 
-            queue.write_texture(
-                wgpu::ImageCopyTexture {
-                    aspect: wgpu::TextureAspect::All,
-                    texture: &block_texture,
-                    mip_level: 0,
-                    origin: wgpu::Origin3d::ZERO,
-                },
-                &atlas_rgba_bytes[(4*i*tex_dim_squared)..((4*(i+1))*tex_dim_squared)], 
-                wgpu::ImageDataLayout {
-                    offset: 0,
-                    bytes_per_row: NonZeroU32::new(4*texture_size.width),
-                    rows_per_image: NonZeroU32::new(texture_size.height),
-                }, 
-                texture_size
-            );
+            // queue.write_texture(
+            //     wgpu::ImageCopyTexture {
+            //         aspect: wgpu::TextureAspect::All,
+            //         texture: &block_texture,
+            //         mip_level: 0,
+            //         origin: wgpu::Origin3d::ZERO,
+            //     },
+            //     &atlas_rgba_bytes[(4*i*tex_dim_squared)..((4*(i+1))*tex_dim_squared)], 
+            //     wgpu::ImageDataLayout {
+            //         offset: 0,
+            //         bytes_per_row: NonZeroU32::new(4*texture_size.width),
+            //         rows_per_image: NonZeroU32::new(texture_size.height),
+            //     }, 
+            //     texture_size
+            // );
 
             block_texture_vec.push(block_texture);
             block_texture_view_vec.push(block_texture_view);
@@ -73,7 +82,7 @@ impl TextureState {
                 address_mode_w: wgpu::AddressMode::Repeat,
                 mag_filter: wgpu::FilterMode::Nearest,
                 min_filter: wgpu::FilterMode::Nearest,
-                mipmap_filter: wgpu::FilterMode::Nearest,
+                mipmap_filter: wgpu::FilterMode::Linear,
                 ..Default::default()
             }
         );

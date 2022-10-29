@@ -1,5 +1,5 @@
-let CHUNKS_AROUND_PLAYER = 1;
-let CHUNK_DIMENSION = 2;
+let CHUNKS_AROUND_PLAYER = 3335;
+let CHUNK_DIMENSION = 16;
 let NUM_BUCKETS_PER_CHUNK = 24;
 let NUM_BUCKETS_PER_SIDE = 4;
 let SQRT_2_DIV_2 = .7071;
@@ -35,7 +35,9 @@ struct ComputeData {
 var<storage> computeDataArray: array<ComputeData, CHUNKS_AROUND_PLAYER>;
 
 @group(1) @binding(0)
-var<storage, read_write> indirect_buffer_0: array<DrawIndexedIndirect, 24>;
+var<storage, read_write> indirect_buffer_0: array<DrawIndexedIndirect, 43690>;
+@group(1) @binding(1)
+var<storage, read_write> indirect_buffer_1: array<DrawIndexedIndirect, 36350>;
 
 fn is_not_in_frustum_via_plane(center_point: vec3<f32>, plane_normal: vec3<f32>, plane_distance: f32) -> bool {
     var r = abs(plane_normal.x * f32(CHUNK_DIMENSION / 2)) 
@@ -132,6 +134,9 @@ fn set_vertex_count_in_bucket(buffer_number: i32, bucket_number: i32, vertex_cou
     switch buffer_number {
         case 0: {
     indirect_buffer_0[bucket_number].vertex_count = vertex_count;
+}
+case 1: {
+    indirect_buffer_1[bucket_number].vertex_count = vertex_count;
 }
 default: {{}}
     }

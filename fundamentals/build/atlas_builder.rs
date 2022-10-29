@@ -1,5 +1,6 @@
 use formats::formats::texture_format::TextureFormat;
 use ::formats::formats::{block_format::BlockFormat, config_format::ConfigFormat};
+use image::ImageBuffer;
 use std::collections::{HashMap, HashSet};
 use std::io::Write;
 use std::path::Path;
@@ -12,7 +13,7 @@ pub struct AtlasBuilder {
 }
 
 impl AtlasBuilder {
-    pub fn build_and_save_atlas(vec_block_format: &Vec<BlockFormat>, config_format: &ConfigFormat) -> Self {
+    pub fn build_and_save_atlas(vec_block_format: &Vec<BlockFormat>, config_format: &ConfigFormat, texture_length_with_mipmaps: usize) -> Self {
         let mut image_index = 0;
     
         let blocks = vec_block_format.iter().map(|bf| (bf.block_type.to_string(), &bf.texture)).collect::<Vec<(String, &TextureFormat)>>();
@@ -32,6 +33,8 @@ impl AtlasBuilder {
     
         let mut texture_vec = Vec::new();
         
+        let mip_level = (config_format.texture_dimension as f32).log2() as usize;
+
         for (block_name, block_textures) in blocks {
             let mut block_texture_indices = [0;6];
             let mut i = 0;
@@ -41,9 +44,14 @@ impl AtlasBuilder {
                     let block_texture = format!("../resources/{}", block_texture);
                     let texture_path = Path::new(&block_texture);
                     let texture = image::io::Reader::open(texture_path).unwrap().decode().unwrap();
+                    let mut mip_texture_vec = vec![texture.clone()];
+                    for i in 1..mip_level as u32+1 {
+                        let texture_downsized = texture.resize(texture.width() / 2u32.pow(i), texture.height() / 2u32.pow(i), image::imageops::FilterType::Nearest);
+                        mip_texture_vec.push(texture_downsized);
+                    }
                     block_texture_indices[i] = image_index;
             
-                    texture_vec.push((image_index, texture));
+                    texture_vec.push((image_index, mip_texture_vec));
 
                     image_index += 1;
                 } else {
@@ -58,13 +66,16 @@ impl AtlasBuilder {
     
         let num_textures = texture_vec.len();
 
-        let texdim = config_format.texture_dimension * config_format.texture_dimension;
+        let texdim = (config_format.texture_dimension * config_format.texture_dimension) as usize;
 
-        let mut data_buf: Vec<u8> = vec![0; num_textures*texdim as usize*4];
+        let mut data_buf: Vec<u8> = Vec::new();//vec![0; num_textures*texture_length_with_mipmaps as usize*4];
 
-        for (index, texture) in texture_vec {
-            data_buf[(index*texdim as usize*4)..((index+1)*texdim as usize*4)].copy_from_slice(&texture.to_rgba8().as_flat_samples().as_slice());
+        for (index, mip_texture_vec) in texture_vec {
+            for texture in mip_texture_vec {
+                data_buf.extend_from_slice(&texture.to_rgba8().as_flat_samples().as_slice());
+            }
         }
+
         let mut data_atl = std::fs::File::create("../hello-wgpu/src/data.atl").expect("Unable to create file");
         data_atl.write_all(&data_buf).expect("Unable to create file");
 

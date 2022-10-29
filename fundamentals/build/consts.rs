@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::Path;
-use formats::formats::config_format::ConfigFormat;
+use formats::formats::config_format::{ConfigFormat, self};
 use formats::formats::controls_format::ControlsFormat;
 
 pub fn generate_consts(config_format: &ConfigFormat, consts_model: &ConstsModel, controls_format: &ControlsFormat) {
@@ -47,6 +47,9 @@ pub fn generate_consts(config_format: &ConfigFormat, consts_model: &ConstsModel,
             format!("pub const NUM_BUCKETS_PER_CHUNK: usize = {};", num_buckets_per_chunk),
             format!("pub const NUM_BUCKETS_PER_SIDE: u32 = {};", num_buckets_per_chunk / 6),
             format!("pub const NUM_BUCKETS: usize = {};", num_buckets_per_chunk * num_chunks_around_player as u32),
+            String::new(),
+            format!("pub const MIP_LEVEL: u32 = {};", consts_model.mip_level),
+            format!("pub const TEXTURE_LENGTH_WITH_MIPMAPS: usize = {};", consts_model.texture_length_with_mipmaps),
             String::new(),
             format!("pub const UP_KEY: VirtualKeyCode = {};", controls_format.up),
             format!("pub const DOWN_KEY: VirtualKeyCode = {};", controls_format.down),
@@ -161,4 +164,6 @@ pub struct ConstsModel {
     pub atlas_max_num_images_width: u32,
     pub atlas_max_num_images_height: u32,
     pub num_textures: usize,
+    pub mip_level: usize,
+    pub texture_length_with_mipmaps: usize,
 }

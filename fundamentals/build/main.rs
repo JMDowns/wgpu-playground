@@ -1,3 +1,4 @@
+use formats::formats::config_format;
 use ::formats::formats::{config_format::ConfigFormat, block_format::BlockFormat, controls_format::ControlsFormat};
 use serde_json;
 mod atlas_builder;
@@ -15,7 +16,9 @@ fn main() {
     let controls_json = std::fs::read_to_string("../data/controls.json").unwrap();
     let controls_format: ControlsFormat = serde_json::from_str(&controls_json).unwrap();
 
-    let atlas_builder = atlas_builder::AtlasBuilder::build_and_save_atlas(&vec_block_format, &config_format);
+    let texture_length_with_mipmaps = generate_texture_length_with_mipmap_level(config_format.texture_dimension);
+
+    let atlas_builder = atlas_builder::AtlasBuilder::build_and_save_atlas(&vec_block_format, &config_format, texture_length_with_mipmaps);
 
     enums::build_enums(&vec_block_format);
 
@@ -26,7 +29,19 @@ fn main() {
         num_block_types,
         atlas_max_num_images_height: atlas_builder.atlas_index_height,
         atlas_max_num_images_width: atlas_builder.atlas_index_width,
-        num_textures: atlas_builder.num_textures
+        num_textures: atlas_builder.num_textures,
+        mip_level: ((config_format.texture_dimension as f32).log2() as usize),
+        texture_length_with_mipmaps
     };
     consts::generate_consts(&config_format, &consts_model, &controls_format);
+}
+
+fn generate_texture_length_with_mipmap_level(texture_dimension: u32) -> usize {
+    let mip_level = (texture_dimension as f32).log2() as usize;
+    let mut length_sum = 0;
+    for mip in 0..mip_level+1 {
+        length_sum += texture_dimension * texture_dimension / 4_u32.pow(mip as u32);
+    }
+
+    length_sum as usize
 }
