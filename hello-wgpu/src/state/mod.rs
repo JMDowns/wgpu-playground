@@ -1,5 +1,5 @@
 pub mod input_state;
-mod flag_state;
+pub mod flag_state;
 
 use input_state::InputState;
 use flag_state::FlagState;
@@ -46,6 +46,8 @@ impl State {
             gpu_manager,
             flag_state: FlagState {
                 mouse_pressed: false,
+                should_render_wireframe: false,
+                has_moved: false,
             },
             thread_task_manager,
             world, 
@@ -107,6 +109,11 @@ impl State {
                     self.input_state.is_down_pressed = state == &ElementState::Pressed;
                     input_movement_character = true;
                 }
+                if key == &VirtualKeyCode::LControl {
+                    if state == &ElementState::Pressed {
+                        self.flag_state.should_render_wireframe = !self.flag_state.should_render_wireframe;
+                    }
+                }
                 input_movement_character
             }
             WindowEvent::MouseWheel { delta, .. } => {
@@ -127,16 +134,15 @@ impl State {
                 }
                 true
             }
-            _ => false,
+            _ => false
         }
     }
 
     pub fn process_input(&mut self) {
         let sensitivity = 1.0;
-        let mut has_moved = false;
-        has_moved = self.camera_controller.process_keyboard(&self.input_state) || has_moved;
-        has_moved = self.camera_controller.process_mouse(&mut self.input_state, sensitivity) || has_moved;
-        self.gpu_manager.process_input(has_moved);
+        self.flag_state.has_moved = self.camera_controller.process_mouse(&mut self.input_state, sensitivity);
+        self.flag_state.has_moved = self.camera_controller.process_keyboard(&self.input_state) || self.flag_state.has_moved;
+        self.gpu_manager.process_input(&self.flag_state);
     }
 
     pub fn update(&mut self, dt: instant::Duration) {

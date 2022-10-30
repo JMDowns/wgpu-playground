@@ -1,7 +1,7 @@
 use derivables::vertex::Vertex;
 use fundamentals::world_position::WorldPosition;
 use fundamentals::consts::CHUNK_DIMENSION;
-use super::chunk::Chunk;
+use super::chunk::{Chunk, ChunkBlockIterator};
 
 pub struct Mesh {
     pub front: (Vec<Vertex>, Vec<u32>, u32),
@@ -25,22 +25,16 @@ impl Mesh {
     }
 
     pub fn cull_ambient_occlusion(chunk: &Chunk, solid_data: Vec<Vec<Vec<bool>>>, index: u32) -> Self {
-
         let mut mesh = Mesh::new();
 
-        for k in 0..CHUNK_DIMENSION as usize {
-            for j in 0..CHUNK_DIMENSION as usize {
-                for i in 0..CHUNK_DIMENSION as usize {
-                    let block = chunk.get_block_at(i, j, k);
-                    let adjacent_blocks_data = Self::generate_adjacent_blocks(&solid_data, i+1, j+1, k+1);
-                    if !block.is_air() {
-                        mesh.add_vertices(
-                            Self::generate_cube(WorldPosition::new(i as i32,j as i32,k as i32), block.get_texture_indices(), &adjacent_blocks_data, index), 
-                            Self::generate_cube_indices(&adjacent_blocks_data)
-                        );
-                    }
-                }
-            }
+        let mut cbi = ChunkBlockIterator::new(chunk);
+
+        while let Some(((i,j,k), block)) = cbi.get_next_block() {
+            let adjacent_blocks_data = Self::generate_adjacent_blocks(&solid_data, i+1, j+1, k+1);
+            mesh.add_vertices(
+                Self::generate_cube(WorldPosition::new(i as i32,j as i32,k as i32), block.get_texture_indices(), &adjacent_blocks_data, index), 
+                Self::generate_cube_indices(&adjacent_blocks_data)
+            );
         }
 
         mesh
@@ -85,36 +79,42 @@ impl Mesh {
         let mut vertices_arr = [Vec::new(),Vec::new(),Vec::new(),Vec::new(),Vec::new(),Vec::new(),];
         let all_vertices_arr = 
         [
+            //Front
             [
             Vertex::new(positions[0], tex_index_arr[0], 1, index),
             Vertex::new(positions[1], tex_index_arr[0], 3, index),
             Vertex::new(positions[2], tex_index_arr[0], 0, index),
             Vertex::new(positions[3], tex_index_arr[0], 2, index),
             ].to_vec(),
+            //Back
             [
             Vertex::new(positions[4], tex_index_arr[1], 3, index),
             Vertex::new(positions[5], tex_index_arr[1], 1, index),
             Vertex::new(positions[6], tex_index_arr[1], 2, index),
             Vertex::new(positions[7], tex_index_arr[1], 0, index),
             ].to_vec(),
+            //Left
             [
             Vertex::new(positions[0], tex_index_arr[2], 3, index),
             Vertex::new(positions[2], tex_index_arr[2], 2, index),
             Vertex::new(positions[4], tex_index_arr[2], 1, index),
             Vertex::new(positions[6], tex_index_arr[2], 0, index),
             ].to_vec(),
+            //Right
             [
             Vertex::new(positions[1], tex_index_arr[3], 1, index),
             Vertex::new(positions[3], tex_index_arr[3], 0, index),
             Vertex::new(positions[5], tex_index_arr[3], 3, index),
             Vertex::new(positions[7], tex_index_arr[3], 2, index),
             ].to_vec(),
+            //Top
             [
             Vertex::new(positions[2], tex_index_arr[4], 1, index),
             Vertex::new(positions[3], tex_index_arr[4], 3, index),
             Vertex::new(positions[6], tex_index_arr[4], 0, index),
             Vertex::new(positions[7], tex_index_arr[4], 2, index),
             ].to_vec(),
+            //Bottom
             [
             Vertex::new(positions[0], tex_index_arr[5], 0, index),
             Vertex::new(positions[1], tex_index_arr[5], 2, index),

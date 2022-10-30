@@ -31,6 +31,15 @@ impl WorldPosition {
         ]
     }
 
+    pub fn generate_vertex_world_positions_front(&self) -> [WorldPosition; 4] {
+        [
+            WorldPosition::new(self.x, self.y, self.z),
+            WorldPosition::new(self.x, self.y, self.z+1),
+            WorldPosition::new(self.x, self.y+1, self.z),
+            WorldPosition::new(self.x, self.y+1, self.z+1)
+        ]
+    }
+
     pub fn generate_neighborhood1_world_positions(&self) -> [[[WorldPosition; 3]; 3]; 3] {
         let mut world_positions = [[[WorldPosition::new(self.x,self.y,self.z); 3]; 3]; 3];
         for k in 0..3 as i32 {

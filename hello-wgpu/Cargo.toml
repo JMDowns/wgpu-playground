@@ -38,6 +38,7 @@ priority-queue="1.2.3"
 fastapprox="0.3.0"
 futures-intrusive="0.4.0"
 lru = "0.8.0"
+bitvec = "1.0.1"
 
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]

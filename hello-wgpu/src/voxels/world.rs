@@ -14,7 +14,7 @@ impl World {
     }
 
     pub fn generate_chunk_at(pos: &WorldPosition) -> Chunk {
-        Chunk::checkerboard(pos)
+        Chunk::_solid(pos)
     }
 
     pub fn add_chunk(&mut self, chunk: Chunk) {
@@ -43,8 +43,7 @@ impl World {
                     let offset_k = k + CHUNK_DIMENSION as usize-1;
                     block_info[i][j].push(match chunk_options[offset_i / CHUNK_DIMENSION as usize][offset_j / CHUNK_DIMENSION as usize][offset_k / CHUNK_DIMENSION as usize] {
                         Some(chunk) => {
-                            let is_block_air = chunk.get_block_at(offset_i % CHUNK_DIMENSION as usize, offset_j % CHUNK_DIMENSION as usize, offset_k % CHUNK_DIMENSION as usize).is_air();
-                            !is_block_air
+                            chunk.is_block_solid(offset_i % CHUNK_DIMENSION as usize, offset_j % CHUNK_DIMENSION as usize, offset_k % CHUNK_DIMENSION as usize)
                         },
                         None => false
                     });

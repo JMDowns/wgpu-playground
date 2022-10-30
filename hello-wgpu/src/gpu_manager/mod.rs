@@ -133,8 +133,9 @@ impl GPUManager {
         }
     }
 
-    pub fn process_input(&mut self, has_moved: bool) {
-        self.flag_state.should_calculate_frustum = has_moved || self.flag_state.should_calculate_frustum;
+    pub fn process_input(&mut self, flags: &crate::state::flag_state::FlagState) {
+        self.flag_state.should_calculate_frustum = flags.has_moved || self.flag_state.should_calculate_frustum;
+        self.flag_state.render_wireframe = flags.should_render_wireframe;
     }
 
     pub fn update_camera_and_reset_conroller(&mut self, controller: &mut CameraController, dt: instant::Duration) {
@@ -227,7 +228,7 @@ impl GPUManager {
         output.present();
         
         let after_render = Instant::now();
-        println!("{}", (after_render - now).as_millis());
+        //println!("{}", (after_render - now).as_millis());
         Ok(())
     }
 
