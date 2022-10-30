@@ -15,12 +15,6 @@ const fn get_block_type_size() -> u8 {
     return 128;
 }
 
-pub fn get_block_size() -> u32 {
-    let mut block_size: u32 = 0;
-    block_size += get_block_type_size() as u32;
-    return block_size;
-}
-
 pub fn build_block_file() {
     let block_path = Path::new("src/block.rs");
     let mut block_file = BufWriter::new(File::create(&block_path).unwrap());

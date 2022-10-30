@@ -12,7 +12,6 @@ pub mod gpu_data;
 use camera_state::CameraState;
 use compute_state::ComputeState;
 use flag_state::FlagState;
-use instant::Instant;
 use render_state::RenderState;
 use surface_state::SurfaceState;
 use texture_state::TextureState;
@@ -145,7 +144,6 @@ impl GPUManager {
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
-        let now = Instant::now();
         let output = self.surface_state.surface.get_current_texture()?;
         let view = output
             .texture
@@ -226,9 +224,6 @@ impl GPUManager {
         // submit will accept anything that implements IntoIter
         queue.submit(std::iter::once(encoder.finish()));
         output.present();
-        
-        let after_render = Instant::now();
-        //println!("{}", (after_render - now).as_millis());
         Ok(())
     }
 

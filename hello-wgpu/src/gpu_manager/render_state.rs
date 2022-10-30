@@ -1,5 +1,5 @@
 use derivables::vertex::Vertex;
-use wgpu::{SurfaceConfiguration, BindGroupLayout, util::DeviceExt};
+use wgpu::{SurfaceConfiguration, BindGroupLayout};
 
 use crate::texture;
 

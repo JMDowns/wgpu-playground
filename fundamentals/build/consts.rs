@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::Path;
-use formats::formats::config_format::{ConfigFormat, self};
+use formats::formats::config_format::ConfigFormat;
 use formats::formats::controls_format::ControlsFormat;
 
 pub fn generate_consts(config_format: &ConfigFormat, consts_model: &ConstsModel, controls_format: &ControlsFormat) {
@@ -13,6 +13,9 @@ pub fn generate_consts(config_format: &ConfigFormat, consts_model: &ConstsModel,
 
     let num_vertices_in_bucket = (config_format.chunk_dimension as u32)*(config_format.chunk_dimension as u32)*(config_format.chunk_dimension as u32);
     let num_buckets_per_chunk = (config_format.chunk_dimension as u32)*(config_format.chunk_dimension as u32)*(config_format.chunk_dimension as u32) * 24 / num_vertices_in_bucket;
+
+    let mip_level = (config_format.texture_dimension as f32).log2() as u32;
+    let texture_length_with_mipmaps = generate_texture_length_with_mipmap_level(mip_level, config_format.texture_dimension);
 
     if config_format.chunk_dimension == 1 {
         panic!("Chunk dimension cannot be 1, as this would cause the index buffer writes to have an alignment of 6, and it must be 4")
@@ -30,6 +33,9 @@ pub fn generate_consts(config_format: &ConfigFormat, consts_model: &ConstsModel,
             format!("pub const CHUNK_DIMENSION: i32 = {};", config_format.chunk_dimension),
             format!("pub const CHUNK_PLANE_SIZE: i32 = {};", (config_format.chunk_dimension as u32)*(config_format.chunk_dimension as u32)),
             format!("pub const CHUNK_SIZE: usize = {};", (config_format.chunk_dimension as u32)*(config_format.chunk_dimension as u32)*(config_format.chunk_dimension as u32)),
+            format!("pub const CHUNK_DIMENSION_WRAPPED: usize = {};", config_format.chunk_dimension+2),
+            format!("pub const CHUNK_PLANE_SIZE_WRAPPED: usize = {};", (config_format.chunk_dimension as u32+2)*(config_format.chunk_dimension as u32+2)),
+            format!("pub const CHUNK_SIZE_WRAPPED: usize = {};", (config_format.chunk_dimension as u32+2)*(config_format.chunk_dimension as u32+2)*(config_format.chunk_dimension as u32+2)),
             format!("pub const BITS_PER_POSITION: u32 = {};", ((config_format.chunk_dimension+1) as f32).log2().ceil() as u8),
             format!("pub const TEXTURE_DIMENSION: u32 = {};", config_format.texture_dimension),
             format!("pub const NUM_TEXTURES: usize = {};", consts_model.num_textures),
@@ -48,8 +54,8 @@ pub fn generate_consts(config_format: &ConfigFormat, consts_model: &ConstsModel,
             format!("pub const NUM_BUCKETS_PER_SIDE: u32 = {};", num_buckets_per_chunk / 6),
             format!("pub const NUM_BUCKETS: usize = {};", num_buckets_per_chunk * num_chunks_around_player as u32),
             String::new(),
-            format!("pub const MIP_LEVEL: u32 = {};", consts_model.mip_level),
-            format!("pub const TEXTURE_LENGTH_WITH_MIPMAPS: usize = {};", consts_model.texture_length_with_mipmaps),
+            format!("pub const MIP_LEVEL: u32 = {};", mip_level),
+            format!("pub const TEXTURE_LENGTH_WITH_MIPMAPS: usize = {};", texture_length_with_mipmaps),
             String::new(),
             format!("pub const UP_KEY: VirtualKeyCode = {};", controls_format.up),
             format!("pub const DOWN_KEY: VirtualKeyCode = {};", controls_format.down),
@@ -62,6 +68,15 @@ pub fn generate_consts(config_format: &ConfigFormat, consts_model: &ConstsModel,
             generate_string_from_position_offsets(position_offset_vec),
         ].join("\n")
     ).unwrap();
+}
+
+fn generate_texture_length_with_mipmap_level(mip_level: u32, texture_dimension: u32) -> usize {
+    let mut length_sum = 0;
+    for mip in 0..mip_level+1 {
+        length_sum += texture_dimension * texture_dimension / 4_u32.pow(mip as u32);
+    }
+
+    length_sum as usize
 }
 
 fn generate_chunk_pos_around_player_fn(config_format: &ConfigFormat) -> Vec<(i32, i32, i32)> {
@@ -164,6 +179,4 @@ pub struct ConstsModel {
     pub atlas_max_num_images_width: u32,
     pub atlas_max_num_images_height: u32,
     pub num_textures: usize,
-    pub mip_level: usize,
-    pub texture_length_with_mipmaps: usize,
 }

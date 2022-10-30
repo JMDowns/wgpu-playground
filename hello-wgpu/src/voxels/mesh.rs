@@ -1,6 +1,5 @@
 use derivables::vertex::Vertex;
 use fundamentals::world_position::WorldPosition;
-use fundamentals::consts::CHUNK_DIMENSION;
 use super::chunk::{Chunk, ChunkBlockIterator};
 
 pub struct Mesh {
@@ -24,15 +23,15 @@ impl Mesh {
         }
     }
 
-    pub fn cull_ambient_occlusion(chunk: &Chunk, solid_data: Vec<Vec<Vec<bool>>>, index: u32) -> Self {
+    pub fn cull_ambient_occlusion(chunk: &Chunk, index: u32) -> Self {
         let mut mesh = Mesh::new();
 
         let mut cbi = ChunkBlockIterator::new(chunk);
 
         while let Some(((i,j,k), block)) = cbi.get_next_block() {
-            let adjacent_blocks_data = Self::generate_adjacent_blocks(&solid_data, i+1, j+1, k+1);
+            let adjacent_blocks_data = Self::generate_adjacent_blocks(&chunk, i, j, k);
             mesh.add_vertices(
-                Self::generate_cube(WorldPosition::new(i as i32,j as i32,k as i32), block.get_texture_indices(), &adjacent_blocks_data, index), 
+                Self::generate_cube(WorldPosition::new(i as i32-1,j as i32-1,k as i32-1), block.get_texture_indices(), &adjacent_blocks_data, index), 
                 Self::generate_cube_indices(&adjacent_blocks_data)
             );
         }
@@ -63,14 +62,14 @@ impl Mesh {
         self.bottom.2 = self.bottom.1.len() as u32;
     }
 
-    fn generate_adjacent_blocks(solid_data: &Vec<Vec<Vec<bool>>>, i: usize, j: usize, k: usize) -> [bool; 6] {
+    fn generate_adjacent_blocks(chunk: &Chunk, i: usize, j: usize, k: usize) -> [bool; 6] {
         let mut adjacency_data = [false;6];
-        adjacency_data[0] = solid_data[i-1][j][k];
-        adjacency_data[1] = solid_data[i+1][j][k];
-        adjacency_data[2] = solid_data[i][j][k-1];
-        adjacency_data[3] = solid_data[i][j][k+1];
-        adjacency_data[4] = solid_data[i][j+1][k];
-        adjacency_data[5] = solid_data[i][j-1][k];
+        adjacency_data[0] = chunk.is_block_solid(i-1, j, k);
+        adjacency_data[1] = chunk.is_block_solid(i+1, j, k);
+        adjacency_data[2] = chunk.is_block_solid(i, j, k-1);
+        adjacency_data[3] = chunk.is_block_solid(i, j, k+1);
+        adjacency_data[4] = chunk.is_block_solid(i, j+1, k);
+        adjacency_data[5] = chunk.is_block_solid(i, j-1, k);
         adjacency_data
     }
     

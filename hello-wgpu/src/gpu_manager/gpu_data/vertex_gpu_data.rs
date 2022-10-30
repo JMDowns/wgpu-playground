@@ -93,8 +93,6 @@ impl VertexGPUData {
             label: Some("chunk_index_bind_group")
         });
 
-        println!("{}", std::mem::size_of::<Vertex>());
-
         let buffer_size_fn_return= fundamentals::buffer_size_function::return_bucket_buffer_size_and_amount_information(std::mem::size_of::<Vertex>());
 
         let mut vertex_pool_buffers = Vec::new();

@@ -57,8 +57,12 @@ fn build_vertex_struct() -> String {
 }
 
 fn build_vertex_new() -> String {
+    let mut chunk_index_str = ", chunk_index: u32";
+    if BITS_PER_CHUNK_INDEX == 0 {
+        chunk_index_str = ", _chunk_index: u32";
+    }
     [
-        "        pub fn new(pos: WorldPosition, texture_index: usize, corner: u8, chunk_index: u32) -> Self {",
+        &format!("        pub fn new(pos: WorldPosition, texture_index: usize, corner: u8{chunk_index_str}) -> Self {{"),
         "             ",
         "if pos.x > CHUNK_DIMENSION || pos.y > CHUNK_DIMENSION || pos.z > CHUNK_DIMENSION {
             println!(\"Vertex at {} is outside chunk boundaries\", pos);

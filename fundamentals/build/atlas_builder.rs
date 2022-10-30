@@ -1,6 +1,5 @@
 use formats::formats::texture_format::TextureFormat;
 use ::formats::formats::{block_format::BlockFormat, config_format::ConfigFormat};
-use image::ImageBuffer;
 use std::collections::{HashMap, HashSet};
 use std::io::Write;
 use std::path::Path;
@@ -13,7 +12,7 @@ pub struct AtlasBuilder {
 }
 
 impl AtlasBuilder {
-    pub fn build_and_save_atlas(vec_block_format: &Vec<BlockFormat>, config_format: &ConfigFormat, texture_length_with_mipmaps: usize) -> Self {
+    pub fn build_and_save_atlas(vec_block_format: &Vec<BlockFormat>, config_format: &ConfigFormat) -> Self {
         let mut image_index = 0;
     
         let blocks = vec_block_format.iter().map(|bf| (bf.block_type.to_string(), &bf.texture)).collect::<Vec<(String, &TextureFormat)>>();
@@ -66,11 +65,9 @@ impl AtlasBuilder {
     
         let num_textures = texture_vec.len();
 
-        let texdim = (config_format.texture_dimension * config_format.texture_dimension) as usize;
+        let mut data_buf: Vec<u8> = Vec::new();
 
-        let mut data_buf: Vec<u8> = Vec::new();//vec![0; num_textures*texture_length_with_mipmaps as usize*4];
-
-        for (index, mip_texture_vec) in texture_vec {
+        for (_, mip_texture_vec) in texture_vec {
             for texture in mip_texture_vec {
                 data_buf.extend_from_slice(&texture.to_rgba8().as_flat_samples().as_slice());
             }
