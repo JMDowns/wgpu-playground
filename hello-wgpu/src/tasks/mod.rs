@@ -2,6 +2,7 @@ use std::sync::{Arc, RwLock};
 use std::hash::{Hash, Hasher};
 
 use crate::gpu_manager::gpu_data::vertex_gpu_data::VertexGPUData;
+use crate::voxels::chunk::Chunk;
 use crate::voxels::world::World;
 use fundamentals::world_position::WorldPosition;
 use wgpu::Queue;
@@ -10,7 +11,7 @@ pub mod tasks_processors;
 
 pub enum Task {
     StopThread,
-    GenerateChunkMesh { chunk_position: WorldPosition, world: Arc<RwLock<World>>, vertex_gpu_data: Arc<RwLock<VertexGPUData>>, queue: Arc<RwLock<Queue>> },
+    GenerateChunkMesh { chunk_position: WorldPosition, chunk: Arc<RwLock<Chunk>>, vertex_gpu_data: Arc<RwLock<VertexGPUData>>, queue: Arc<RwLock<Queue>> },
     GenerateChunk { chunk_position: WorldPosition, world: Arc<RwLock<World>>},
 }
 
@@ -69,7 +70,7 @@ pub fn get_task_priority(task: &Task) -> u32 {
 }
 
 pub enum TaskResult {
-    Requeue { task: Task },
+    //Requeue { task: Task },
     GenerateChunkMesh { },
     GenerateChunk { chunk_position: WorldPosition }
 }

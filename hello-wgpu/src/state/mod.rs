@@ -157,7 +157,7 @@ impl State {
 
         for task_result in task_results.drain(..) {
             match task_result {
-                TaskResult::Requeue { task } => self.thread_task_manager.push_task(task),
+                //TaskResult::Requeue { task } => self.thread_task_manager.push_task(task),
                 TaskResult::GenerateChunk { chunk_position } => {
                     println!("Generated chunk {}!", chunks_generated);
                     chunks_generated += 1;

@@ -230,7 +230,7 @@ impl GPUManager {
     pub fn create_generate_chunk_mesh_task(&self, chunk_position: WorldPosition, world: Arc<RwLock<World>>) -> Task {
         Task::GenerateChunkMesh { 
             chunk_position, 
-            world, 
+            chunk: world.read().unwrap().get_chunk_at(&chunk_position).unwrap(), 
             vertex_gpu_data: self.vertex_gpu_data.clone(),
             queue: self.queue.clone()
         }

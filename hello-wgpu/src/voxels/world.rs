@@ -1,10 +1,9 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::{RwLock, Arc}};
 use super::chunk::Chunk;
-use crate::voxels::mesh::Mesh;
 use fundamentals::world_position::WorldPosition;
 
 pub struct World {
-    chunks: HashMap<WorldPosition, Chunk>,
+    chunks: HashMap<WorldPosition, Arc<RwLock<Chunk>>>,
 }
 
 impl World {
@@ -17,12 +16,12 @@ impl World {
     }
 
     pub fn add_chunk(&mut self, chunk: Chunk) {
-        self.chunks.insert(chunk.position, chunk);
+        self.chunks.insert(chunk.position, Arc::new(RwLock::new(chunk)));
     }
     
-    pub fn generate_mesh_at(&self, pos: &WorldPosition, index: u32) -> Option<Mesh> {
+    pub fn get_chunk_at(&self, pos: &WorldPosition) -> Option<Arc<RwLock<Chunk>>> {
         match self.chunks.get(pos) {
-            Some(chunk) => Some(Mesh::cull_ambient_occlusion(chunk, index)),
+            Some(chunk) => Some(chunk.clone()),
             None => None
         }
     }
