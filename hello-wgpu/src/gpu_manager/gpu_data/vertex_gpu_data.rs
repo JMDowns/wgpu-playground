@@ -254,43 +254,125 @@ impl VertexGPUData {
         self.frustum_bucket_data_to_update.drain(..).collect()
     }
 
-    pub fn add_vertex_vec(&mut self, vertex_vec: Vec<Vertex>, queue: &Arc<RwLock<Queue>>) -> Vec<BucketPosition> {
+    pub fn add_vertex_vec(&mut self, vertex_vec: Vec<Vertex>, queue: &Arc<RwLock<Queue>>, side: u32,  mesh_position: &WorldPosition) -> Vec<BucketPosition> {
         let vertex_buckets = vertex_vec.chunks(fundamentals::consts::NUM_VERTICES_IN_BUCKET as usize);
-        let mut lru_buckets = Vec::new();
-        for vertex_bucket in vertex_buckets {
-            let lru_bucket = *self.lru_vertex_buffer_bucket_index.peek_lru().unwrap().0;
-            queue.read().unwrap().write_buffer(&self.vertex_pool_buffers[lru_bucket.buffer_number as usize], (lru_bucket.bucket_number as usize * self.vertex_bucket_size) as u64, bytemuck::cast_slice(vertex_bucket));
-            self.lru_vertex_buffer_bucket_index.get(&lru_bucket);
-            lru_buckets.push(lru_bucket);
+        let mut vertex_chunks_len = 0;
+        if vertex_vec.len() > 0 {
+            vertex_chunks_len = 1 + (vertex_vec.len() - 1) / (fundamentals::consts::NUM_VERTICES_IN_BUCKET as usize);
         }
-        lru_buckets
+        let mut lru_buckets = Vec::new();
+        let buckets_to_use = match self.pool_position_to_mesh_bucket_data.get(mesh_position) {
+            Some(mesh_bucket_data) => {
+                let buckets = match side {
+                    0 => &mesh_bucket_data.front_bucket_data_vertices,
+                    1 => &mesh_bucket_data.back_bucket_data_vertices,
+                    2 => &mesh_bucket_data.left_bucket_data_vertices,
+                    3 => &mesh_bucket_data.right_bucket_data_vertices,
+                    4 => &mesh_bucket_data.top_bucket_data_vertices,
+                    5 => &mesh_bucket_data.bottom_bucket_data_vertices,
+                    _ => panic!("Invalid side called: {}", side)
+                };
+                return buckets.to_vec();
+            },
+            None => {
+                for _ in 0..vertex_chunks_len {
+                    let lru_bucket = *self.lru_vertex_buffer_bucket_index.peek_lru().unwrap().0;
+                    lru_buckets.push(lru_bucket);
+                    self.lru_vertex_buffer_bucket_index.get(&lru_bucket);
+                }
+                &lru_buckets
+            }
+        };
+        
+        //TODO: Remove logic around getting bucket once bucket requesting is implemented
+        if vertex_vec.len() == 0 {
+            for (i, bucket) in buckets_to_use.iter().enumerate() {
+                self.lru_vertex_buffer_bucket_index.get(bucket);
+            }
+        } else {
+            if buckets_to_use.len() < vertex_chunks_len {
+                panic!("There are more chunks than buckets to use! Need to implement requesting a bucket.");
+            }
+            for (i, vertex_bucket) in vertex_buckets.enumerate() {
+                let bucket = buckets_to_use[i];
+                queue.read().unwrap().write_buffer(&self.vertex_pool_buffers[bucket.buffer_number as usize], (bucket.bucket_number as usize * self.vertex_bucket_size) as u64, bytemuck::cast_slice(vertex_bucket));
+                self.lru_vertex_buffer_bucket_index.get(&bucket);
+            }
+            for i in vertex_chunks_len..buckets_to_use.len() {
+                let bucket = buckets_to_use[i];
+                self.lru_vertex_buffer_bucket_index.get(&bucket);
+            }
+        }
+        buckets_to_use.to_vec()
     }
 
     pub fn add_index_vec_and_update_index_count_vec(&mut self, index_vec: Vec<u32>, queue: &Arc<RwLock<Queue>>, side: u32, mesh_position: &WorldPosition) -> Vec<BucketPosition> {
         let index_buckets = index_vec.chunks(fundamentals::consts::NUM_VERTICES_IN_BUCKET as usize * 3 / 2);
-        let mut lru_buckets = Vec::new();
-        for (i, index_bucket) in index_buckets.enumerate() {
-            let lru_bucket = *self.lru_index_buffer_bucket_index.peek_lru().unwrap().0;
-            queue.read().unwrap().write_buffer(&self.index_pool_buffers[lru_bucket.buffer_number as usize], (lru_bucket.bucket_number as usize * self.index_bucket_size) as u64, bytemuck::cast_slice(index_bucket));
-            self.frustum_bucket_data_to_update.push((*mesh_position, side, i as u32, lru_bucket, index_bucket.len() as i32));
-            self.lru_index_buffer_bucket_index.get(&lru_bucket);
-            lru_buckets.push(lru_bucket);
+        let mut index_chunks_len = 0;
+        if index_vec.len() > 0 {
+            index_chunks_len = 1 + (index_vec.len() - 1) / (fundamentals::consts::NUM_VERTICES_IN_BUCKET as usize * 3 / 2);
         }
-        lru_buckets
+        let mut lru_buckets = Vec::new();
+        let buckets_to_use = match self.pool_position_to_mesh_bucket_data.get(mesh_position) {
+            Some(mesh_bucket_data) => {
+                match side {
+                    0 => &mesh_bucket_data.front_bucket_data_indices,
+                    1 => &mesh_bucket_data.back_bucket_data_indices,
+                    2 => &mesh_bucket_data.left_bucket_data_indices,
+                    3 => &mesh_bucket_data.right_bucket_data_indices,
+                    4 => &mesh_bucket_data.top_bucket_data_indices,
+                    5 => &mesh_bucket_data.bottom_bucket_data_indices,
+                    _ => panic!("Invalid side called: {}", side)
+                }
+            },
+            None => {
+                for _ in 0..index_chunks_len {
+                    let lru_bucket = *self.lru_index_buffer_bucket_index.peek_lru().unwrap().0;
+                    lru_buckets.push(lru_bucket);
+                    self.lru_index_buffer_bucket_index.get(&lru_bucket);
+                }
+                &lru_buckets
+            }
+        };
+
+        if index_vec.len() == 0 {
+            for (i, bucket) in buckets_to_use.iter().enumerate() {
+                //queue.read().unwrap().write_buffer(&self.index_pool_buffers[bucket.buffer_number as usize], (bucket.bucket_number as usize * self.index_bucket_size) as u64, bytemuck::cast_slice(&[0]));
+                self.frustum_bucket_data_to_update.push((*mesh_position, side, i as u32, *bucket, 0));
+                self.lru_index_buffer_bucket_index.get(bucket);
+            }
+        } else {
+            if buckets_to_use.len() < index_chunks_len {
+                panic!("There are more chunks than buckets to use! Need to implement requesting a bucket.");
+            }
+            for (i, index_bucket) in index_buckets.enumerate() {
+                let bucket = buckets_to_use[i];
+                queue.read().unwrap().write_buffer(&self.index_pool_buffers[bucket.buffer_number as usize], (bucket.bucket_number as usize * self.index_bucket_size) as u64, bytemuck::cast_slice(index_bucket));
+                self.frustum_bucket_data_to_update.push((*mesh_position, side, i as u32, bucket, index_bucket.len() as i32));
+                self.lru_index_buffer_bucket_index.get(&bucket);
+            }
+            for i in index_chunks_len..buckets_to_use.len() {
+                let bucket = buckets_to_use[i];
+                //queue.read().unwrap().write_buffer(&self.index_pool_buffers[bucket.buffer_number as usize], (bucket.bucket_number as usize * self.index_bucket_size) as u64, bytemuck::cast_slice(&[0]));
+                self.frustum_bucket_data_to_update.push((*mesh_position, side, i as u32, bucket, 0));
+                self.lru_index_buffer_bucket_index.get(&bucket);
+            }
+        }
+        buckets_to_use.to_vec()
     }
 
     pub fn add_mesh_data_drain(&mut self, mesh: Mesh, mesh_position: &WorldPosition, queue: Arc<RwLock<Queue>>) {
-        let front_bucket_data_vertices = self.add_vertex_vec(mesh.front.0, &queue);
+        let front_bucket_data_vertices = self.add_vertex_vec(mesh.front.0, &queue, 0, mesh_position);
         let front_bucket_data_indices = self.add_index_vec_and_update_index_count_vec(mesh.front.1, &queue, 0, mesh_position);
-        let back_bucket_data_vertices = self.add_vertex_vec(mesh.back.0, &queue);
+        let back_bucket_data_vertices = self.add_vertex_vec(mesh.back.0, &queue, 1, mesh_position);
         let back_bucket_data_indices = self.add_index_vec_and_update_index_count_vec(mesh.back.1, &queue, 1, mesh_position);
-        let left_bucket_data_vertices = self.add_vertex_vec(mesh.left.0, &queue);
+        let left_bucket_data_vertices = self.add_vertex_vec(mesh.left.0, &queue, 2, mesh_position);
         let left_bucket_data_indices = self.add_index_vec_and_update_index_count_vec(mesh.left.1, &queue, 2, mesh_position);
-        let right_bucket_data_vertices = self.add_vertex_vec(mesh.right.0, &queue);
+        let right_bucket_data_vertices = self.add_vertex_vec(mesh.right.0, &queue, 3, mesh_position);
         let right_bucket_data_indices = self.add_index_vec_and_update_index_count_vec(mesh.right.1, &queue, 3, mesh_position);
-        let top_bucket_data_vertices = self.add_vertex_vec(mesh.top.0, &queue);
+        let top_bucket_data_vertices = self.add_vertex_vec(mesh.top.0, &queue, 4, mesh_position);
         let top_bucket_data_indices = self.add_index_vec_and_update_index_count_vec(mesh.top.1, &queue, 4, mesh_position);
-        let bottom_bucket_data_vertices = self.add_vertex_vec(mesh.bottom.0, &queue);
+        let bottom_bucket_data_vertices = self.add_vertex_vec(mesh.bottom.0, &queue, 5, mesh_position);
         let bottom_bucket_data_indices = self.add_index_vec_and_update_index_count_vec(mesh.bottom.1, &queue, 5, mesh_position);
         self.pool_position_to_mesh_bucket_data.insert(*mesh_position, MeshBucketData { front_bucket_data_vertices, front_bucket_data_indices, back_bucket_data_vertices, back_bucket_data_indices, left_bucket_data_vertices, left_bucket_data_indices, right_bucket_data_vertices, right_bucket_data_indices, top_bucket_data_vertices, top_bucket_data_indices, bottom_bucket_data_vertices, bottom_bucket_data_indices });
     }

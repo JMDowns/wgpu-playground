@@ -12,7 +12,7 @@ impl World {
     }
 
     pub fn generate_chunk_at(pos: &WorldPosition) -> Chunk {
-        Chunk::checkerboard(pos)
+        Chunk::_solid(pos)
     }
 
     pub fn add_chunk(&mut self, chunk: Chunk) {

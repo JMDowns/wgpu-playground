@@ -2,6 +2,7 @@ use derivables::vertex::Vertex;
 use fundamentals::world_position::WorldPosition;
 use super::chunk::{Chunk, ChunkBlockIterator};
 
+#[derive(Debug)]
 pub struct Mesh {
     pub front: (Vec<Vertex>, Vec<u32>, u32),
     pub back: (Vec<Vertex>, Vec<u32>, u32),
@@ -32,7 +33,7 @@ impl Mesh {
             let adjacent_blocks_data = Self::generate_adjacent_blocks(&chunk, i, j, k);
             mesh.add_vertices(
                 Self::generate_cube(WorldPosition::new(i as i32-1,j as i32-1,k as i32-1), block.get_texture_indices(), &adjacent_blocks_data, index), 
-                Self::generate_cube_indices(&adjacent_blocks_data)
+                Self::generate_cube_indices(&adjacent_blocks_data),
             );
         }
 

@@ -96,6 +96,10 @@ impl WorldPosition {
     pub fn to_perlin_pos(&self, scale_factor: f64) -> [f64;3] {
         [(self.x as f64 * scale_factor), (self.y as f64 * scale_factor), (self.z as f64 * scale_factor)]
     }
+
+    pub fn get_position_incremented_by(&self, x: i32, y: i32, z: i32) -> Self {
+        WorldPosition::new(self.x+x, self.y+y, self.z+z)
+    }
 }
 
 impl Display for WorldPosition {

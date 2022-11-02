@@ -1,11 +1,13 @@
 use crossbeam::channel::{Sender, Receiver};
 use priority_queue::PriorityQueue;
 use fundamentals::consts::NUM_ADDITIONAL_THREADS;
+use crate::tasks::tasks_processors::update_chunk_padding_processors::{UpdateXAxisChunkPaddingProcessor, UpdateZAxisChunkPaddingProcessor};
 use crate::tasks::{Task, TaskResult, get_task_priority};
 use crate::tasks::
     tasks_processors::{
         generate_chunk_mesh_processor::GenerateChunkMeshProcessor,
         generate_chunk_processor::GenerateChunkProcessor,
+        update_chunk_padding_processors::UpdateYAxisChunkPaddingProcessor
     };
 
 struct ThreadInfo {
@@ -40,6 +42,24 @@ impl ThreadTaskManager {
                                 },
                                 Task::GenerateChunkMesh { chunk_position, chunk, vertex_gpu_data, queue} => {
                                     match s_task_result.send(GenerateChunkMeshProcessor::process_task(&chunk_position, chunk, vertex_gpu_data, queue)) {
+                                        Ok(_) => {}
+                                        Err(_) => should_run = false
+                                    }
+                                }
+                                Task::UpdateYAxisChunkPadding { chunk_below, chunk_above, .. } => {
+                                    match s_task_result.send(UpdateYAxisChunkPaddingProcessor::process_task(chunk_below, chunk_above)) {
+                                        Ok(_) => {}
+                                        Err(_) => should_run = false
+                                    }
+                                }
+                                Task::UpdateXAxisChunkPadding { chunk_front, chunk_back, .. } => {
+                                    match s_task_result.send(UpdateXAxisChunkPaddingProcessor::process_task(chunk_front, chunk_back)) {
+                                        Ok(_) => {}
+                                        Err(_) => should_run = false
+                                    }
+                                }
+                                Task::UpdateZAxisChunkPadding { chunk_left, chunk_right, .. } => {
+                                    match s_task_result.send(UpdateZAxisChunkPaddingProcessor::process_task(chunk_left, chunk_right)) {
                                         Ok(_) => {}
                                         Err(_) => should_run = false
                                     }

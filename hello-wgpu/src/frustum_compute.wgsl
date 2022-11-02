@@ -1,7 +1,7 @@
-let CHUNKS_AROUND_PLAYER = 1;
+let CHUNKS_AROUND_PLAYER = 57;
 let CHUNK_DIMENSION = 16;
-let NUM_BUCKETS_PER_CHUNK = 24;
-let NUM_BUCKETS_PER_SIDE = 4;
+let NUM_BUCKETS_PER_CHUNK = 12;
+let NUM_BUCKETS_PER_SIDE = 2;
 let SQRT_2_DIV_2 = .7071;
 let NEG_SQRT_2_DIV_2 = -.7071;
 
@@ -35,7 +35,7 @@ struct ComputeData {
 var<storage> computeDataArray: array<ComputeData, CHUNKS_AROUND_PLAYER>;
 
 @group(1) @binding(0)
-var<storage, read_write> indirect_buffer_0: array<DrawIndexedIndirect, 24>;
+var<storage, read_write> indirect_buffer_0: array<DrawIndexedIndirect, 684>;
 
 fn is_not_in_frustum_via_plane(center_point: vec3<f32>, plane_normal: vec3<f32>, plane_distance: f32) -> bool {
     var r = abs(plane_normal.x * f32(CHUNK_DIMENSION / 2)) 

@@ -20,7 +20,7 @@ use gpu_data::vertex_gpu_data::VertexGPUData;
 use fundamentals::world_position::WorldPosition;
 use winit::window::Window;
 
-use crate::{texture, camera::CameraController, tasks::Task, voxels::world::World};
+use crate::{texture, camera::CameraController, tasks::Task, voxels::{world::World, chunk::Chunk}};
 
 pub struct GPUManager {
     pub device: Arc<RwLock<wgpu::Device>>,
@@ -227,10 +227,10 @@ impl GPUManager {
         Ok(())
     }
 
-    pub fn create_generate_chunk_mesh_task(&self, chunk_position: WorldPosition, world: Arc<RwLock<World>>) -> Task {
+    pub fn create_generate_chunk_mesh_task(&self, chunk_position: WorldPosition, chunk: Arc<RwLock<Chunk>>) -> Task {
         Task::GenerateChunkMesh { 
             chunk_position, 
-            chunk: world.read().unwrap().get_chunk_at(&chunk_position).unwrap(), 
+            chunk, 
             vertex_gpu_data: self.vertex_gpu_data.clone(),
             queue: self.queue.clone()
         }

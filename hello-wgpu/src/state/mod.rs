@@ -6,6 +6,7 @@ use flag_state::FlagState;
 use crate::gpu_manager::GPUManager;
 
 use crate::camera;
+use crate::tasks::ChunkUpdateTaskIdentifyingInfo;
 use crate::tasks::Task;
 use crate::tasks::TaskResult;
 use crate::thread_task_manager::ThreadTaskManager;
@@ -161,13 +162,124 @@ impl State {
                 TaskResult::GenerateChunk { chunk_position } => {
                     println!("Generated chunk {}!", chunks_generated);
                     chunks_generated += 1;
-                    self.thread_task_manager.push_task(self.gpu_manager.create_generate_chunk_mesh_task(chunk_position, self.world.clone()));
+                    self.thread_task_manager.push_task(self.gpu_manager.create_generate_chunk_mesh_task(chunk_position, self.world.read().unwrap().get_chunk_at(&chunk_position).unwrap()));
+                    
+                    let chunk_generated = self.world.read().unwrap().get_chunk_at(&chunk_position).unwrap();
+
+                    let upper_position = chunk_position.get_position_incremented_by(0, 1, 0);
+                    match self.world.read().unwrap().get_chunk_at(&upper_position) {
+                        Some(chunk_above) => {
+                            self.thread_task_manager.push_task( 
+                                Task::UpdateYAxisChunkPadding { 
+                                    chunk_below: chunk_generated.clone(), 
+                                    chunk_above, 
+                                    additional_data_to_identify_and_hash: ChunkUpdateTaskIdentifyingInfo {
+                                        chunk_position_1: chunk_position,
+                                        chunk_position_2: upper_position
+                                    }
+                                }
+                            );
+                        }
+                        None => {}
+                    }
+
+                    let lower_position = chunk_position.get_position_incremented_by(0, -1, 0);
+                    match self.world.read().unwrap().get_chunk_at(&lower_position) {
+                        Some(chunk_below) => {
+                            self.thread_task_manager.push_task( 
+                                Task::UpdateYAxisChunkPadding { 
+                                    chunk_below, 
+                                    chunk_above: chunk_generated.clone(), 
+                                    additional_data_to_identify_and_hash: ChunkUpdateTaskIdentifyingInfo {
+                                        chunk_position_1: lower_position,
+                                        chunk_position_2: chunk_position
+                                    }
+                                }
+                            );
+                        }
+                        None => {}
+                    }
+
+                    let left_position = chunk_position.get_position_incremented_by(0, 0, -1);
+                    match self.world.read().unwrap().get_chunk_at(&left_position) {
+                        Some(chunk_left) => {
+                            self.thread_task_manager.push_task( 
+                                Task::UpdateZAxisChunkPadding { 
+                                    chunk_left, 
+                                    chunk_right: chunk_generated.clone(), 
+                                    additional_data_to_identify_and_hash: ChunkUpdateTaskIdentifyingInfo {
+                                        chunk_position_1: left_position,
+                                        chunk_position_2: chunk_position
+                                    }
+                                }
+                            );
+                        }
+                        None => {}
+                    }
+
+                    let right_position = chunk_position.get_position_incremented_by(0, 0, 1);
+                    match self.world.read().unwrap().get_chunk_at(&right_position) {
+                        Some(chunk_right) => {
+                            self.thread_task_manager.push_task( 
+                                Task::UpdateZAxisChunkPadding { 
+                                    chunk_right, 
+                                    chunk_left: chunk_generated.clone(), 
+                                    additional_data_to_identify_and_hash: ChunkUpdateTaskIdentifyingInfo {
+                                        chunk_position_1: right_position,
+                                        chunk_position_2: chunk_position
+                                    }
+                                }
+                            );
+                        }
+                        None => {}
+                    }
+
+                    let front_position = chunk_position.get_position_incremented_by(-1, 0, 0);
+                    match self.world.read().unwrap().get_chunk_at(&front_position) {
+                        Some(chunk_front) => {
+                            self.thread_task_manager.push_task( 
+                                Task::UpdateXAxisChunkPadding { 
+                                    chunk_front, 
+                                    chunk_back: chunk_generated.clone(), 
+                                    additional_data_to_identify_and_hash: ChunkUpdateTaskIdentifyingInfo {
+                                        chunk_position_1: front_position,
+                                        chunk_position_2: chunk_position
+                                    }
+                                }
+                            );
+                        }
+                        None => {}
+                    }
+
+                    let back_position = chunk_position.get_position_incremented_by(1, 0, 0);
+                    match self.world.read().unwrap().get_chunk_at(&back_position) {
+                        Some(chunk_back) => {
+                            self.thread_task_manager.push_task( 
+                                Task::UpdateXAxisChunkPadding { 
+                                    chunk_back, 
+                                    chunk_front: chunk_generated.clone(), 
+                                    additional_data_to_identify_and_hash: ChunkUpdateTaskIdentifyingInfo {
+                                        chunk_position_1: back_position,
+                                        chunk_position_2: chunk_position
+                                    }
+                                }
+                            );
+                        }
+                        None => {}
+                    }
+                    
                     
                 },
                 TaskResult::GenerateChunkMesh { } => {
                     println!("Generated mesh {}!", meshes_generated);
                     self.gpu_manager.process_generate_chunk_mesh_task_result();
                     meshes_generated += 1;
+                }
+                TaskResult::UpdateChunkPadding { chunk_positions } => {
+                    println!("Finished updating padding!");
+                    for chunk_position in chunk_positions {
+                        self.thread_task_manager.push_task(self.gpu_manager.create_generate_chunk_mesh_task(chunk_position, self.world.read().unwrap().get_chunk_at(&chunk_position).unwrap()));
+                    }
                 }
             }
         }

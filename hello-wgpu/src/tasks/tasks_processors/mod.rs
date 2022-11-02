@@ -1,2 +1,3 @@
 pub mod generate_chunk_mesh_processor;
 pub mod generate_chunk_processor;
+pub mod update_chunk_padding_processors;

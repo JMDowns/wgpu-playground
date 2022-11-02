@@ -26,6 +26,34 @@ impl Chunk {
 
         cci.return_chunk()
     }
+    
+    pub fn _xaxis(position: &WorldPosition) -> Self {
+        let mut cci = ChunkCreationIterator::new(*position);
+
+        for i in 0..CHUNK_SIZE {
+            if i < CHUNK_DIMENSION as usize {
+                cci.push_block_type(BlockType::WOOD);
+            } else {
+                cci.push_block_type(BlockType::AIR);
+            }
+        }
+
+        cci.return_chunk()
+    }
+
+    pub fn _zaxis(position: &WorldPosition) -> Self {
+        let mut cci = ChunkCreationIterator::new(*position);
+
+        for i in 0..CHUNK_SIZE {
+            if i % CHUNK_PLANE_SIZE as usize == 0 {
+                cci.push_block_type(BlockType::WOOD);
+            } else {
+                cci.push_block_type(BlockType::AIR);
+            }
+        }
+
+        cci.return_chunk()
+    }
 
     pub fn _perlin(position: &WorldPosition) -> Self {
         let perlin = Perlin::new();
@@ -102,6 +130,10 @@ impl Chunk {
 
     pub fn is_block_solid(&self, cx: usize, cy: usize, cz: usize) -> bool{
         self.solid_array[cx+(CHUNK_DIMENSION_WRAPPED as usize)*cy+(CHUNK_PLANE_SIZE_WRAPPED as usize)*cz]
+    }
+
+    pub fn update_solid_array(&mut self, cx: usize, cy: usize, cz: usize, solid_value: bool) {
+        self.solid_array.set(cx+(CHUNK_DIMENSION_WRAPPED as usize)*cy+(CHUNK_PLANE_SIZE_WRAPPED as usize)*cz, solid_value); 
     }
 }
 
