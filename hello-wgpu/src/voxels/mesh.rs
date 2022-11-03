@@ -1,5 +1,5 @@
 use derivables::vertex::Vertex;
-use fundamentals::world_position::WorldPosition;
+use fundamentals::{world_position::WorldPosition, enums::block_side::BlockSide};
 use super::chunk::{Chunk, ChunkBlockIterator};
 
 #[derive(Debug)]
@@ -24,7 +24,7 @@ impl Mesh {
         }
     }
 
-    pub fn cull_ambient_occlusion(chunk: &Chunk, index: u32) -> Self {
+    pub fn cull(chunk: &Chunk, index: u32) -> Self {
         let mut mesh = Mesh::new();
 
         let mut cbi = ChunkBlockIterator::new(chunk);
@@ -38,6 +38,26 @@ impl Mesh {
         }
 
         mesh
+    }
+
+    pub fn cull_side(chunk: &Chunk, index: u32, side: BlockSide) -> (Vec<Vertex>, Vec<u32>, u32) {
+        let mut mesh_side_vertices = Vec::new();
+        let mut mesh_side_indices = Vec::new();
+        let mut mesh_side_indices_count = 0;
+
+        let mut cbi = ChunkBlockIterator::new(chunk);
+
+        while let Some(((i,j,k), block)) = cbi.get_next_block() {
+            if !Mesh::is_adjacent_blocks_solid_side(chunk, i, j, k, side) {
+                mesh_side_vertices.append(&mut Self::generate_cube_side(WorldPosition::new(i as i32-1,j as i32-1,k as i32-1), block.get_texture_indices(), index, side));
+                let mut index_vec = Self::generate_cube_indices_side(side);
+                mesh_side_indices_count += index_vec.len() as u32;
+                mesh_side_indices.append(&mut index_vec);
+            }
+            
+        }
+
+        (mesh_side_vertices, mesh_side_indices, mesh_side_indices_count)
     }
 
     pub fn add_vertices(&mut self, mut block_vertices: [Vec<Vertex>; 6], block_indices: [Vec<u32>; 6]) {
@@ -72,6 +92,17 @@ impl Mesh {
         adjacency_data[4] = chunk.is_block_solid(i, j+1, k);
         adjacency_data[5] = chunk.is_block_solid(i, j-1, k);
         adjacency_data
+    }
+
+    fn is_adjacent_blocks_solid_side(chunk: &Chunk, i: usize, j: usize, k: usize, side: BlockSide) -> bool {
+        match side {
+            BlockSide::FRONT => chunk.is_block_solid(i-1, j, k),
+            BlockSide::BACK => chunk.is_block_solid(i+1, j, k),
+            BlockSide::LEFT => chunk.is_block_solid(i, j, k-1),
+            BlockSide::RIGHT => chunk.is_block_solid(i, j, k+1),
+            BlockSide::TOP => chunk.is_block_solid(i, j+1, k),
+            BlockSide::BOTTOM => chunk.is_block_solid(i, j-1, k)
+        }
     }
     
     fn generate_cube(pos: WorldPosition, tex_index_arr: &[usize; 6], adjacent_blocks_data: &[bool;6], index: u32) -> [Vec<Vertex>; 6] {
@@ -131,7 +162,6 @@ impl Mesh {
     
         vertices_arr
     }
-    
     fn generate_cube_indices(adjacent_blocks_data: &[bool;6]) -> [Vec<u32>;6] {
         let mut indices_arr = [Vec::new(),Vec::new(),Vec::new(),Vec::new(),Vec::new(),Vec::new(),];
         let all_indices_arr = 
@@ -181,6 +211,101 @@ impl Mesh {
         }
     
         indices_arr
+    }
+
+    fn generate_cube_side(pos: WorldPosition, tex_index_arr: &[usize; 6], index: u32, side: BlockSide) -> Vec<Vertex> {
+        let positions = pos.generate_vertex_world_positions();
+        match side {
+            BlockSide::FRONT => {
+                [
+                    Vertex::new(positions[0], tex_index_arr[0], 1, index),
+                    Vertex::new(positions[1], tex_index_arr[0], 3, index),
+                    Vertex::new(positions[2], tex_index_arr[0], 0, index),
+                    Vertex::new(positions[3], tex_index_arr[0], 2, index),
+                ].to_vec()
+            },
+            BlockSide::BACK => {
+                [
+                    Vertex::new(positions[4], tex_index_arr[1], 3, index),
+                    Vertex::new(positions[5], tex_index_arr[1], 1, index),
+                    Vertex::new(positions[6], tex_index_arr[1], 2, index),
+                    Vertex::new(positions[7], tex_index_arr[1], 0, index),
+                ].to_vec()
+            },
+            BlockSide::LEFT => {
+                [
+                    Vertex::new(positions[0], tex_index_arr[2], 3, index),
+                    Vertex::new(positions[2], tex_index_arr[2], 2, index),
+                    Vertex::new(positions[4], tex_index_arr[2], 1, index),
+                    Vertex::new(positions[6], tex_index_arr[2], 0, index),
+                ].to_vec()
+            },
+            BlockSide::RIGHT => {
+                [
+                    Vertex::new(positions[1], tex_index_arr[3], 1, index),
+                    Vertex::new(positions[3], tex_index_arr[3], 0, index),
+                    Vertex::new(positions[5], tex_index_arr[3], 3, index),
+                    Vertex::new(positions[7], tex_index_arr[3], 2, index),
+                ].to_vec()
+            },
+            BlockSide::TOP => {
+                [
+                    Vertex::new(positions[2], tex_index_arr[4], 1, index),
+                    Vertex::new(positions[3], tex_index_arr[4], 3, index),
+                    Vertex::new(positions[6], tex_index_arr[4], 0, index),
+                    Vertex::new(positions[7], tex_index_arr[4], 2, index),
+                ].to_vec()
+            },
+            BlockSide::BOTTOM => {
+                [
+                    Vertex::new(positions[0], tex_index_arr[5], 0, index),
+                    Vertex::new(positions[1], tex_index_arr[5], 2, index),
+                    Vertex::new(positions[4], tex_index_arr[5], 1, index),
+                    Vertex::new(positions[5], tex_index_arr[5], 3, index),
+                ].to_vec()
+            }
+        }
+    }
+    
+    fn generate_cube_indices_side(side: BlockSide) -> Vec<u32> {
+        match side {
+            BlockSide::FRONT => {
+                [
+                    0,1,3,
+                    0,3,2,
+                ].to_vec()
+            },
+            BlockSide::BACK => {
+                [    
+                    1,0,2,
+                    1,2,3,
+                ].to_vec()
+            },
+            BlockSide::LEFT => {
+                [
+                    2,0,1,
+                    2,1,3,
+                ].to_vec()
+            },
+            BlockSide::RIGHT => {
+                [
+                    0,2,3,
+                    0,3,1,
+                ].to_vec()
+            },
+            BlockSide::TOP => {
+                [
+                    0,2,3,
+                    0,3,1,
+                ].to_vec()
+            },
+            BlockSide::BOTTOM => {
+                [
+                    1,0,2,
+                    1,2,3
+                ].to_vec()
+            }
+        }
     }
 }
 

@@ -17,7 +17,7 @@ use surface_state::SurfaceState;
 use texture_state::TextureState;
 use gpu_data::vertex_gpu_data::VertexGPUData;
 
-use fundamentals::world_position::WorldPosition;
+use fundamentals::{world_position::WorldPosition, enums::block_side::BlockSide};
 use winit::window::Window;
 
 use crate::{texture, camera::CameraController, tasks::Task, voxels::{world::World, chunk::Chunk}};
@@ -159,6 +159,7 @@ impl GPUManager {
         {
             let mut vertex_gpu_data = self.vertex_gpu_data.write().unwrap();
             for (mesh_position, side, side_offset, bucket_position, index_count) in vertex_gpu_data.return_frustum_bucket_data_to_update_and_empty_counts() {
+                //println!("Updating Mesh position {mesh_position} Data on side {side} with {index_count} indices!");
                 self.compute_state.update_frustum_bucket_data(mesh_position, side, side_offset, bucket_position, index_count, &queue);
             }
         }
@@ -233,6 +234,16 @@ impl GPUManager {
             chunk, 
             vertex_gpu_data: self.vertex_gpu_data.clone(),
             queue: self.queue.clone()
+        }
+    }
+
+    pub fn create_generate_chunk_side_mesh_task(&self, chunk_position: WorldPosition, chunk: Arc<RwLock<Chunk>>, side: BlockSide) -> Task {
+        Task::GenerateChunkSideMesh { 
+            chunk_position, 
+            chunk, 
+            vertex_gpu_data: self.vertex_gpu_data.clone(),
+            queue: self.queue.clone(),
+            side
         }
     }
 

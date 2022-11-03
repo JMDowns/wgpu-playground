@@ -1,6 +1,6 @@
 use std::sync::{Arc, RwLock};
 
-use fundamentals::consts::CHUNK_DIMENSION;
+use fundamentals::{consts::CHUNK_DIMENSION, enums::block_side::BlockSide};
 
 use crate::{voxels::chunk::{ChunkBlockIterator, Chunk}, tasks::TaskResult};
 
@@ -19,7 +19,7 @@ impl UpdateYAxisChunkPaddingProcessor {
             }
         }
 
-        TaskResult::UpdateChunkPadding { chunk_positions: vec![chunk_below_position, chunk_above_position] }
+        TaskResult::UpdateChunkPadding { chunk_positions: vec![(chunk_below_position, BlockSide::TOP), (chunk_above_position, BlockSide::BOTTOM)] }
     }
 }
 
@@ -38,7 +38,7 @@ impl UpdateXAxisChunkPaddingProcessor {
             }
         }
 
-        TaskResult::UpdateChunkPadding { chunk_positions: vec![chunk_front_position, chunk_back_position] }
+        TaskResult::UpdateChunkPadding { chunk_positions: vec![(chunk_front_position, BlockSide::BACK), (chunk_back_position, BlockSide::FRONT)] }
     }
 }
 
@@ -57,6 +57,6 @@ impl UpdateZAxisChunkPaddingProcessor {
             }
         }
 
-        TaskResult::UpdateChunkPadding { chunk_positions: vec![chunk_left_position, chunk_right_position] }
+        TaskResult::UpdateChunkPadding { chunk_positions: vec![(chunk_left_position, BlockSide::RIGHT), (chunk_right_position, BlockSide::LEFT)] }
     }
 }

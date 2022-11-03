@@ -1,6 +1,7 @@
 pub mod input_state;
 pub mod flag_state;
 
+use fundamentals::enums::block_side::BlockSide;
 use input_state::InputState;
 use flag_state::FlagState;
 use crate::gpu_manager::GPUManager;
@@ -158,7 +159,6 @@ impl State {
 
         for task_result in task_results.drain(..) {
             match task_result {
-                //TaskResult::Requeue { task } => self.thread_task_manager.push_task(task),
                 TaskResult::GenerateChunk { chunk_position } => {
                     println!("Generated chunk {}!", chunks_generated);
                     chunks_generated += 1;
@@ -267,8 +267,6 @@ impl State {
                         }
                         None => {}
                     }
-                    
-                    
                 },
                 TaskResult::GenerateChunkMesh { } => {
                     println!("Generated mesh {}!", meshes_generated);
@@ -276,10 +274,13 @@ impl State {
                     meshes_generated += 1;
                 }
                 TaskResult::UpdateChunkPadding { chunk_positions } => {
-                    println!("Finished updating padding!");
-                    for chunk_position in chunk_positions {
-                        self.thread_task_manager.push_task(self.gpu_manager.create_generate_chunk_mesh_task(chunk_position, self.world.read().unwrap().get_chunk_at(&chunk_position).unwrap()));
+                    for (chunk_position, side) in chunk_positions {
+                        self.thread_task_manager.push_task(self.gpu_manager.create_generate_chunk_side_mesh_task(chunk_position, self.world.read().unwrap().get_chunk_at(&chunk_position).unwrap(), side));
                     }
+                }
+                TaskResult::UpdateChunkSideMesh {  } => {}
+                TaskResult::Requeue { task } => {
+                    self.thread_task_manager.push_task(task);
                 }
             }
         }

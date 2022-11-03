@@ -24,10 +24,10 @@ fn vs_main(
     model: VertexInput,
 ) -> VertexOutput {
     var out: VertexOutput;
-    let chunk_index = (model.data0 & 33030144u) >> 19u;
-    out.clip_position = camera.view_proj * vec4<f32>(f32((model.data0 & 31u)) + f32(chunkPositions.chunk_positions[3u*chunk_index]*16), f32((model.data0 & 992u) >> 5u) + f32(chunkPositions.chunk_positions[3u*chunk_index+1u]*16), f32((model.data0 & 31744u) >> 10u) + f32(chunkPositions.chunk_positions[3u*chunk_index+2u]*16), 1.0);
-    out.tex_index = (model.data0 & 98304u) >> 15u;
-    let tex_corner_index = (model.data0 & 393216u) >> 17u;
+    let chunk_index = (model.data0 & 2113929216u) >> 25u;
+    out.clip_position = camera.view_proj * vec4<f32>(f32((model.data0 & 127u)) + f32(chunkPositions.chunk_positions[3u*chunk_index]*64), f32((model.data0 & 16256u) >> 7u) + f32(chunkPositions.chunk_positions[3u*chunk_index+1u]*64), f32((model.data0 & 2080768u) >> 14u) + f32(chunkPositions.chunk_positions[3u*chunk_index+2u]*64), 1.0);
+    out.tex_index = (model.data0 & 6291456u) >> 21u;
+    let tex_corner_index = (model.data0 & 25165824u) >> 23u;
     switch tex_corner_index { 
         case 0u: {
             out.tex_coords = vec2<f32>(0.0,0.0); 

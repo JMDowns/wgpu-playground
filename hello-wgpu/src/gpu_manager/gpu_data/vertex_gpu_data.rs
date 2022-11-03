@@ -1,7 +1,7 @@
 use std::{collections::HashMap, num::NonZeroUsize, sync::{Arc, RwLock}};
 use cgmath::Point3;
 use derivables::vertex::Vertex;
-use fundamentals::world_position::WorldPosition;
+use fundamentals::{world_position::WorldPosition, enums::block_side::BlockSide};
 use lru::LruCache;
 use wgpu::{Device, util::DeviceExt, BufferUsages, Queue};
 
@@ -284,14 +284,14 @@ impl VertexGPUData {
             }
         };
         
-        //TODO: Remove logic around getting bucket once bucket requesting is implemented
+        //TODO: Remove logic around getting bucket once bucket requesting is implemented - self.lru_vertex_buffer_bucket_index.get(&bucket);
         if vertex_vec.len() == 0 {
             for (i, bucket) in buckets_to_use.iter().enumerate() {
                 self.lru_vertex_buffer_bucket_index.get(bucket);
             }
         } else {
             if buckets_to_use.len() < vertex_chunks_len {
-                panic!("There are more chunks than buckets to use! Need to implement requesting a bucket.");
+                panic!("There are more chunks than vertex buckets to use! Need to implement requesting a bucket.");
             }
             for (i, vertex_bucket) in vertex_buckets.enumerate() {
                 let bucket = buckets_to_use[i];
@@ -337,13 +337,13 @@ impl VertexGPUData {
 
         if index_vec.len() == 0 {
             for (i, bucket) in buckets_to_use.iter().enumerate() {
-                //queue.read().unwrap().write_buffer(&self.index_pool_buffers[bucket.buffer_number as usize], (bucket.bucket_number as usize * self.index_bucket_size) as u64, bytemuck::cast_slice(&[0]));
+                //Basically free up the index bucket (which frees the bucket pair from vertices indirectly)
                 self.frustum_bucket_data_to_update.push((*mesh_position, side, i as u32, *bucket, 0));
                 self.lru_index_buffer_bucket_index.get(bucket);
             }
         } else {
             if buckets_to_use.len() < index_chunks_len {
-                panic!("There are more chunks than buckets to use! Need to implement requesting a bucket.");
+                panic!("There are more chunks than index buckets to use! Need to implement requesting a bucket.");
             }
             for (i, index_bucket) in index_buckets.enumerate() {
                 let bucket = buckets_to_use[i];
@@ -353,7 +353,7 @@ impl VertexGPUData {
             }
             for i in index_chunks_len..buckets_to_use.len() {
                 let bucket = buckets_to_use[i];
-                //queue.read().unwrap().write_buffer(&self.index_pool_buffers[bucket.buffer_number as usize], (bucket.bucket_number as usize * self.index_bucket_size) as u64, bytemuck::cast_slice(&[0]));
+                //Basically free up the index bucket (which frees the bucket pair from vertices indirectly)
                 self.frustum_bucket_data_to_update.push((*mesh_position, side, i as u32, bucket, 0));
                 self.lru_index_buffer_bucket_index.get(&bucket);
             }
@@ -375,5 +375,50 @@ impl VertexGPUData {
         let bottom_bucket_data_vertices = self.add_vertex_vec(mesh.bottom.0, &queue, 5, mesh_position);
         let bottom_bucket_data_indices = self.add_index_vec_and_update_index_count_vec(mesh.bottom.1, &queue, 5, mesh_position);
         self.pool_position_to_mesh_bucket_data.insert(*mesh_position, MeshBucketData { front_bucket_data_vertices, front_bucket_data_indices, back_bucket_data_vertices, back_bucket_data_indices, left_bucket_data_vertices, left_bucket_data_indices, right_bucket_data_vertices, right_bucket_data_indices, top_bucket_data_vertices, top_bucket_data_indices, bottom_bucket_data_vertices, bottom_bucket_data_indices });
+    }
+
+    pub fn update_side_mesh_data_drain(&mut self, vertex_vec: Vec<Vertex>, index_vec: Vec<u32>, index_count: u32, mesh_position: &WorldPosition, queue: Arc<RwLock<Queue>>, side: BlockSide) {
+        match side {
+            BlockSide::FRONT => {
+                let front_bucket_data_vertices = self.add_vertex_vec(vertex_vec, &queue, 0, mesh_position);
+                let front_bucket_data_indices = self.add_index_vec_and_update_index_count_vec(index_vec, &queue, 0, mesh_position);
+                self.pool_position_to_mesh_bucket_data.get_mut(mesh_position).unwrap().front_bucket_data_vertices = front_bucket_data_vertices;
+                self.pool_position_to_mesh_bucket_data.get_mut(mesh_position).unwrap().front_bucket_data_indices = front_bucket_data_indices;
+            },
+            BlockSide::BACK => {
+                let back_bucket_data_vertices = self.add_vertex_vec(vertex_vec, &queue, 1, mesh_position);
+                let back_bucket_data_indices = self.add_index_vec_and_update_index_count_vec(index_vec, &queue, 1, mesh_position);
+                self.pool_position_to_mesh_bucket_data.get_mut(mesh_position).unwrap().back_bucket_data_vertices = back_bucket_data_vertices;
+                self.pool_position_to_mesh_bucket_data.get_mut(mesh_position).unwrap().back_bucket_data_indices = back_bucket_data_indices;
+            },
+            BlockSide::LEFT => {
+                let left_bucket_data_vertices = self.add_vertex_vec(vertex_vec, &queue, 2, mesh_position);
+                let left_bucket_data_indices = self.add_index_vec_and_update_index_count_vec(index_vec, &queue, 2, mesh_position);
+                self.pool_position_to_mesh_bucket_data.get_mut(mesh_position).unwrap().left_bucket_data_vertices = left_bucket_data_vertices;
+                self.pool_position_to_mesh_bucket_data.get_mut(mesh_position).unwrap().left_bucket_data_indices = left_bucket_data_indices;
+            },
+            BlockSide::RIGHT => {
+                let right_bucket_data_vertices = self.add_vertex_vec(vertex_vec, &queue, 3, mesh_position);
+                let right_bucket_data_indices = self.add_index_vec_and_update_index_count_vec(index_vec, &queue, 3, mesh_position);
+                self.pool_position_to_mesh_bucket_data.get_mut(mesh_position).unwrap().right_bucket_data_vertices = right_bucket_data_vertices;
+                self.pool_position_to_mesh_bucket_data.get_mut(mesh_position).unwrap().right_bucket_data_indices = right_bucket_data_indices;
+            },
+            BlockSide::TOP => {
+                let top_bucket_data_vertices = self.add_vertex_vec(vertex_vec, &queue, 4, mesh_position);
+                let top_bucket_data_indices = self.add_index_vec_and_update_index_count_vec(index_vec, &queue, 4, mesh_position);
+                self.pool_position_to_mesh_bucket_data.get_mut(mesh_position).unwrap().top_bucket_data_vertices = top_bucket_data_vertices;
+                self.pool_position_to_mesh_bucket_data.get_mut(mesh_position).unwrap().top_bucket_data_indices = top_bucket_data_indices;
+            },
+            BlockSide::BOTTOM => {
+                let bottom_bucket_data_vertices = self.add_vertex_vec(vertex_vec, &queue, 5, mesh_position);
+                let bottom_bucket_data_indices = self.add_index_vec_and_update_index_count_vec(index_vec, &queue, 5, mesh_position);
+                self.pool_position_to_mesh_bucket_data.get_mut(mesh_position).unwrap().bottom_bucket_data_vertices = bottom_bucket_data_vertices;
+                self.pool_position_to_mesh_bucket_data.get_mut(mesh_position).unwrap().bottom_bucket_data_indices = bottom_bucket_data_indices;
+            }
+        }
+    }
+
+    pub fn has_meshed_position(&self, mesh_position: &WorldPosition) -> bool {
+        self.pool_position_to_mesh_bucket_data.contains_key(mesh_position)
     }
 }
