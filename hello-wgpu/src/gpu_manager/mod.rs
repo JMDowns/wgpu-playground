@@ -12,6 +12,7 @@ pub mod gpu_data;
 use camera_state::CameraState;
 use compute_state::ComputeState;
 use flag_state::FlagState;
+use log::info;
 use render_state::RenderState;
 use surface_state::SurfaceState;
 use texture_state::TextureState;
@@ -55,11 +56,7 @@ impl GPUManager {
             .request_device(
                 &wgpu::DeviceDescriptor {
                     features: wgpu::Features::POLYGON_MODE_LINE | wgpu::Features::MULTI_DRAW_INDIRECT | wgpu::Features::SAMPLED_TEXTURE_AND_STORAGE_BUFFER_ARRAY_NON_UNIFORM_INDEXING | wgpu::Features::TEXTURE_BINDING_ARRAY,
-                    limits: if cfg!(target_arch = "wasm32") {
-                        wgpu::Limits::downlevel_webgl2_defaults()
-                    } else {
-                        wgpu::Limits::default()
-                    },
+                    limits: wgpu::Limits::default(),
                     label: None,
                 },
                 None,
@@ -159,7 +156,6 @@ impl GPUManager {
         {
             let mut vertex_gpu_data = self.vertex_gpu_data.write().unwrap();
             for (mesh_position, side, side_offset, bucket_position, index_count) in vertex_gpu_data.return_frustum_bucket_data_to_update_and_empty_counts() {
-                //println!("Updating Mesh position {mesh_position} Data on side {side} with {index_count} indices!");
                 self.compute_state.update_frustum_bucket_data(mesh_position, side, side_offset, bucket_position, index_count, &queue);
             }
         }

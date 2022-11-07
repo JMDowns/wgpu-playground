@@ -6,6 +6,11 @@ mod tasks;
 mod thread_task_manager;
 mod gpu_manager;
 
+use std::path::Path;
+
+use fundamentals::loge;
+use log::{LevelFilter, error};
+use log4rs::{append::{file::FileAppender, console::ConsoleAppender}, encode::pattern::PatternEncoder, config::{Appender, Logger, Root}, Config};
 use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop},
@@ -13,40 +18,16 @@ use winit::{
 };
 use state::State;
 
-#[cfg(target_arch = "wasm32")]
-use wasm_bindgen::prelude::*;
-
-#[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 pub async fn run() {
-
-    cfg_if::cfg_if! {
-        if #[cfg(target_arch = "wasm32")] {
-            std::panic::set_hook(Box::new(console_error_panic_hook::hook));
-            console_log::init_with_level(log::Level::Warn).expect("Couldn't initialize logger");
-        } else {
-            env_logger::init();
-        }
-    }
+    fundamentals::logger::CustomLogger::init(fundamentals::logger::LoggerInitArgs {
+        debug_path_string: String::from("debug.log"),
+        info_path_string: String::from("info.log"),
+        warn_path_string: String::from("warn.log"),
+        error_path_string: String::from("error.log"),
+    });
 
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new().build(&event_loop).unwrap();
-
-    #[cfg(target_arch = "wasm32")]
-    {
-        use winit::dpi::PhysicalSize;
-        window.set_inner_size(PhysicalSize::new(450, 400));
-
-        use winit::platform::web::WindowExtWebSys;
-        web_sys::window()
-            .and_then(|win| win.document())
-            .and_then(|doc| {
-                let dst = doc.get_element_by_id("hello-wgpu")?;
-                let canvas = web_sys::Element::from(window.canvas());
-                dst.append_child(&canvas).ok()?;
-                Some(())
-            })
-            .expect("Couldn't append canvas to document body.");
-    }
 
     let mut state = pollster::block_on(State::new(&window));
     let mut last_render_time = instant::Instant::now();
@@ -66,7 +47,6 @@ pub async fn run() {
         } if window_id == window.id() => {
             if !state.input(event) {
                 match event {
-                    #[cfg(not(target_arch="wasm32"))]
                     WindowEvent::CloseRequested
                     | WindowEvent::KeyboardInput {
                         input:
@@ -101,7 +81,9 @@ pub async fn run() {
                     Err(wgpu::SurfaceError::Lost) => state.resize(state.gpu_manager.surface_state.size),
                     //System is out of memory, so we should probably quit
                     Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
-                    Err(e) => eprintln!("{:?}", e),
+                    Err(e) => {
+                        loge!("{:?}", e)
+                    }
                 }
             }
         }

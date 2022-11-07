@@ -2,8 +2,10 @@ pub mod input_state;
 pub mod flag_state;
 
 use fundamentals::enums::block_side::BlockSide;
+use fundamentals::logi;
 use input_state::InputState;
 use flag_state::FlagState;
+use log::info;
 use crate::gpu_manager::GPUManager;
 
 use crate::camera;
@@ -160,7 +162,7 @@ impl State {
         for task_result in task_results.drain(..) {
             match task_result {
                 TaskResult::GenerateChunk { chunk_position } => {
-                    println!("Generated chunk {}!", chunks_generated);
+                    logi!("Generated chunk {}!", chunks_generated);
                     chunks_generated += 1;
                     self.thread_task_manager.push_task(self.gpu_manager.create_generate_chunk_mesh_task(chunk_position, self.world.read().unwrap().get_chunk_at(&chunk_position).unwrap()));
                     
@@ -269,7 +271,7 @@ impl State {
                     }
                 },
                 TaskResult::GenerateChunkMesh { } => {
-                    println!("Generated mesh {}!", meshes_generated);
+                    logi!("Generated mesh {}!", meshes_generated);
                     self.gpu_manager.process_generate_chunk_mesh_task_result();
                     meshes_generated += 1;
                 }
