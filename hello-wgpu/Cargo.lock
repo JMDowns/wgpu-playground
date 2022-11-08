@@ -501,8 +501,6 @@ dependencies = [
  "bytemuck",
  "formats",
  "fundamentals",
- "log",
- "log4rs",
  "num",
  "num-derive",
  "num-traits",
