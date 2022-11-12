@@ -55,6 +55,17 @@ fn build_block_string() -> String {
         "        };",
         "        BLOCK_TYPE_TO_TEXTURE_INDICES.get(&btype).unwrap()",
         "    }",
+        "    pub fn get_texture_indices_from_type(block_type: &BlockType) -> [usize; 6] {",
+        "        *BLOCK_TYPE_TO_TEXTURE_INDICES.get(block_type).unwrap()",
+        "    }",
+        "    pub fn get_texture_indices_from_int(btype: usize) -> [usize; 6] {",
+        format!("        let btype_option = num::FromPrimitive::from_u{}(btype as u{});", num_str, num_str).as_str(),
+        "        let btype = match btype_option {",
+        "           Some(bt) => bt,",
+        "           None => BlockType::AIR",
+        "        };",
+        "        *BLOCK_TYPE_TO_TEXTURE_INDICES.get(&btype).unwrap()",
+        "    }",
         "}",
     ].join("\n")
 }

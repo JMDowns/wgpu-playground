@@ -8,7 +8,7 @@ pub struct GenerateChunkMeshProcessor {}
 impl GenerateChunkMeshProcessor {
     pub fn process_task(chunk_position: &WorldPosition, chunk: Arc<RwLock<Chunk>>, vertex_gpu_data: Arc<RwLock<VertexGPUData>>, queue: Arc<RwLock<wgpu::Queue>>) -> TaskResult {
         let chunk_index = *vertex_gpu_data.read().unwrap().pos_to_gpu_index.get(chunk_position).unwrap() as u32;
-        let mesh = Mesh::cull(&chunk.read().unwrap(), chunk_index);
+        let mesh = Mesh::greedy(&chunk.read().unwrap(), chunk_index);
         vertex_gpu_data.write().unwrap().add_mesh_data_drain(mesh, chunk_position, queue);
         TaskResult::GenerateChunkMesh {  }
     }

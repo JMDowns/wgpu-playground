@@ -17,6 +17,8 @@ bytemuck = { version = "1.12.1", features = [ "derive" ] }
 winit = "0.26"
 log = "0.4.17"
 log4rs = "1.2.0"
+strum = "0.24.1"
+strum_macros = "0.24.1"
 
 [build_dependencies]
 phf_codegen = "0.11"

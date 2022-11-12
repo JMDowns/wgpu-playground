@@ -39,6 +39,8 @@ lru = "0.8.0"
 bitvec = "1.0.1"
 log = "0.4.17"
 log4rs = "1.2.0"
+strum = "0.24.1"
+strum_macros = "0.24.1"
 
 [features]
 no_logging = ["fundamentals/no_logging"]

@@ -5,12 +5,13 @@ use std::io::{BufWriter, Write};
 use std::string::String;
 
 pub const DATA_TOTAL_BITS: u32 = (BITS_PER_POSITION * 3 + BITS_PER_TEX_COORD_X + BITS_PER_TEX_COORD_Y + BITS_PER_AMBIENT_OCCLUSION + BITS_PER_CHUNK_INDEX) as u32;
-pub const VAR_SIZE_LIST: [(&str, u32);6] = [
+pub const VAR_SIZE_LIST: [(&str, u32);7] = [
         ("pos.x", BITS_PER_POSITION),
         ("pos.y", BITS_PER_POSITION),
         ("pos.z", BITS_PER_POSITION),
         ("texture_index", BITS_PER_TEX_COORD_X+BITS_PER_TEX_COORD_Y),
-        ("corner", 2),
+        ("u", BITS_PER_POSITION),
+        ("v", BITS_PER_POSITION),
         ("chunk_index", BITS_PER_CHUNK_INDEX)
     ];
 
@@ -62,7 +63,7 @@ fn build_vertex_new() -> String {
         chunk_index_str = ", _chunk_index: u32";
     }
     [
-        &format!("        pub fn new(pos: WorldPosition, texture_index: usize, corner: u8{chunk_index_str}) -> Self {{"),
+        &format!("        pub fn new(pos: WorldPosition, texture_index: usize, u: u8, v: u8{chunk_index_str}) -> Self {{"),
         "             ",
         "if pos.x > CHUNK_DIMENSION || pos.y > CHUNK_DIMENSION || pos.z > CHUNK_DIMENSION {
             println!(\"Vertex at {} is outside chunk boundaries\", pos);

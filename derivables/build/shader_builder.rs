@@ -55,10 +55,8 @@ build_vs_main_statements().as_str(),
 "",
 "@fragment",
 "fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {",
-"   ",
 "   var tex_color = textureSample(diffuse_texture_array[in.tex_index], sampler_diffuse, in.tex_coords);
     return tex_color;",
-"    ",
 "}",
     ].join("\n")
 }
@@ -115,29 +113,7 @@ fn build_vs_main_statements() -> String {
         chunk_index_statement,
         format!("    out.clip_position = camera.view_proj * vec4<f32>(f32({}) + f32(chunkPositions.chunk_positions[3u*chunk_index]*{CHUNK_DIMENSION}), f32({}) + f32(chunkPositions.chunk_positions[3u*chunk_index+1u]*{CHUNK_DIMENSION}), f32({}) + f32(chunkPositions.chunk_positions[3u*chunk_index+2u]*{CHUNK_DIMENSION}), 1.0);", data_unpack_vec[0], data_unpack_vec[1], data_unpack_vec[2]),
         format!("    out.tex_index = {};", data_unpack_vec[3]),
-        format!("    let tex_corner_index = {};", data_unpack_vec[4]),
-        format!("    switch tex_corner_index {{ 
-        case 0u: {{
-            out.tex_coords = vec2<f32>(0.0,0.0); 
-            break;
-        }}
-        case 1u: {{
-            out.tex_coords = vec2<f32>(0.0,1.0); 
-            break;
-        }}
-        case 2u: {{
-            out.tex_coords = vec2<f32>(1.0,0.0); 
-            break;
-        }}
-        case 3u: {{
-            out.tex_coords = vec2<f32>(1.0,1.0); 
-            break;
-        }}
-        default: {{
-            out.tex_coords = vec2<f32>(0.0,0.0); 
-            break;
-        }}
-    }};"),
+        format!("    out.tex_coords = vec2<f32>(f32({}), f32({}));", data_unpack_vec[4], data_unpack_vec[5])
     ].join("\n")
 }
 
