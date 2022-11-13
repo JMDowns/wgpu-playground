@@ -257,26 +257,7 @@ impl Mesh {
                             before_index += 1;
                             current_index += 1;
                         } else {
-                            let (before_boundary, current_boundary) = match side {
-                                BlockSide::FRONT => {
-                                    (before_face.ul.1, current_face.ul.1)
-                                }
-                                BlockSide::BACK => {
-                                    (before_face.ul.1, current_face.ul.1)
-                                }
-                                BlockSide::LEFT => {
-                                    (before_face.ul.0, current_face.ul.0)
-                                }
-                                BlockSide::RIGHT => {
-                                    (before_face.ur.0, current_face.ur.0)
-                                }
-                                BlockSide::TOP => {
-                                    (before_face.ur.0, current_face.ur.0)
-                                }
-                                BlockSide::BOTTOM => {
-                                    (before_face.ur.0, current_face.ur.0)
-                                }
-                            };
+                            let (before_boundary, current_boundary) = (Self::get_boundary_from_face(&before_face), Self::get_boundary_from_face(&current_face));
                             if before_boundary == current_boundary {
                                 faces_to_make.push(before_layer[layer_index][before_index]);
                                 before_index += 1;
