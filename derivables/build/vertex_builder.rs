@@ -4,7 +4,6 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::string::String;
 
-pub const DATA_TOTAL_BITS: u32 = (BITS_PER_POSITION * 3 + BITS_PER_TEX_COORD_X + BITS_PER_TEX_COORD_Y + BITS_PER_AMBIENT_OCCLUSION + BITS_PER_CHUNK_INDEX) as u32;
 pub const VAR_SIZE_LIST: [(&str, u32);7] = [
         ("pos.x", BITS_PER_POSITION),
         ("pos.y", BITS_PER_POSITION),
@@ -14,6 +13,19 @@ pub const VAR_SIZE_LIST: [(&str, u32);7] = [
         ("v", BITS_PER_POSITION),
         ("chunk_index", BITS_PER_CHUNK_INDEX)
     ];
+
+const fn get_data_total_bits() -> u32 {
+    let mut index = 0;
+    let mut sum = 0;
+    while index < VAR_SIZE_LIST.len() {
+        sum += VAR_SIZE_LIST[index].1;
+        index += 1;
+    }
+
+    sum
+}
+
+pub const DATA_TOTAL_BITS: u32 = get_data_total_bits();
 
 pub fn return_size_of_vertex_in_bytes() -> usize{
    ((DATA_TOTAL_BITS as f32 / 32.0).ceil() * 4.0) as usize

@@ -191,8 +191,63 @@ impl Mesh {
         (mesh_side_vertices, mesh_side_indices, mesh_side_indices_count)
     }
 
+    fn greedy_merge_and_modify_vecs(current_layer: &mut Vec<Vec<Face>>, before_layer: &mut Vec<Vec<Face>>, faces_to_make: &mut Vec<Face>, side: BlockSide) {
+        for x in 0..CHUNK_DIMENSION as usize {
+            match (before_layer[x].len(), front_faces_yz_slices_index_x[x].len()) {
+                (0, _) => {
+                    before_layer[x].extend(front_faces_yz_slices_index_x[x].drain(..));
+                }
+                (_, 0) => {
+                    for face in before_layer[x].drain(..) {
+                        faces_to_make.push(face);
+                    }
+                }
+                (before_len, current_len) => {
+                    let mut before_index = 0;
+                    let mut current_index = 0;
+
+                    while (before_index < before_len && current_index < current_len) {
+                        let before_face = before_layer[x][before_index];
+                        let current_face = front_faces_yz_slices_index_x[x][current_index];
+                        if let Some(merged_face) = before_face.merge_right(&current_face) {
+                            front_faces_yz_slices_index_x[x][current_index] = merged_face;
+                            before_index = before_index + 1;
+                            current_index = current_index + 1;
+                        } else {
+                            if before_face.ul.1 == current_face.ul.1 {
+                                faces_to_make.push(before_layer[x][before_index]);
+                                before_index += 1;
+                                current_index += 1;
+                            } else if before_face.ul.1 < current_face.ul.1 {
+                                while (before_index < before_len && before_layer[x][before_index].ul.1 < current_face.ul.1) {
+                                    faces_to_make.push(before_layer[x][before_index]);
+                                    before_index += 1;
+                                }
+                            } else if before_face.ul.1 > current_face.ul.1 {
+                                while (current_index < current_len && front_faces_yz_slices_index_x[x][current_index].ul.1 < before_face.ul.1) {
+                                    current_index += 1;
+                                }
+                                if current_index == current_len {
+                                    faces_to_make.push(before_layer[x][before_index]);
+                                    before_index += 1;
+                                }
+                            }
+                        }
+                    }
+
+                    for i in before_index..before_len {
+                        faces_to_make.push(before_layer[x][i]);
+                    }
+
+                    before_layer[x].clear();
+                    before_layer[x].extend(front_faces_yz_slices_index_x[x].drain(..));
+                }
+            }
+        }
+    }
+
     fn get_boundary_from_face(face: &Face) -> usize {
-        match face.block_side {
+        match side {
             BlockSide::FRONT => {
                 face.ul.1
             }
@@ -282,12 +337,12 @@ impl Mesh {
                                 before_index += 1;
                                 current_index += 1;
                             } else if before_boundary < current_boundary {
-                                while (before_index < before_len && Self::get_boundary_from_face(&before_layer[layer_index][before_index]) < current_boundary) {
+                                while (before_index < before_len && get_boundary_from_face(before_layer[layer_index][before_index]) < current_boundary) {
                                     faces_to_make.push(before_layer[layer_index][before_index]);
                                     before_index += 1;
                                 }
                             } else if before_boundary > current_boundary {
-                                while (current_index < current_len && Self::get_boundary_from_face(&current_layer[layer_index][current_index]) < before_boundary) {
+                                while (current_index < current_len && get_boundary_from_face(current_layer[layer_index][current_index]) < before_boundary) {
                                     current_index += 1;
                                 }
                                 if current_index == current_len {
@@ -329,6 +384,7 @@ impl Mesh {
                 Self::greedy_merge_and_modify_vecs(&mut side_layers[BlockSide::RIGHT as usize], &mut side_before_layers[BlockSide::RIGHT as usize], &mut faces_to_make, BlockSide::RIGHT);
             }
             if current_z < k-1 {
+                if (merged_front == 6 || merged_front == 7 || merged_front == 8) {
                 Self::greedy_merge_and_modify_vecs(&mut side_layers[BlockSide::FRONT as usize], &mut side_before_layers[BlockSide::FRONT as usize], &mut faces_to_make, BlockSide::FRONT);
                 Self::greedy_merge_and_modify_vecs(&mut side_layers[BlockSide::BACK as usize], &mut side_before_layers[BlockSide::BACK as usize], &mut faces_to_make, BlockSide::BACK);
                 Self::greedy_merge_and_modify_vecs(&mut side_layers[BlockSide::TOP as usize], &mut side_before_layers[BlockSide::TOP as usize], &mut faces_to_make, BlockSide::TOP);
