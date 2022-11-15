@@ -1,7 +1,7 @@
 use std::{collections::HashMap, num::NonZeroUsize, sync::{Arc, RwLock}};
 use cgmath::Point3;
 use derivables::vertex::Vertex;
-use fundamentals::{world_position::WorldPosition, enums::block_side::BlockSide};
+use fundamentals::{world_position::WorldPosition, enums::block_side::BlockSide, logi};
 use lru::LruCache;
 use wgpu::{Device, util::DeviceExt, BufferUsages, Queue};
 
@@ -263,7 +263,7 @@ impl VertexGPUData {
         let mut lru_buckets = Vec::new();
         let buckets_to_use = match self.pool_position_to_mesh_bucket_data.get(mesh_position) {
             Some(mesh_bucket_data) => {
-                let buckets = match side {
+                match side {
                     0 => &mesh_bucket_data.front_bucket_data_vertices,
                     1 => &mesh_bucket_data.back_bucket_data_vertices,
                     2 => &mesh_bucket_data.left_bucket_data_vertices,
@@ -271,8 +271,7 @@ impl VertexGPUData {
                     4 => &mesh_bucket_data.top_bucket_data_vertices,
                     5 => &mesh_bucket_data.bottom_bucket_data_vertices,
                     _ => panic!("Invalid side called: {}", side)
-                };
-                return buckets.to_vec();
+                }
             },
             None => {
                 for _ in 0..vertex_chunks_len {

@@ -1,5 +1,5 @@
 use derivables::{vertex::Vertex, block::Block};
-use fundamentals::{world_position::WorldPosition, enums::{block_side::BlockSide, block_type::BlockType}, consts::CHUNK_DIMENSION};
+use fundamentals::{world_position::WorldPosition, enums::{block_side::BlockSide, block_type::BlockType}, consts::{CHUNK_DIMENSION, NUM_VERTICES_IN_BUCKET}};
 use super::chunk::{Chunk, ChunkBlockIterator};
 
 use strum::IntoEnumIterator;
@@ -176,14 +176,17 @@ impl Mesh {
         let mut mesh_side_indices = Vec::new();
         let mut mesh_side_indices_count = 0;
 
+        let mut num_faces_generated = 0;
+
         let mut cbi = ChunkBlockIterator::new(chunk);
 
         while let Some(((i,j,k), block)) = cbi.get_next_block() {
             if !Mesh::is_adjacent_blocks_solid_side(chunk, i, j, k, side) {
                 mesh_side_vertices.append(&mut Self::generate_cube_side(WorldPosition::new(i as i32-1,j as i32-1,k as i32-1), block.get_texture_indices(), index, side));
-                let mut index_vec = Self::generate_cube_indices_side(side);
+                let mut index_vec = Self::generate_cube_indices_side(side, num_faces_generated);
                 mesh_side_indices_count += index_vec.len() as u32;
                 mesh_side_indices.append(&mut index_vec);
+                num_faces_generated += 1;
             }
             
         }
@@ -662,42 +665,42 @@ impl Mesh {
         }
     }
     
-    fn generate_cube_indices_side(side: BlockSide) -> Vec<u32> {
+    fn generate_cube_indices_side(side: BlockSide, num_faces_generated: u32) -> Vec<u32> {
         match side {
             BlockSide::FRONT => {
                 [
-                    0,1,3,
-                    0,3,2,
+                    (0+4*num_faces_generated)%NUM_VERTICES_IN_BUCKET,(1+4*num_faces_generated)%NUM_VERTICES_IN_BUCKET,(3+4*num_faces_generated)%NUM_VERTICES_IN_BUCKET,
+                    (0+4*num_faces_generated)%NUM_VERTICES_IN_BUCKET,(3+4*num_faces_generated)%NUM_VERTICES_IN_BUCKET,(2+4*num_faces_generated)%NUM_VERTICES_IN_BUCKET,
                 ].to_vec()
             },
             BlockSide::BACK => {
                 [    
-                    1,0,2,
-                    1,2,3,
+                    (1+4*num_faces_generated)%NUM_VERTICES_IN_BUCKET,(0+4*num_faces_generated)%NUM_VERTICES_IN_BUCKET,(2+4*num_faces_generated)%NUM_VERTICES_IN_BUCKET,
+                    (1+4*num_faces_generated)%NUM_VERTICES_IN_BUCKET,(2+4*num_faces_generated)%NUM_VERTICES_IN_BUCKET,(3+4*num_faces_generated)%NUM_VERTICES_IN_BUCKET,
                 ].to_vec()
             },
             BlockSide::LEFT => {
                 [
-                    2,0,1,
-                    2,1,3,
+                    (2+4*num_faces_generated)%NUM_VERTICES_IN_BUCKET,(0+4*num_faces_generated)%NUM_VERTICES_IN_BUCKET,(1+4*num_faces_generated)%NUM_VERTICES_IN_BUCKET,
+                    (2+4*num_faces_generated)%NUM_VERTICES_IN_BUCKET,(1+4*num_faces_generated)%NUM_VERTICES_IN_BUCKET,(3+4*num_faces_generated)%NUM_VERTICES_IN_BUCKET,
                 ].to_vec()
             },
             BlockSide::RIGHT => {
                 [
-                    0,2,3,
-                    0,3,1,
+                    (0+4*num_faces_generated)%NUM_VERTICES_IN_BUCKET,(2+4*num_faces_generated)%NUM_VERTICES_IN_BUCKET,(3+4*num_faces_generated)%NUM_VERTICES_IN_BUCKET,
+                    (0+4*num_faces_generated)%NUM_VERTICES_IN_BUCKET,(3+4*num_faces_generated)%NUM_VERTICES_IN_BUCKET,(1+4*num_faces_generated)%NUM_VERTICES_IN_BUCKET,
                 ].to_vec()
             },
             BlockSide::TOP => {
                 [
-                    0,2,3,
-                    0,3,1,
+                    (0+4*num_faces_generated)%NUM_VERTICES_IN_BUCKET,(1+4*num_faces_generated)%NUM_VERTICES_IN_BUCKET,(3+4*num_faces_generated)%NUM_VERTICES_IN_BUCKET,
+                    (0+4*num_faces_generated)%NUM_VERTICES_IN_BUCKET,(3+4*num_faces_generated)%NUM_VERTICES_IN_BUCKET,(2+4*num_faces_generated)%NUM_VERTICES_IN_BUCKET,
                 ].to_vec()
             },
             BlockSide::BOTTOM => {
                 [
-                    1,0,2,
-                    1,2,3
+                    (1+4*num_faces_generated)%NUM_VERTICES_IN_BUCKET,(0+4*num_faces_generated)%NUM_VERTICES_IN_BUCKET,(2+4*num_faces_generated)%NUM_VERTICES_IN_BUCKET,
+                    (1+4*num_faces_generated)%NUM_VERTICES_IN_BUCKET,(2+4*num_faces_generated)%NUM_VERTICES_IN_BUCKET,(3+4*num_faces_generated)%NUM_VERTICES_IN_BUCKET
                 ].to_vec()
             }
         }
