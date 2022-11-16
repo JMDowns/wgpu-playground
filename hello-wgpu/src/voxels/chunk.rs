@@ -64,7 +64,7 @@ impl Chunk {
             for j in 0..CHUNK_DIMENSION as i32 {
                 for i in 0..CHUNK_DIMENSION as i32 {
                     let bposition = WorldPosition::new(i + CHUNK_DIMENSION*position.x, j + CHUNK_DIMENSION*position.y, k + CHUNK_DIMENSION*position.z);
-                    let perlin_sample = perlin.get(bposition.to_perlin_pos(0.1));
+                    let perlin_sample = perlin.get(bposition.to_perlin_pos(0.01));
                     if perlin_sample < -0.2 || perlin_sample > 0.2 {
                         cci.push_block_type(num::FromPrimitive::from_u8(fastrand::u8(1..NUM_BLOCK_TYPES as u8)).unwrap());
                         //cci.push_block_type(BlockType::WOOD);

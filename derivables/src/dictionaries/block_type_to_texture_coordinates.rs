@@ -6,6 +6,7 @@ pub static BLOCK_TYPE_TO_TEXTURE_INDICES: phf::Map<BlockType, [usize; 6]> =
         (0, 0),
     ],
     entries: &[
+        (BlockType::DIRT, [1, 1, 1, 1, 1, 1]),
         (BlockType::WOOD, [0, 0, 0, 0, 0, 0]),
     ],
 };

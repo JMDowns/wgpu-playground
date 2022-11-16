@@ -9,5 +9,16 @@
             "top": "wooden-plank.png",
             "bottom": "wooden-plank.png"
         }
+    },
+    {
+        "block_type": "DIRT",
+        "texture": {
+            "front": "dirt.png",
+            "back": "dirt.png",
+            "left": "dirt.png",
+            "right": "dirt.png",
+            "top": "dirt.png",
+            "bottom": "dirt.png"
+        }
     }
 ]

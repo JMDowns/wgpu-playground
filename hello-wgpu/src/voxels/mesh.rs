@@ -171,27 +171,31 @@ impl Mesh {
         mesh
     }
 
-    pub fn cull_side(chunk: &Chunk, index: u32, side: BlockSide) -> (Vec<Vertex>, Vec<u32>, u32) {
-        let mut mesh_side_vertices = Vec::new();
-        let mut mesh_side_indices = Vec::new();
-        let mut mesh_side_indices_count = 0;
+    pub fn cull_side(chunk: &Chunk, index: u32, sides: Vec<BlockSide>) -> Self {
+        let mut mesh = Mesh::new();
+
+        let mut vertex_arr = [Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new()];
+        let mut index_arr = [Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new()];
 
         let mut num_faces_generated = 0;
 
         let mut cbi = ChunkBlockIterator::new(chunk);
 
         while let Some(((i,j,k), block)) = cbi.get_next_block() {
-            if !Mesh::is_adjacent_blocks_solid_side(chunk, i, j, k, side) {
-                mesh_side_vertices.append(&mut Self::generate_cube_side(WorldPosition::new(i as i32-1,j as i32-1,k as i32-1), block.get_texture_indices(), index, side));
-                let mut index_vec = Self::generate_cube_indices_side(side, num_faces_generated);
-                mesh_side_indices_count += index_vec.len() as u32;
-                mesh_side_indices.append(&mut index_vec);
-                num_faces_generated += 1;
+            for side in sides.iter() {
+                if !Mesh::is_adjacent_blocks_solid_side(chunk, i, j, k, *side) {
+                    vertex_arr[*side as usize].append(&mut Self::generate_cube_side(WorldPosition::new(i as i32-1,j as i32-1,k as i32-1), block.get_texture_indices(), index, *side));
+                    index_arr[*side as usize].append(&mut Self::generate_cube_indices_side(*side, num_faces_generated));
+                    num_faces_generated += 1;
+                }
             }
+            
             
         }
 
-        (mesh_side_vertices, mesh_side_indices, mesh_side_indices_count)
+        mesh.add_vertices(vertex_arr, index_arr);
+
+        mesh
     }
 
     fn get_boundary_from_face(face: &Face) -> usize {
@@ -295,6 +299,10 @@ impl Mesh {
     }
 
     pub fn greedy(chunk: &Chunk, index: u32) -> Self {
+        Self::greedy_sided(chunk, index, vec![BlockSide::FRONT, BlockSide::BACK, BlockSide::LEFT, BlockSide::RIGHT, BlockSide::TOP, BlockSide::BOTTOM])
+    }
+
+    pub fn greedy_sided(chunk: &Chunk, index: u32, sides: Vec<BlockSide>) -> Self {
         let mut mesh = Mesh::new();
         let mut cbi = ChunkBlockIterator::new(chunk);
 
@@ -307,88 +315,119 @@ impl Mesh {
         let mut current_y = 0;
         let mut current_z = 0;
 
+        let contains_front = sides.contains(&BlockSide::FRONT);
+        let contains_back = sides.contains(&BlockSide::BACK);
+        let contains_left = sides.contains(&BlockSide::LEFT);
+        let contains_right = sides.contains(&BlockSide::RIGHT);
+        let contains_top = sides.contains(&BlockSide::TOP);
+        let contains_bottom = sides.contains(&BlockSide::BOTTOM);
+
         while let Some(((i,j,k), block)) = cbi.get_next_block() {
             if current_y < j-1 {
-                Self::greedy_merge_and_modify_vecs(&mut side_layers[BlockSide::LEFT as usize], &mut side_before_layers[BlockSide::LEFT as usize], &mut faces_to_make, BlockSide::LEFT);
-                Self::greedy_merge_and_modify_vecs(&mut side_layers[BlockSide::RIGHT as usize], &mut side_before_layers[BlockSide::RIGHT as usize], &mut faces_to_make, BlockSide::RIGHT);
+                if contains_left {
+                    Self::greedy_merge_and_modify_vecs(&mut side_layers[BlockSide::LEFT as usize], &mut side_before_layers[BlockSide::LEFT as usize], &mut faces_to_make, BlockSide::LEFT);
+                }
+                if contains_right {
+                    Self::greedy_merge_and_modify_vecs(&mut side_layers[BlockSide::RIGHT as usize], &mut side_before_layers[BlockSide::RIGHT as usize], &mut faces_to_make, BlockSide::RIGHT);
+                }
             }
             if current_z < k-1 {
-                Self::greedy_merge_and_modify_vecs(&mut side_layers[BlockSide::FRONT as usize], &mut side_before_layers[BlockSide::FRONT as usize], &mut faces_to_make, BlockSide::FRONT);
-                Self::greedy_merge_and_modify_vecs(&mut side_layers[BlockSide::BACK as usize], &mut side_before_layers[BlockSide::BACK as usize], &mut faces_to_make, BlockSide::BACK);
-                Self::greedy_merge_and_modify_vecs(&mut side_layers[BlockSide::TOP as usize], &mut side_before_layers[BlockSide::TOP as usize], &mut faces_to_make, BlockSide::TOP);
-                Self::greedy_merge_and_modify_vecs(&mut side_layers[BlockSide::BOTTOM as usize], &mut side_before_layers[BlockSide::BOTTOM as usize], &mut faces_to_make, BlockSide::BOTTOM);
+                if contains_front {
+                    Self::greedy_merge_and_modify_vecs(&mut side_layers[BlockSide::FRONT as usize], &mut side_before_layers[BlockSide::FRONT as usize], &mut faces_to_make, BlockSide::FRONT);
+                }
+                if contains_back {
+                    Self::greedy_merge_and_modify_vecs(&mut side_layers[BlockSide::BACK as usize], &mut side_before_layers[BlockSide::BACK as usize], &mut faces_to_make, BlockSide::BACK);
+                }
+                if contains_top {
+                    Self::greedy_merge_and_modify_vecs(&mut side_layers[BlockSide::TOP as usize], &mut side_before_layers[BlockSide::TOP as usize], &mut faces_to_make, BlockSide::TOP);
+                }
+                if contains_bottom {
+                    Self::greedy_merge_and_modify_vecs(&mut side_layers[BlockSide::BOTTOM as usize], &mut side_before_layers[BlockSide::BOTTOM as usize], &mut faces_to_make, BlockSide::BOTTOM);
+                }
             }
             current_x = i-1;
             current_y = j-1;
             current_z = k-1;
             let adjacent_blocks_data = Self::generate_adjacent_blocks(&chunk, i, j, k);
 
-            for side in BlockSide::iter() {
-                if !adjacent_blocks_data[side as usize] {
-                    let side_face = Face::new(current_x,current_y,current_z, block.block_type as usize, side);
+            for side in sides.iter() {
+                if !adjacent_blocks_data[*side as usize] {
+                    let side_face = Face::new(current_x,current_y,current_z, block.block_type as usize, *side);
                     let orientation_index = match side {
-                        BlockSide::FRONT => {
+                        &BlockSide::FRONT => {
                             current_x
                         }
-                        BlockSide::BACK => {
+                        &BlockSide::BACK => {
                             current_x                            
                         }
-                        BlockSide::LEFT => {
+                        &BlockSide::LEFT => {
                             current_z
                         }
-                        BlockSide::RIGHT => {
+                        &BlockSide::RIGHT => {
                             current_z
                         }
-                        BlockSide::TOP => {
+                        &BlockSide::TOP => {
                             current_y
                         }
-                        BlockSide::BOTTOM => {
+                        &BlockSide::BOTTOM => {
                             current_y
                         }
                     };
-                    match side_layers[side as usize][orientation_index].last() {
+                    match side_layers[*side as usize][orientation_index].last() {
                         Some(face) => {
                             let merged_option = match side {
-                                BlockSide::FRONT => {
+                                &BlockSide::FRONT => {
                                     face.merge_up(&side_face)
                                 }
-                                BlockSide::BACK => {
+                                &BlockSide::BACK => {
                                     face.merge_up(&side_face)
                                 }
-                                BlockSide::LEFT => {
+                                &BlockSide::LEFT => {
                                     face.merge_left(&side_face)
                                 }
-                                BlockSide::RIGHT => {
+                                &BlockSide::RIGHT => {
                                     face.merge_right(&side_face)
                                 }
-                                BlockSide::TOP => {
+                                &BlockSide::TOP => {
                                     face.merge_up(&side_face)
                                 }
-                                BlockSide::BOTTOM => {
+                                &BlockSide::BOTTOM => {
                                     face.merge_up(&side_face)
                                 }
                             };
                             if let Some(merged_face) = merged_option {
-                                side_layers[side as usize][orientation_index].pop();
-                                side_layers[side as usize][orientation_index].push(merged_face);
+                                side_layers[*side as usize][orientation_index].pop();
+                                side_layers[*side as usize][orientation_index].push(merged_face);
                             } else {
-                                side_layers[side as usize][orientation_index].push(side_face);
+                                side_layers[*side as usize][orientation_index].push(side_face);
                             }
                         },
                         None => {
-                            side_layers[side as usize][orientation_index].push(side_face);
+                            side_layers[*side as usize][orientation_index].push(side_face);
                         }
                     }
                 }
             }
         }
 
-        Self::greedy_merge_and_modify_vecs(&mut side_layers[BlockSide::FRONT as usize], &mut side_before_layers[BlockSide::FRONT as usize], &mut faces_to_make, BlockSide::FRONT);
-        Self::greedy_merge_and_modify_vecs(&mut side_layers[BlockSide::BACK as usize], &mut side_before_layers[BlockSide::BACK as usize], &mut faces_to_make, BlockSide::BACK);
-        Self::greedy_merge_and_modify_vecs(&mut side_layers[BlockSide::LEFT as usize], &mut side_before_layers[BlockSide::LEFT as usize], &mut faces_to_make, BlockSide::LEFT);
-        Self::greedy_merge_and_modify_vecs(&mut side_layers[BlockSide::RIGHT as usize], &mut side_before_layers[BlockSide::RIGHT as usize], &mut faces_to_make, BlockSide::RIGHT);
-        Self::greedy_merge_and_modify_vecs(&mut side_layers[BlockSide::TOP as usize], &mut side_before_layers[BlockSide::TOP as usize], &mut faces_to_make, BlockSide::TOP);
-        Self::greedy_merge_and_modify_vecs(&mut side_layers[BlockSide::BOTTOM as usize], &mut side_before_layers[BlockSide::BOTTOM as usize], &mut faces_to_make, BlockSide::BOTTOM);
+        if contains_front {
+            Self::greedy_merge_and_modify_vecs(&mut side_layers[BlockSide::FRONT as usize], &mut side_before_layers[BlockSide::FRONT as usize], &mut faces_to_make, BlockSide::FRONT);
+        }
+        if contains_back {
+            Self::greedy_merge_and_modify_vecs(&mut side_layers[BlockSide::BACK as usize], &mut side_before_layers[BlockSide::BACK as usize], &mut faces_to_make, BlockSide::BACK);
+        }
+        if contains_left {
+            Self::greedy_merge_and_modify_vecs(&mut side_layers[BlockSide::LEFT as usize], &mut side_before_layers[BlockSide::LEFT as usize], &mut faces_to_make, BlockSide::LEFT);
+        }
+        if contains_right {
+            Self::greedy_merge_and_modify_vecs(&mut side_layers[BlockSide::RIGHT as usize], &mut side_before_layers[BlockSide::RIGHT as usize], &mut faces_to_make, BlockSide::RIGHT);
+        }
+        if contains_top {
+            Self::greedy_merge_and_modify_vecs(&mut side_layers[BlockSide::TOP as usize], &mut side_before_layers[BlockSide::TOP as usize], &mut faces_to_make, BlockSide::TOP);
+        }
+        if contains_bottom {
+            Self::greedy_merge_and_modify_vecs(&mut side_layers[BlockSide::BOTTOM as usize], &mut side_before_layers[BlockSide::BOTTOM as usize], &mut faces_to_make, BlockSide::BOTTOM);
+        }
 
         for i in 0..6 {
             for face_vec in side_before_layers[i].iter() {

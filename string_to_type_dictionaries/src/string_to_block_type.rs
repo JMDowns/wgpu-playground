@@ -6,6 +6,7 @@ pub static STRING_TO_BLOCK_TYPE: phf::Map<&str, BlockType> =
         (0, 0),
     ],
     entries: &[
+        ("DIRT", BlockType::DIRT,),
         ("WOOD", BlockType::WOOD,),
     ],
 };
