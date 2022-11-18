@@ -15,8 +15,8 @@ if pos.x > CHUNK_DIMENSION || pos.y > CHUNK_DIMENSION || pos.z > CHUNK_DIMENSION
             data0 = data0 | (pos.y as u32) << 5;
             data0 = data0 | (pos.z as u32) << 10;
             data0 = data0 | (texture_index as u32) << 15;
-            data0 = data0 | (u as u32) << 19;
-            data0 = data0 | (v as u32) << 24;
+            data0 = data0 | (u as u32) << 17;
+            data0 = data0 | (v as u32) << 22;
             Vertex{ data0 }
         }
         pub fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {

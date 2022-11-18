@@ -1,7 +1,7 @@
 use crate::world_position::WorldPosition;
 use winit::event::VirtualKeyCode;
 
-pub const NUM_BLOCK_TYPES: u16 = 3;
+pub const NUM_BLOCK_TYPES: u16 = 2;
 pub const NUM_ADDITIONAL_THREADS: usize = 15;
 pub const RENDER_DISTANCE: usize = 0;
 pub const FOV_DISTANCE: usize = 0;
@@ -13,11 +13,11 @@ pub const CHUNK_PLANE_SIZE_WRAPPED: usize = 324;
 pub const CHUNK_SIZE_WRAPPED: usize = 5832;
 pub const BITS_PER_POSITION: u32 = 5;
 pub const TEXTURE_DIMENSION: u32 = 16;
-pub const NUM_TEXTURES: usize = 2;
-pub const TEX_MAX_X: u32 = 2;
-pub const TEX_MAX_Y: u32 = 2;
-pub const BITS_PER_TEX_COORD_X: u32 = 2;
-pub const BITS_PER_TEX_COORD_Y: u32 = 2;
+pub const NUM_TEXTURES: usize = 1;
+pub const TEX_MAX_X: u32 = 1;
+pub const TEX_MAX_Y: u32 = 1;
+pub const BITS_PER_TEX_COORD_X: u32 = 1;
+pub const BITS_PER_TEX_COORD_Y: u32 = 1;
 pub const BITS_PER_AMBIENT_OCCLUSION: u32 = 2;
 pub const NUMBER_OF_CHUNKS_AROUND_PLAYER: u32 = 1;
 pub const NUMBER_OF_CHUNKS_TO_RENDER: u32 = 1;

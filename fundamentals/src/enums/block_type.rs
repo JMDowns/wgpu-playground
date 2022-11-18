@@ -6,7 +6,6 @@ use core::hash::{Hash, Hasher};
 pub enum BlockType {
 	AIR = 0,
 	WOOD,
-	DIRT,
 }
 pub type BlockTypeSize = u8;
 impl BlockType {
@@ -15,7 +14,7 @@ impl BlockType {
         btype_option.unwrap()
     }
    pub fn get_random_type() -> Self {
-       num::FromPrimitive::from_u8(fastrand::u8(1..3)).unwrap()
+       num::FromPrimitive::from_u8(fastrand::u8(1..2)).unwrap()
    }
 }
 impl phf_shared::FmtConst for BlockType {

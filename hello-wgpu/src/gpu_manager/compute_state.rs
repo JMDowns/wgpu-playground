@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use bytemuck::{Zeroable, Pod};
 use cgmath::Point3;
+use fundamentals::enums::block_side::BlockSide;
 use fundamentals::world_position::WorldPosition;
 use wgpu::{Device, Buffer, util::DeviceExt};
 
@@ -133,9 +134,9 @@ impl ComputeState {
         }
     }
 
-    pub fn update_frustum_bucket_data(&mut self, mesh_position: WorldPosition, side: u32, side_offset: u32, bucket_position: BucketPosition, index_count: i32, queue: &wgpu::Queue) {
+    pub fn update_frustum_bucket_data(&mut self, mesh_position: WorldPosition, side: BlockSide, side_offset: u32, bucket_position: BucketPosition, index_count: i32, queue: &wgpu::Queue) {
         let data_beginning_offset = *self.world_position_to_compute_data_offset.get(&mesh_position).unwrap();
-        let offset = (data_beginning_offset as usize + std::mem::size_of::<WorldPosition>() + std::mem::size_of::<FrustumBucketData>() * (side * fundamentals::consts::NUM_BUCKETS_PER_SIDE + side_offset) as usize) as u64;
+        let offset = (data_beginning_offset as usize + std::mem::size_of::<WorldPosition>() + std::mem::size_of::<FrustumBucketData>() * (side as u32 * fundamentals::consts::NUM_BUCKETS_PER_SIDE + side_offset) as usize) as u64;
         queue.write_buffer(&self.compute_bucket_data_buffer, offset, bytemuck::cast_slice(&[bucket_position.buffer_number, bucket_position.bucket_number, index_count, side as i32]));
     }
 }

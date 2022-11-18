@@ -20,7 +20,6 @@ writeln!(
 	"use fundamentals::enums::block_type::BlockType;\npub static STRING_TO_BLOCK_TYPE: phf::Map<&str, BlockType> = \n{};\n",
 	phf_codegen::Map::new()
 		.entry("WOOD", "BlockType::WOOD,")
-		.entry("DIRT", "BlockType::DIRT,")
 		.build()
 	).unwrap();
 writeln!(
@@ -28,7 +27,6 @@ writeln!(
 	"pub static STRING_TO_TEXTURE_INDICES: phf::Map<&str, [usize; 6]> = \n{};\n",
 	phf_codegen::Map::new()
 		.entry("WOOD", "[0, 0, 0, 0, 0, 0]")
-		.entry("DIRT", "[1, 1, 1, 1, 1, 1]")
 		.build()
 	).unwrap();
 }

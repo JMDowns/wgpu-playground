@@ -50,7 +50,7 @@ pub struct VertexGPUData {
     pub number_of_buckets_in_last_buffer: usize,
     pub vertex_bucket_size: usize,
     pub index_bucket_size: usize,
-    pub frustum_bucket_data_to_update: Vec<(WorldPosition, u32, u32, BucketPosition, i32)>
+    pub frustum_bucket_data_to_update: Vec<(WorldPosition, BlockSide, u32, BucketPosition, i32)>
 }
 
 impl VertexGPUData {
@@ -250,11 +250,11 @@ impl VertexGPUData {
         }
     }
 
-    pub fn return_frustum_bucket_data_to_update_and_empty_counts(&mut self) -> Vec<(WorldPosition, u32, u32, BucketPosition, i32)> {
+    pub fn return_frustum_bucket_data_to_update_and_empty_counts(&mut self) -> Vec<(WorldPosition, BlockSide, u32, BucketPosition, i32)> {
         self.frustum_bucket_data_to_update.drain(..).collect()
     }
 
-    pub fn add_vertex_vec(&mut self, vertex_vec: &Vec<Vertex>, queue: &Arc<RwLock<Queue>>, side: u32,  mesh_position: &WorldPosition) -> Vec<BucketPosition> {
+    pub fn add_vertex_vec(&mut self, vertex_vec: &Vec<Vertex>, queue: &Arc<RwLock<Queue>>, side: BlockSide,  mesh_position: &WorldPosition) -> Vec<BucketPosition> {
         let vertex_buckets = vertex_vec.chunks(fundamentals::consts::NUM_VERTICES_IN_BUCKET as usize);
         let mut vertex_chunks_len = 0;
         if vertex_vec.len() > 0 {
@@ -264,13 +264,13 @@ impl VertexGPUData {
         let buckets_to_use = match self.pool_position_to_mesh_bucket_data.get(mesh_position) {
             Some(mesh_bucket_data) => {
                 match side {
-                    0 => &mesh_bucket_data.front_bucket_data_vertices,
-                    1 => &mesh_bucket_data.back_bucket_data_vertices,
-                    2 => &mesh_bucket_data.left_bucket_data_vertices,
-                    3 => &mesh_bucket_data.right_bucket_data_vertices,
-                    4 => &mesh_bucket_data.top_bucket_data_vertices,
-                    5 => &mesh_bucket_data.bottom_bucket_data_vertices,
-                    _ => panic!("Invalid side called: {}", side)
+                    BlockSide::FRONT => &mesh_bucket_data.front_bucket_data_vertices,
+                    BlockSide::BACK => &mesh_bucket_data.back_bucket_data_vertices,
+                    BlockSide::LEFT => &mesh_bucket_data.left_bucket_data_vertices,
+                    BlockSide::RIGHT => &mesh_bucket_data.right_bucket_data_vertices,
+                    BlockSide::TOP => &mesh_bucket_data.top_bucket_data_vertices,
+                    BlockSide::BOTTOM => &mesh_bucket_data.bottom_bucket_data_vertices,
+                    _ => panic!("Invalid side called: {:?}", side)
                 }
             },
             None => {
@@ -305,7 +305,7 @@ impl VertexGPUData {
         buckets_to_use.to_vec()
     }
 
-    pub fn add_index_vec_and_update_index_count_vec(&mut self, index_vec: &Vec<u32>, queue: &Arc<RwLock<Queue>>, side: u32, mesh_position: &WorldPosition) -> Vec<BucketPosition> {
+    pub fn add_index_vec_and_update_index_count_vec(&mut self, index_vec: &Vec<u32>, queue: &Arc<RwLock<Queue>>, side: BlockSide, mesh_position: &WorldPosition) -> Vec<BucketPosition> {
         let index_buckets = index_vec.chunks(fundamentals::consts::NUM_VERTICES_IN_BUCKET as usize * 3 / 2);
         let mut index_chunks_len = 0;
         if index_vec.len() > 0 {
@@ -315,13 +315,13 @@ impl VertexGPUData {
         let buckets_to_use = match self.pool_position_to_mesh_bucket_data.get(mesh_position) {
             Some(mesh_bucket_data) => {
                 match side {
-                    0 => &mesh_bucket_data.front_bucket_data_indices,
-                    1 => &mesh_bucket_data.back_bucket_data_indices,
-                    2 => &mesh_bucket_data.left_bucket_data_indices,
-                    3 => &mesh_bucket_data.right_bucket_data_indices,
-                    4 => &mesh_bucket_data.top_bucket_data_indices,
-                    5 => &mesh_bucket_data.bottom_bucket_data_indices,
-                    _ => panic!("Invalid side called: {}", side)
+                    BlockSide::FRONT => &mesh_bucket_data.front_bucket_data_indices,
+                    BlockSide::BACK => &mesh_bucket_data.back_bucket_data_indices,
+                    BlockSide::LEFT => &mesh_bucket_data.left_bucket_data_indices,
+                    BlockSide::RIGHT => &mesh_bucket_data.right_bucket_data_indices,
+                    BlockSide::TOP => &mesh_bucket_data.top_bucket_data_indices,
+                    BlockSide::BOTTOM => &mesh_bucket_data.bottom_bucket_data_indices,
+                    _ => panic!("Invalid side called: {:?}", side)
                 }
             },
             None => {
@@ -361,18 +361,18 @@ impl VertexGPUData {
     }
 
     pub fn add_mesh_data_drain(&mut self, mesh: Mesh, mesh_position: &WorldPosition, queue: Arc<RwLock<Queue>>) {
-        let front_bucket_data_vertices = self.add_vertex_vec(&mesh.front.0, &queue, 0, mesh_position);
-        let front_bucket_data_indices = self.add_index_vec_and_update_index_count_vec(&mesh.front.1, &queue, 0, mesh_position);
-        let back_bucket_data_vertices = self.add_vertex_vec(&mesh.back.0, &queue, 1, mesh_position);
-        let back_bucket_data_indices = self.add_index_vec_and_update_index_count_vec(&mesh.back.1, &queue, 1, mesh_position);
-        let left_bucket_data_vertices = self.add_vertex_vec(&mesh.left.0, &queue, 2, mesh_position);
-        let left_bucket_data_indices = self.add_index_vec_and_update_index_count_vec(&mesh.left.1, &queue, 2, mesh_position);
-        let right_bucket_data_vertices = self.add_vertex_vec(&mesh.right.0, &queue, 3, mesh_position);
-        let right_bucket_data_indices = self.add_index_vec_and_update_index_count_vec(&mesh.right.1, &queue, 3, mesh_position);
-        let top_bucket_data_vertices = self.add_vertex_vec(&mesh.top.0, &queue, 4, mesh_position);
-        let top_bucket_data_indices = self.add_index_vec_and_update_index_count_vec(&mesh.top.1, &queue, 4, mesh_position);
-        let bottom_bucket_data_vertices = self.add_vertex_vec(&mesh.bottom.0, &queue, 5, mesh_position);
-        let bottom_bucket_data_indices = self.add_index_vec_and_update_index_count_vec(&mesh.bottom.1, &queue, 5, mesh_position);
+        let front_bucket_data_vertices = self.add_vertex_vec(&mesh.front.0, &queue, BlockSide::FRONT, mesh_position);
+        let front_bucket_data_indices = self.add_index_vec_and_update_index_count_vec(&mesh.front.1, &queue, BlockSide::FRONT, mesh_position);
+        let back_bucket_data_vertices = self.add_vertex_vec(&mesh.back.0, &queue, BlockSide::BACK, mesh_position);
+        let back_bucket_data_indices = self.add_index_vec_and_update_index_count_vec(&mesh.back.1, &queue, BlockSide::BACK, mesh_position);
+        let left_bucket_data_vertices = self.add_vertex_vec(&mesh.left.0, &queue, BlockSide::LEFT, mesh_position);
+        let left_bucket_data_indices = self.add_index_vec_and_update_index_count_vec(&mesh.left.1, &queue, BlockSide::LEFT, mesh_position);
+        let right_bucket_data_vertices = self.add_vertex_vec(&mesh.right.0, &queue, BlockSide::RIGHT, mesh_position);
+        let right_bucket_data_indices = self.add_index_vec_and_update_index_count_vec(&mesh.right.1, &queue, BlockSide::RIGHT, mesh_position);
+        let top_bucket_data_vertices = self.add_vertex_vec(&mesh.top.0, &queue, BlockSide::TOP, mesh_position);
+        let top_bucket_data_indices = self.add_index_vec_and_update_index_count_vec(&mesh.top.1, &queue, BlockSide::TOP, mesh_position);
+        let bottom_bucket_data_vertices = self.add_vertex_vec(&mesh.bottom.0, &queue, BlockSide::BOTTOM, mesh_position);
+        let bottom_bucket_data_indices = self.add_index_vec_and_update_index_count_vec(&mesh.bottom.1, &queue, BlockSide::BOTTOM, mesh_position);
         self.pool_position_to_mesh_bucket_data.insert(*mesh_position, MeshBucketData { front_bucket_data_vertices, front_bucket_data_indices, back_bucket_data_vertices, back_bucket_data_indices, left_bucket_data_vertices, left_bucket_data_indices, right_bucket_data_vertices, right_bucket_data_indices, top_bucket_data_vertices, top_bucket_data_indices, bottom_bucket_data_vertices, bottom_bucket_data_indices });
     }
 
@@ -380,38 +380,38 @@ impl VertexGPUData {
         for side in sides {
             match side {
                 BlockSide::FRONT => {
-                    let front_bucket_data_vertices = self.add_vertex_vec(&mesh.front.0, &queue, 0, mesh_position);
-                    let front_bucket_data_indices = self.add_index_vec_and_update_index_count_vec(&mesh.front.1, &queue, 0, mesh_position);
+                    let front_bucket_data_vertices = self.add_vertex_vec(&mesh.front.0, &queue, BlockSide::FRONT, mesh_position);
+                    let front_bucket_data_indices = self.add_index_vec_and_update_index_count_vec(&mesh.front.1, &queue, BlockSide::FRONT, mesh_position);
                     self.pool_position_to_mesh_bucket_data.get_mut(mesh_position).unwrap().front_bucket_data_vertices = front_bucket_data_vertices;
                     self.pool_position_to_mesh_bucket_data.get_mut(mesh_position).unwrap().front_bucket_data_indices = front_bucket_data_indices;
                 },
                 BlockSide::BACK => {
-                    let back_bucket_data_vertices = self.add_vertex_vec(&mesh.back.0, &queue, 1, mesh_position);
-                    let back_bucket_data_indices = self.add_index_vec_and_update_index_count_vec(&mesh.back.1, &queue, 1, mesh_position);
+                    let back_bucket_data_vertices = self.add_vertex_vec(&mesh.back.0, &queue, BlockSide::BACK, mesh_position);
+                    let back_bucket_data_indices = self.add_index_vec_and_update_index_count_vec(&mesh.back.1, &queue, BlockSide::BACK, mesh_position);
                     self.pool_position_to_mesh_bucket_data.get_mut(mesh_position).unwrap().back_bucket_data_vertices = back_bucket_data_vertices;
                     self.pool_position_to_mesh_bucket_data.get_mut(mesh_position).unwrap().back_bucket_data_indices = back_bucket_data_indices;
                 },
                 BlockSide::LEFT => {
-                    let left_bucket_data_vertices = self.add_vertex_vec(&mesh.left.0, &queue, 2, mesh_position);
-                    let left_bucket_data_indices = self.add_index_vec_and_update_index_count_vec(&mesh.left.1, &queue, 2, mesh_position);
+                    let left_bucket_data_vertices = self.add_vertex_vec(&mesh.left.0, &queue, BlockSide::LEFT, mesh_position);
+                    let left_bucket_data_indices = self.add_index_vec_and_update_index_count_vec(&mesh.left.1, &queue, BlockSide::LEFT, mesh_position);
                     self.pool_position_to_mesh_bucket_data.get_mut(mesh_position).unwrap().left_bucket_data_vertices = left_bucket_data_vertices;
                     self.pool_position_to_mesh_bucket_data.get_mut(mesh_position).unwrap().left_bucket_data_indices = left_bucket_data_indices;
                 },
                 BlockSide::RIGHT => {
-                    let right_bucket_data_vertices = self.add_vertex_vec(&mesh.right.0, &queue, 3, mesh_position);
-                    let right_bucket_data_indices = self.add_index_vec_and_update_index_count_vec(&mesh.right.1, &queue, 3, mesh_position);
+                    let right_bucket_data_vertices = self.add_vertex_vec(&mesh.right.0, &queue, BlockSide::RIGHT, mesh_position);
+                    let right_bucket_data_indices = self.add_index_vec_and_update_index_count_vec(&mesh.right.1, &queue, BlockSide::RIGHT, mesh_position);
                     self.pool_position_to_mesh_bucket_data.get_mut(mesh_position).unwrap().right_bucket_data_vertices = right_bucket_data_vertices;
                     self.pool_position_to_mesh_bucket_data.get_mut(mesh_position).unwrap().right_bucket_data_indices = right_bucket_data_indices;
                 },
                 BlockSide::TOP => {
-                    let top_bucket_data_vertices = self.add_vertex_vec(&mesh.top.0, &queue, 4, mesh_position);
-                    let top_bucket_data_indices = self.add_index_vec_and_update_index_count_vec(&mesh.top.1, &queue, 4, mesh_position);
+                    let top_bucket_data_vertices = self.add_vertex_vec(&mesh.top.0, &queue, BlockSide::TOP, mesh_position);
+                    let top_bucket_data_indices = self.add_index_vec_and_update_index_count_vec(&mesh.top.1, &queue, BlockSide::TOP, mesh_position);
                     self.pool_position_to_mesh_bucket_data.get_mut(mesh_position).unwrap().top_bucket_data_vertices = top_bucket_data_vertices;
                     self.pool_position_to_mesh_bucket_data.get_mut(mesh_position).unwrap().top_bucket_data_indices = top_bucket_data_indices;
                 },
                 BlockSide::BOTTOM => {
-                    let bottom_bucket_data_vertices = self.add_vertex_vec(&mesh.bottom.0, &queue, 5, mesh_position);
-                    let bottom_bucket_data_indices = self.add_index_vec_and_update_index_count_vec(&mesh.bottom.1, &queue, 5, mesh_position);
+                    let bottom_bucket_data_vertices = self.add_vertex_vec(&mesh.bottom.0, &queue, BlockSide::BOTTOM, mesh_position);
+                    let bottom_bucket_data_indices = self.add_index_vec_and_update_index_count_vec(&mesh.bottom.1, &queue, BlockSide::BOTTOM, mesh_position);
                     self.pool_position_to_mesh_bucket_data.get_mut(mesh_position).unwrap().bottom_bucket_data_vertices = bottom_bucket_data_vertices;
                     self.pool_position_to_mesh_bucket_data.get_mut(mesh_position).unwrap().bottom_bucket_data_indices = bottom_bucket_data_indices;
                 }
