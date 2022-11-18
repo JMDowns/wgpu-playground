@@ -1,5 +1,5 @@
 use derivables::{vertex::Vertex, block::Block};
-use fundamentals::{world_position::WorldPosition, enums::{block_side::BlockSide, block_type::BlockType}, consts::{CHUNK_DIMENSION, NUM_VERTICES_IN_BUCKET}};
+use fundamentals::{world_position::WorldPosition, enums::{block_side::BlockSide, block_type::{BlockType, BlockTypeSize}}, consts::{CHUNK_DIMENSION, NUM_VERTICES_IN_BUCKET}};
 use super::chunk::{Chunk, ChunkBlockIterator};
 
 use strum::IntoEnumIterator;
@@ -504,7 +504,7 @@ impl Mesh {
     }
 
     fn generate_face_vertices(face: &Face, index: u32) -> Vec<Vertex> {
-        let texture_indices = &Block::get_texture_indices_from_int(face.block_type_int);
+        let texture_indices = &Block::get_texture_indices_from_int(face.block_type_int as BlockTypeSize);
         let (texture_index, u_offset, v_offset) = match face.block_side {
             BlockSide::FRONT => {
                 (0, (face.lr.2-face.ll.2) as u8, (face.ul.1-face.ll.1) as u8)
@@ -542,7 +542,7 @@ impl Mesh {
         ].to_vec()
     }
     
-    fn generate_cube(pos: WorldPosition, tex_index_arr: &[usize; 6], adjacent_blocks_data: &[bool;6], index: u32) -> [Vec<Vertex>; 6] {
+    fn generate_cube(pos: WorldPosition, tex_index_arr: [usize; 6], adjacent_blocks_data: &[bool;6], index: u32) -> [Vec<Vertex>; 6] {
         let positions = pos.generate_vertex_world_positions();
         let mut vertices_arr = [Vec::new(),Vec::new(),Vec::new(),Vec::new(),Vec::new(),Vec::new(),];
         let all_vertices_arr = 
@@ -650,7 +650,7 @@ impl Mesh {
         indices_arr
     }
 
-    fn generate_cube_side(pos: WorldPosition, tex_index_arr: &[usize; 6], index: u32, side: BlockSide) -> Vec<Vertex> {
+    fn generate_cube_side(pos: WorldPosition, tex_index_arr: [usize; 6], index: u32, side: BlockSide) -> Vec<Vertex> {
         let positions = pos.generate_vertex_world_positions();
         match side {
             BlockSide::FRONT => {

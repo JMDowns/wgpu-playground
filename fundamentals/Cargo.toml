@@ -19,6 +19,7 @@ log = "0.4.17"
 log4rs = "1.2.0"
 strum = "0.24.1"
 strum_macros = "0.24.1"
+fastrand = "1.7.0"
 
 [build_dependencies]
 phf_codegen = "0.11"

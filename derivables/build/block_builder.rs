@@ -1,19 +1,7 @@
 use std::path::Path;
 use std::fs::File;
 use std::io::{BufWriter, Write};
-
-const fn get_block_type_size() -> u8 {
-    if fundamentals::consts::NUM_BLOCK_TYPES < 256 {
-        return 8;
-    } else if (fundamentals::consts::NUM_BLOCK_TYPES as u32) < 65536 {
-        return 16;
-    } else if (fundamentals::consts::NUM_BLOCK_TYPES as u64) < 4294967296 {
-        return 32;
-    } else if (fundamentals::consts::NUM_BLOCK_TYPES as u128) < 18446744073709551616 {
-        return 64;
-    }
-    return 128;
-}
+use fundamentals::enums::block_type::BlockTypeSize;
 
 pub fn build_block_file() {
     let block_path = Path::new("src/block.rs");
@@ -27,44 +15,34 @@ pub fn build_block_file() {
 }
 
 fn build_block_string() -> String {
-    let num_str = get_block_type_size().to_string();
     [
-        "use fundamentals::enums::block_type::BlockType;",
+        "use fundamentals::enums::block_type::{BlockType, BlockTypeSize};",
         "use crate::dictionaries::block_type_to_texture_coordinates::BLOCK_TYPE_TO_TEXTURE_INDICES;",
         "",
         "#[repr(C)]",
         "#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable, Debug)]",
         "pub struct Block {",
-        format!("    pub block_type: u{}", num_str).as_str(),
+        "    pub block_type: BlockTypeSize",
         "}",
         "",
         "impl Block {",
-        "    pub fn new(bt: BlockType) -> Self {",
-        format!("        Block {{ block_type: bt as u{} }}", num_str).as_str(),
+        "    pub fn new(block_type: BlockType) -> Self {",
+        "        Block { block_type: block_type as BlockTypeSize }",
         "    }",
         "",
         "    pub fn is_air(&self) -> bool {",
-        "        self.block_type == 0",
+        "        self.block_type == BlockType::AIR as BlockTypeSize",
         "    }",
         "",
-        "    pub fn get_texture_indices(&self) -> &[usize; 6] {",
-        format!("        let btype_option = num::FromPrimitive::from_u{}(self.block_type);", num_str).as_str(),
-        "        let btype = match btype_option {",
-        "           Some(bt) => bt,",
-        "           None => BlockType::AIR",
-        "        };",
-        "        BLOCK_TYPE_TO_TEXTURE_INDICES.get(&btype).unwrap()",
+        "    pub fn get_texture_indices(&self) -> [usize; 6] {",
+        "        Self::get_texture_indices_from_int(self.block_type)",
         "    }",
         "    pub fn get_texture_indices_from_type(block_type: &BlockType) -> [usize; 6] {",
         "        *BLOCK_TYPE_TO_TEXTURE_INDICES.get(block_type).unwrap()",
         "    }",
-        "    pub fn get_texture_indices_from_int(btype: usize) -> [usize; 6] {",
-        format!("        let btype_option = num::FromPrimitive::from_u{}(btype as u{});", num_str, num_str).as_str(),
-        "        let btype = match btype_option {",
-        "           Some(bt) => bt,",
-        "           None => BlockType::AIR",
-        "        };",
-        "        *BLOCK_TYPE_TO_TEXTURE_INDICES.get(&btype).unwrap()",
+        "    pub fn get_texture_indices_from_int(btype_int: BlockTypeSize) -> [usize; 6] {",
+        "        let block_type = BlockType::get_block_type_from_int(btype_int);",
+        "        *BLOCK_TYPE_TO_TEXTURE_INDICES.get(&block_type).unwrap()",
         "    }",
         "}",
     ].join("\n")

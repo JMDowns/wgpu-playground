@@ -645,6 +645,7 @@ version = "0.1.0"
 dependencies = [
  "bytemuck",
  "cgmath",
+ "fastrand",
  "formats",
  "image 0.24.2",
  "log",
