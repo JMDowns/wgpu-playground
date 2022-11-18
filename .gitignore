@@ -1,8 +1,13 @@
 */pkg/
 */target/
-string_to_type_dictionaries/
+string_to_type_dictionaries/src/string_to_block_type.rs
+string_to_type_dictionaries/src/string_to_texture_indices.rs
 hello-wgpu/src/atlas.png
 fundamentals/src/consts.rs
 fundamentals/src/enums/block_type.rs
 derivables/src/dictionaries/block_type_to_texture_coordinates.rs
+derivables/src/vertex.rs
+hello-wgpu/src/shader.wgsl
+hello-wgpu/src/frustum_compute.wgsl
 *.log
+.env
