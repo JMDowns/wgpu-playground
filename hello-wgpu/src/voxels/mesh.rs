@@ -1,5 +1,6 @@
 use derivables::{vertex::Vertex, block::Block};
-use fundamentals::{world_position::WorldPosition, enums::{block_side::BlockSide, block_type::{BlockType, BlockTypeSize}}, consts::{CHUNK_DIMENSION, NUM_VERTICES_IN_BUCKET}};
+use fundamentals::{world_position::WorldPosition, enums::{block_side::BlockSide, block_type::{BlockType, BlockTypeSize}}, consts::{CHUNK_DIMENSION, NUM_VERTICES_IN_BUCKET}, logi};
+use instant::Instant;
 use super::chunk::{Chunk, ChunkBlockIterator};
 
 use strum::IntoEnumIterator;
@@ -299,10 +300,11 @@ impl Mesh {
     }
 
     pub fn greedy(chunk: &Chunk, index: u32) -> Self {
-        Self::greedy_sided(chunk, index, vec![BlockSide::FRONT, BlockSide::BACK, BlockSide::LEFT, BlockSide::RIGHT, BlockSide::TOP, BlockSide::BOTTOM])
+        Self::greedy_sided(chunk, index, &vec![BlockSide::FRONT, BlockSide::BACK, BlockSide::LEFT, BlockSide::RIGHT, BlockSide::TOP, BlockSide::BOTTOM]);
     }
 
-    pub fn greedy_sided(chunk: &Chunk, index: u32, sides: Vec<BlockSide>) -> Self {
+    pub fn greedy_sided(chunk: &Chunk, index: u32, sides: &Vec<BlockSide>) -> Self {
+        let now = Instant::now();
         let mut mesh = Mesh::new();
         let mut cbi = ChunkBlockIterator::new(chunk);
 
@@ -454,6 +456,11 @@ impl Mesh {
         }
 
         mesh.add_vertices(vertex_vec, index_vec);
+
+        let after = Instant::now();
+        let time  = (after-now).as_millis();
+        let cpos = chunk.position;
+        logi!("Greedy mesh for position {} sides {:?} took {} milliseconds", cpos, sides, time);
 
         mesh
     }

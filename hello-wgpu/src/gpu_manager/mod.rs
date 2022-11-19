@@ -234,12 +234,12 @@ impl GPUManager {
     }
 
     pub fn create_generate_chunk_side_mesh_task(&self, chunk_position: WorldPosition, chunk: Arc<RwLock<Chunk>>, side: BlockSide) -> Task {
-        Task::GenerateChunkSideMesh { 
+        Task::GenerateChunkSideMeshes { 
             chunk_position, 
             chunk, 
             vertex_gpu_data: self.vertex_gpu_data.clone(),
             queue: self.queue.clone(),
-            side
+            sides: vec![side]
         }
     }
 

@@ -9,28 +9,26 @@ pub struct GenerateChunkMeshProcessor {}
 impl GenerateChunkMeshProcessor {
     pub fn process_task(chunk_position: &WorldPosition, chunk: Arc<RwLock<Chunk>>, vertex_gpu_data: Arc<RwLock<VertexGPUData>>, queue: Arc<RwLock<wgpu::Queue>>) -> TaskResult {
         let chunk_index = *vertex_gpu_data.read().unwrap().pos_to_gpu_index.get(chunk_position).unwrap() as u32;
-        let now = Instant::now();
+        
         let mesh = Mesh::greedy(&chunk.read().unwrap(), chunk_index);
-        let after = Instant::now();
-        let time = (after-now).as_millis();
-        logi!("Greedy mesh took {} milliseconds", time);
+        
         vertex_gpu_data.write().unwrap().add_mesh_data_drain(mesh, chunk_position, queue);
         TaskResult::GenerateChunkMesh {  }
     }
 }
 
-pub struct GenerateChunkSideMeshProcessor {}
+pub struct GenerateChunkSideMeshesProcessor {}
 
-impl GenerateChunkSideMeshProcessor {
-    pub fn process_task(chunk_position: WorldPosition, chunk: Arc<RwLock<Chunk>>, vertex_gpu_data: Arc<RwLock<VertexGPUData>>, queue: Arc<RwLock<wgpu::Queue>>, side: BlockSide) -> TaskResult {
+impl GenerateChunkSideMeshesProcessor {
+    pub fn process_task(chunk_position: WorldPosition, chunk: Arc<RwLock<Chunk>>, vertex_gpu_data: Arc<RwLock<VertexGPUData>>, queue: Arc<RwLock<wgpu::Queue>>, sides: Vec<BlockSide>) -> TaskResult {
         if vertex_gpu_data.read().unwrap().has_meshed_position(&chunk_position) {
             let chunk_index = *vertex_gpu_data.read().unwrap().pos_to_gpu_index.get(&chunk_position).unwrap() as u32;
-            let mesh = Mesh::greedy_sided(&chunk.read().unwrap(), chunk_index, vec![side]);
-            vertex_gpu_data.write().unwrap().update_side_mesh_data_drain(mesh, &chunk_position, queue, vec![side]);
+            let mesh = Mesh::greedy_sided(&chunk.read().unwrap(), chunk_index, &sides);
+            vertex_gpu_data.write().unwrap().update_side_mesh_data_drain(mesh, &chunk_position, queue, &sides);
 
             TaskResult::UpdateChunkSideMesh {  }
         } else {
-            TaskResult::Requeue { task: Task::GenerateChunkSideMesh { chunk_position, chunk, vertex_gpu_data, queue, side } }
+            TaskResult::Requeue { task: Task::GenerateChunkSideMeshes { chunk_position, chunk, vertex_gpu_data, queue, sides } }
         }
         
 

@@ -17,7 +17,7 @@ pub enum Task {
     UpdateYAxisChunkPadding { chunk_below: Arc<RwLock<Chunk>>, chunk_above: Arc<RwLock<Chunk>>, additional_data_to_identify_and_hash: ChunkUpdateTaskIdentifyingInfo},
     UpdateXAxisChunkPadding { chunk_front: Arc<RwLock<Chunk>>, chunk_back: Arc<RwLock<Chunk>>, additional_data_to_identify_and_hash: ChunkUpdateTaskIdentifyingInfo},
     UpdateZAxisChunkPadding { chunk_left: Arc<RwLock<Chunk>>, chunk_right: Arc<RwLock<Chunk>>, additional_data_to_identify_and_hash: ChunkUpdateTaskIdentifyingInfo},
-    GenerateChunkSideMesh { chunk_position: WorldPosition, chunk: Arc<RwLock<Chunk>>, vertex_gpu_data: Arc<RwLock<VertexGPUData>>, queue: Arc<RwLock<Queue>>, side: BlockSide }
+    GenerateChunkSideMeshes { chunk_position: WorldPosition, chunk: Arc<RwLock<Chunk>>, vertex_gpu_data: Arc<RwLock<VertexGPUData>>, queue: Arc<RwLock<Queue>>, sides: Vec<BlockSide> }
 }
 
 pub struct ChunkUpdateTaskIdentifyingInfo {
@@ -94,12 +94,10 @@ impl PartialEq for Task {
                 }
             }
 
-            Task::GenerateChunkSideMesh { chunk_position, side, .. } => {
-                let self_chunk_pos = chunk_position;
-                let self_side = side;
+            Task::GenerateChunkSideMeshes { chunk_position: self_chunk_pos, .. } => {
                 match other {
-                    Task::GenerateChunkSideMesh { chunk_position, side, .. } => {
-                        *self_chunk_pos == *chunk_position && *self_side == *side 
+                    Task::GenerateChunkSideMeshes { chunk_position,.. } => {
+                        *self_chunk_pos == *chunk_position
                     }
                     _ => false
                 }
@@ -131,9 +129,8 @@ impl Hash for Task {
                 additional_data_to_identify_and_hash.chunk_position_1.hash(state);
                 additional_data_to_identify_and_hash.chunk_position_2.hash(state);
             }
-            Task::GenerateChunkSideMesh { chunk_position, side, .. } => {
+            Task::GenerateChunkSideMeshes { chunk_position, .. } => {
                 chunk_position.hash(state);
-                side.hash(state);
             }
             Task::StopThread => {}
         }
@@ -148,7 +145,7 @@ pub fn get_task_priority(task: &Task) -> u32 {
         Task::UpdateXAxisChunkPadding { .. } => 2,
         Task::UpdateZAxisChunkPadding { .. } => 2,
         Task::GenerateChunkMesh { .. } => 3,
-        Task::GenerateChunkSideMesh { .. } => 4,
+        Task::GenerateChunkSideMeshes { .. } => 4,
     }
 }
 

@@ -376,7 +376,7 @@ impl VertexGPUData {
         self.pool_position_to_mesh_bucket_data.insert(*mesh_position, MeshBucketData { front_bucket_data_vertices, front_bucket_data_indices, back_bucket_data_vertices, back_bucket_data_indices, left_bucket_data_vertices, left_bucket_data_indices, right_bucket_data_vertices, right_bucket_data_indices, top_bucket_data_vertices, top_bucket_data_indices, bottom_bucket_data_vertices, bottom_bucket_data_indices });
     }
 
-    pub fn update_side_mesh_data_drain(&mut self, mesh: Mesh, mesh_position: &WorldPosition, queue: Arc<RwLock<Queue>>, sides: Vec<BlockSide>) {
+    pub fn update_side_mesh_data_drain(&mut self, mesh: Mesh, mesh_position: &WorldPosition, queue: Arc<RwLock<Queue>>, sides: &Vec<BlockSide>) {
         for side in sides {
             match side {
                 BlockSide::FRONT => {

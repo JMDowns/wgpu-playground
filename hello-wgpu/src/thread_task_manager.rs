@@ -1,7 +1,9 @@
 use crossbeam::channel::{Sender, Receiver};
+use fundamentals::enums::block_side::BlockSide;
+use fundamentals::logi;
 use priority_queue::PriorityQueue;
 use fundamentals::consts::NUM_ADDITIONAL_THREADS;
-use crate::tasks::tasks_processors::generate_chunk_mesh_processor::GenerateChunkSideMeshProcessor;
+use crate::tasks::tasks_processors::generate_chunk_mesh_processor::GenerateChunkSideMeshesProcessor;
 use crate::tasks::tasks_processors::update_chunk_padding_processors::{UpdateXAxisChunkPaddingProcessor, UpdateZAxisChunkPaddingProcessor};
 use crate::tasks::{Task, TaskResult, get_task_priority};
 use crate::tasks::
@@ -10,6 +12,7 @@ use crate::tasks::
         generate_chunk_processor::GenerateChunkProcessor,
         update_chunk_padding_processors::UpdateYAxisChunkPaddingProcessor
     };
+use itertools::Itertools;
 
 struct ThreadInfo {
     pub sender: Sender<Task>,
@@ -65,8 +68,8 @@ impl ThreadTaskManager {
                                         Err(_) => should_run = false
                                     }
                                 }
-                                Task::GenerateChunkSideMesh { chunk_position, chunk, vertex_gpu_data, queue, side } => {
-                                    match s_task_result.send(GenerateChunkSideMeshProcessor::process_task(chunk_position, chunk, vertex_gpu_data, queue, side)) {
+                                Task::GenerateChunkSideMeshes { chunk_position, chunk, vertex_gpu_data, queue, sides } => {
+                                    match s_task_result.send(GenerateChunkSideMeshesProcessor::process_task(chunk_position, chunk, vertex_gpu_data, queue, sides)) {
                                         Ok(_) => {}
                                         Err(_) => should_run = false
                                     }
@@ -89,7 +92,33 @@ impl ThreadTaskManager {
         }
     }
 
+    fn append_sides_to_existing(existing_sides: &mut Vec<BlockSide>, other_sides: &Vec<BlockSide>) {
+        for side in other_sides.iter() {
+            if !existing_sides.contains(side) {
+                existing_sides.push(*side)
+            }
+        }
+    }
+
     pub fn push_task(&mut self, task: Task) {
+        match task {
+            Task::GenerateChunkSideMeshes { ref sides, .. } => {
+                match self.task_queue.get_mut(&task) {
+                    Some((existing_task, _)) => {
+                        match existing_task {
+                            Task::GenerateChunkSideMeshes { sides: existing_sides, chunk_position, .. } => {
+                                Self::append_sides_to_existing(existing_sides, sides);
+                                return;
+                            }
+                            _ => {}
+                        }
+                    }
+                    None => {}
+                }
+            }
+            _ => {}
+        }
+
         let task_priority = get_task_priority(&task);
         self.task_queue.push(task, task_priority);
     }
