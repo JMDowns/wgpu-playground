@@ -8,7 +8,8 @@ pub struct GenerateChunkProcessor {}
 
 impl GenerateChunkProcessor {
     pub fn process_task(chunk_position: &WorldPosition, world: Arc<RwLock<World>>) -> TaskResult {
-        world.write().unwrap().add_chunk(World::generate_chunk_at(&chunk_position));
+        let chunk = World::generate_chunk_at(&chunk_position);
+        world.write().unwrap().add_chunk(chunk);
         TaskResult::GenerateChunk { chunk_position: *chunk_position }
     }
 }

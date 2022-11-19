@@ -300,7 +300,7 @@ impl Mesh {
     }
 
     pub fn greedy(chunk: &Chunk, index: u32) -> Self {
-        Self::greedy_sided(chunk, index, &vec![BlockSide::FRONT, BlockSide::BACK, BlockSide::LEFT, BlockSide::RIGHT, BlockSide::TOP, BlockSide::BOTTOM]);
+        Self::greedy_sided(chunk, index, &vec![BlockSide::FRONT, BlockSide::BACK, BlockSide::LEFT, BlockSide::RIGHT, BlockSide::TOP, BlockSide::BOTTOM])
     }
 
     pub fn greedy_sided(chunk: &Chunk, index: u32, sides: &Vec<BlockSide>) -> Self {
