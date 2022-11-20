@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::{RwLock, Arc}};
 use super::chunk::Chunk;
-use fundamentals::world_position::WorldPosition;
+use fundamentals::{world_position::WorldPosition, consts::CHUNK_GENERATION_METHOD};
 
 pub struct World {
     chunks: HashMap<WorldPosition, Arc<RwLock<Chunk>>>,
@@ -11,8 +11,13 @@ impl World {
         World { chunks: HashMap::new() }
     }
 
-    pub fn generate_chunk_at(pos: &WorldPosition) -> Chunk {
-        Chunk::_perlin(pos)
+    pub fn generate_chunk_at(position: &WorldPosition) -> Chunk {
+        match CHUNK_GENERATION_METHOD {
+            "perlin" => Chunk::perlin(position),
+            "checkerboard" => Chunk::checkerboard(position),
+            "solid" => Chunk::solid(position),
+            _ => Chunk::empty(position)
+        }
     }
 
     pub fn add_chunk(&mut self, chunk: Chunk) {

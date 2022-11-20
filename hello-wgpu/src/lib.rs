@@ -6,11 +6,7 @@ mod tasks;
 mod thread_task_manager;
 mod gpu_manager;
 
-use std::path::Path;
-
 use fundamentals::loge;
-use log::{LevelFilter, error};
-use log4rs::{append::{file::FileAppender, console::ConsoleAppender}, encode::pattern::PatternEncoder, config::{Appender, Logger, Root}, Config};
 use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop},
@@ -36,10 +32,7 @@ pub async fn run() {
         Event::DeviceEvent {
             event: DeviceEvent::MouseMotion{ delta, },
             .. // We're not using device_id currently
-        } => if state.flag_state.mouse_pressed {
-            state.input_state.mouse_delta_x = delta.0;
-            state.input_state.mouse_delta_y = delta.1;
-        }
+        } => state.handle_mouse_motion(delta),
 
         Event::WindowEvent {
             ref event,

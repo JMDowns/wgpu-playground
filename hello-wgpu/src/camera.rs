@@ -219,15 +219,17 @@ impl CameraController {
         movement
     }
 
-    pub fn process_mouse(&mut self, input_state: &mut InputState, sensitivity: f64) -> bool {
+    pub fn process_mouse(&mut self, input_state: &mut InputState) -> bool {
         let mut movement = false;
-        if input_state.mouse_delta_x.abs() > fundamentals::consts::MOUSE_SENSITIVITY {
-            self.rotate_horizontal = (input_state.mouse_delta_x*4.0*sensitivity) as f32;
+        if input_state.mouse_delta_x.abs() > fundamentals::consts::MOUSE_SENSITIVITY_THRESHOLD {
+            self.rotate_horizontal = (input_state.mouse_delta_x as f32)*4.0*self.sensitivity;
             movement = true;
+            input_state.mouse_delta_x = 0.0;
         }
-        if input_state.mouse_delta_y.abs() > fundamentals::consts::MOUSE_SENSITIVITY {
-            self.rotate_vertical = (input_state.mouse_delta_y*4.0*sensitivity) as f32;
+        if input_state.mouse_delta_y.abs() > fundamentals::consts::MOUSE_SENSITIVITY_THRESHOLD {
+            self.rotate_vertical = (input_state.mouse_delta_y as f32)*4.0*self.sensitivity;
             movement = true;
+            input_state.mouse_delta_y = 0.0;
         }
         movement
     }

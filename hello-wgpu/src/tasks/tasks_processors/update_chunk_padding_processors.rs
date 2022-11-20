@@ -2,7 +2,7 @@ use std::sync::{Arc, RwLock};
 
 use fundamentals::{consts::CHUNK_DIMENSION, enums::block_side::BlockSide};
 
-use crate::{voxels::chunk::{ChunkBlockIterator, Chunk}, tasks::TaskResult};
+use crate::{voxels::chunk::Chunk, tasks::TaskResult};
 
 pub struct UpdateYAxisChunkPaddingProcessor {}
 

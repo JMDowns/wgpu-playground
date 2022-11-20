@@ -1,8 +1,7 @@
 use crossbeam::channel::{Sender, Receiver};
 use fundamentals::enums::block_side::BlockSide;
-use fundamentals::logi;
 use priority_queue::PriorityQueue;
-use fundamentals::consts::NUM_ADDITIONAL_THREADS;
+use fundamentals::consts::{NUM_ADDITIONAL_THREADS, NUM_TASKS_PER_THREAD};
 use crate::tasks::tasks_processors::generate_chunk_mesh_processor::GenerateChunkSideMeshesProcessor;
 use crate::tasks::tasks_processors::update_chunk_padding_processors::{UpdateXAxisChunkPaddingProcessor, UpdateZAxisChunkPaddingProcessor};
 use crate::tasks::{Task, TaskResult, get_task_priority};
@@ -12,7 +11,6 @@ use crate::tasks::
         generate_chunk_processor::GenerateChunkProcessor,
         update_chunk_padding_processors::UpdateYAxisChunkPaddingProcessor
     };
-use itertools::Itertools;
 
 struct ThreadInfo {
     pub sender: Sender<Task>,
@@ -28,8 +26,8 @@ impl ThreadTaskManager {
     pub fn new() -> Self {
         let mut threads = Vec::new();
         for _ in 0..NUM_ADDITIONAL_THREADS {
-            let (s_task, r_task) = crossbeam::channel::bounded(15);
-            let (s_task_result, r_task_result) = crossbeam::channel::bounded(15);
+            let (s_task, r_task) = crossbeam::channel::bounded(NUM_TASKS_PER_THREAD);
+            let (s_task_result, r_task_result) = crossbeam::channel::bounded(NUM_TASKS_PER_THREAD*2);
             let builder = std::thread::Builder::new();
             let _ = builder.spawn(move || {
                 let mut should_run = true;
@@ -106,7 +104,7 @@ impl ThreadTaskManager {
                 match self.task_queue.get_mut(&task) {
                     Some((existing_task, _)) => {
                         match existing_task {
-                            Task::GenerateChunkSideMeshes { sides: existing_sides, chunk_position, .. } => {
+                            Task::GenerateChunkSideMeshes { sides: existing_sides, .. } => {
                                 Self::append_sides_to_existing(existing_sides, sides);
                                 return;
                             }

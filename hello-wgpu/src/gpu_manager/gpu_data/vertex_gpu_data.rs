@@ -1,7 +1,7 @@
 use std::{collections::HashMap, num::NonZeroUsize, sync::{Arc, RwLock}};
 use cgmath::Point3;
 use derivables::vertex::Vertex;
-use fundamentals::{world_position::WorldPosition, enums::block_side::BlockSide, logi};
+use fundamentals::{world_position::WorldPosition, enums::block_side::BlockSide};
 use lru::LruCache;
 use wgpu::{Device, util::DeviceExt, BufferUsages, Queue};
 
@@ -270,7 +270,6 @@ impl VertexGPUData {
                     BlockSide::RIGHT => &mesh_bucket_data.right_bucket_data_vertices,
                     BlockSide::TOP => &mesh_bucket_data.top_bucket_data_vertices,
                     BlockSide::BOTTOM => &mesh_bucket_data.bottom_bucket_data_vertices,
-                    _ => panic!("Invalid side called: {:?}", side)
                 }
             },
             None => {
@@ -285,7 +284,7 @@ impl VertexGPUData {
         
         //TODO: Remove logic around getting bucket once bucket requesting is implemented - self.lru_vertex_buffer_bucket_index.get(&bucket);
         if vertex_vec.len() == 0 {
-            for (i, bucket) in buckets_to_use.iter().enumerate() {
+            for bucket in buckets_to_use.iter() {
                 self.lru_vertex_buffer_bucket_index.get(bucket);
             }
         } else {
@@ -321,7 +320,6 @@ impl VertexGPUData {
                     BlockSide::RIGHT => &mesh_bucket_data.right_bucket_data_indices,
                     BlockSide::TOP => &mesh_bucket_data.top_bucket_data_indices,
                     BlockSide::BOTTOM => &mesh_bucket_data.bottom_bucket_data_indices,
-                    _ => panic!("Invalid side called: {:?}", side)
                 }
             },
             None => {

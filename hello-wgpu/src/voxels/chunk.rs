@@ -1,4 +1,6 @@
-use fundamentals::consts::NUM_BLOCK_TYPES;
+use fundamentals::consts::PERLIN_NEGATIVE_THRESHOLD;
+use fundamentals::consts::PERLIN_POSITIVE_THRESHOLD;
+use fundamentals::consts::PERLIN_SCALE_FACTOR;
 use fundamentals::world_position::WorldPosition;
 use derivables::block::Block;
 use fundamentals::enums::block_type::BlockType;
@@ -16,47 +18,14 @@ pub struct Chunk {
 }
 
 impl Chunk {
-    pub fn _corner(position: &WorldPosition) -> Self {
-        let mut cci = ChunkCreationIterator::new(*position);
 
-        cci.push_block_type(BlockType::WOOD);
-
-        for _ in 1..CHUNK_SIZE {
-            cci.push_block_type(BlockType::AIR);
-        }
-
-        cci.return_chunk()
-    }
-    
-    pub fn _xaxis(position: &WorldPosition) -> Self {
-        let mut cci = ChunkCreationIterator::new(*position);
-
-        for i in 0..CHUNK_SIZE {
-            if i < CHUNK_DIMENSION as usize {
-                cci.push_block_type(BlockType::WOOD);
-            } else {
-                cci.push_block_type(BlockType::AIR);
-            }
-        }
+    pub fn empty(position: &WorldPosition) -> Self {
+        let cci = ChunkCreationIterator::new(*position);
 
         cci.return_chunk()
     }
 
-    pub fn _zaxis(position: &WorldPosition) -> Self {
-        let mut cci = ChunkCreationIterator::new(*position);
-
-        for i in 0..CHUNK_SIZE {
-            if i % CHUNK_PLANE_SIZE as usize == 0 {
-                cci.push_block_type(BlockType::WOOD);
-            } else {
-                cci.push_block_type(BlockType::AIR);
-            }
-        }
-
-        cci.return_chunk()
-    }
-
-    pub fn _perlin(position: &WorldPosition) -> Self {
+    pub fn perlin(position: &WorldPosition) -> Self {
         let perlin = Perlin::new();
         let mut cci = ChunkCreationIterator::new(*position);
 
@@ -64,8 +33,8 @@ impl Chunk {
             for j in 0..CHUNK_DIMENSION as i32 {
                 for i in 0..CHUNK_DIMENSION as i32 {
                     let bposition = WorldPosition::new(i + CHUNK_DIMENSION*position.x, j + CHUNK_DIMENSION*position.y, k + CHUNK_DIMENSION*position.z);
-                    let perlin_sample = perlin.get(bposition.to_perlin_pos(0.05));
-                    if perlin_sample < -0.2 || perlin_sample > 0.2 {
+                    let perlin_sample = perlin.get(bposition.to_perlin_pos(PERLIN_SCALE_FACTOR));
+                    if perlin_sample < PERLIN_NEGATIVE_THRESHOLD|| perlin_sample > PERLIN_POSITIVE_THRESHOLD {
                         cci.push_block_type(BlockType::get_random_type());
                     } else {
                         cci.push_block_type(BlockType::AIR);
@@ -77,7 +46,7 @@ impl Chunk {
         cci.return_chunk()
     }
 
-    pub fn _solid(position: &WorldPosition) -> Self {
+    pub fn solid(position: &WorldPosition) -> Self {
         let mut cci = ChunkCreationIterator::new(*position);
 
         for _ in 0..CHUNK_SIZE as i32 {

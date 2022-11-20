@@ -1,6 +1,4 @@
-use std::fmt::Display;
-
-use log::{LevelFilter, debug, info, warn, error};
+use log::LevelFilter;
 use log4rs::{append::{file::FileAppender}, config::{Appender, Logger, Root}, encode::pattern::PatternEncoder, Config};
 use std::path::Path;
 
@@ -22,16 +20,16 @@ impl CustomLogger {
         let error_path = Path::new(&logger_init_args.error_path_string);
 
         if debug_path.exists() {
-            std::fs::remove_file(debug_path);
+            let _ = std::fs::remove_file(debug_path);
         } 
         if info_path.exists() {
-            std::fs::remove_file(info_path);
+            let _ = std::fs::remove_file(info_path);
         } 
         if warn_path.exists() {
-            std::fs::remove_file(warn_path);
+            let _ = std::fs::remove_file(warn_path);
         } 
         if error_path.exists() {
-            std::fs::remove_file(error_path);
+            let _ = std::fs::remove_file(error_path);
         } 
 
         let debug_ap = FileAppender::builder()

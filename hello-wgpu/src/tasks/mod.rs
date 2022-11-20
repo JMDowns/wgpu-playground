@@ -7,6 +7,7 @@ use crate::voxels::world::World;
 use fundamentals::enums::block_side::BlockSide;
 use fundamentals::world_position::WorldPosition;
 use wgpu::Queue;
+use fundamentals::consts::{GENERATE_CHUNK_PRIORITY, GENERATE_MESH_PRIORITY, GENERATE_MESH_SIDE_PRIORITY, UPDATE_CHUNK_PADDING_X_PRIORITY, UPDATE_CHUNK_PADDING_Y_PRIORITY, UPDATE_CHUNK_PADDING_Z_PRIORITY};
 
 pub mod tasks_processors;
 
@@ -140,12 +141,12 @@ impl Hash for Task {
 pub fn get_task_priority(task: &Task) -> u32 {
     match task {
         Task::StopThread => 0,
-        Task::GenerateChunk { .. } => 1,
-        Task::UpdateYAxisChunkPadding { .. } => 2,
-        Task::UpdateXAxisChunkPadding { .. } => 2,
-        Task::UpdateZAxisChunkPadding { .. } => 2,
-        Task::GenerateChunkMesh { .. } => 3,
-        Task::GenerateChunkSideMeshes { .. } => 4,
+        Task::GenerateChunk { .. } => GENERATE_CHUNK_PRIORITY,
+        Task::UpdateYAxisChunkPadding { .. } => UPDATE_CHUNK_PADDING_Y_PRIORITY,
+        Task::UpdateXAxisChunkPadding { .. } => UPDATE_CHUNK_PADDING_X_PRIORITY,
+        Task::UpdateZAxisChunkPadding { .. } => UPDATE_CHUNK_PADDING_Z_PRIORITY,
+        Task::GenerateChunkMesh { .. } => GENERATE_MESH_PRIORITY,
+        Task::GenerateChunkSideMeshes { .. } => GENERATE_MESH_SIDE_PRIORITY,
     }
 }
 

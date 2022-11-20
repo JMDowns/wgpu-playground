@@ -9,5 +9,6 @@ pub struct ControlsFormat {
     pub forward: String,
     pub backward: String,
 
-    pub mouse_sensitivity: f64,
+    pub mouse_sensitivity_threshold: f64,
+    pub mouse_sensitivity: f32,
 }

@@ -1,10 +1,7 @@
 use derivables::{vertex::Vertex, block::Block};
-use fundamentals::{world_position::WorldPosition, enums::{block_side::BlockSide, block_type::{BlockType, BlockTypeSize}}, consts::{CHUNK_DIMENSION, NUM_VERTICES_IN_BUCKET}, logi};
+use fundamentals::{world_position::WorldPosition, enums::{block_side::BlockSide, block_type::BlockTypeSize}, consts::{CHUNK_DIMENSION, NUM_VERTICES_IN_BUCKET}, logi};
 use instant::Instant;
 use super::chunk::{Chunk, ChunkBlockIterator};
-
-use strum::IntoEnumIterator;
-
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 struct Face {
@@ -157,28 +154,17 @@ impl Mesh {
     }
 
     pub fn cull(chunk: &Chunk, index: u32) -> Self {
-        let mut mesh = Mesh::new();
-
-        let mut cbi = ChunkBlockIterator::new(chunk);
-
-        while let Some(((i,j,k), block)) = cbi.get_next_block() {
-            let adjacent_blocks_data = Self::generate_adjacent_blocks(&chunk, i, j, k);
-            mesh.add_vertices(
-                Self::generate_cube(WorldPosition::new(i as i32-1,j as i32-1,k as i32-1), block.get_texture_indices(), &adjacent_blocks_data, index), 
-                Self::generate_cube_indices(&adjacent_blocks_data),
-            );
-        }
-
-        mesh
+        Self::cull_side(chunk, index, &vec![BlockSide::FRONT, BlockSide::BACK, BlockSide::LEFT, BlockSide::RIGHT, BlockSide::TOP, BlockSide::BOTTOM])
     }
 
-    pub fn cull_side(chunk: &Chunk, index: u32, sides: Vec<BlockSide>) -> Self {
+    pub fn cull_side(chunk: &Chunk, index: u32, sides: &Vec<BlockSide>) -> Self {
+        let now = Instant::now();
         let mut mesh = Mesh::new();
 
         let mut vertex_arr = [Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new()];
         let mut index_arr = [Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new()];
 
-        let mut num_faces_generated = 0;
+        let mut num_faces_generated = [0;6];
 
         let mut cbi = ChunkBlockIterator::new(chunk);
 
@@ -186,8 +172,8 @@ impl Mesh {
             for side in sides.iter() {
                 if !Mesh::is_adjacent_blocks_solid_side(chunk, i, j, k, *side) {
                     vertex_arr[*side as usize].append(&mut Self::generate_cube_side(WorldPosition::new(i as i32-1,j as i32-1,k as i32-1), block.get_texture_indices(), index, *side));
-                    index_arr[*side as usize].append(&mut Self::generate_cube_indices_side(*side, num_faces_generated));
-                    num_faces_generated += 1;
+                    index_arr[*side as usize].append(&mut Self::generate_cube_indices_side(*side, num_faces_generated[*side as usize]));
+                    num_faces_generated[*side as usize] += 1;
                 }
             }
             
@@ -195,6 +181,11 @@ impl Mesh {
         }
 
         mesh.add_vertices(vertex_arr, index_arr);
+
+        let after = Instant::now();
+        let time  = (after-now).as_millis();
+        let cpos = chunk.position;
+        logi!("Cull mesh for position {} sides {:?} took {} milliseconds", cpos, sides, time);
 
         mesh
     }
@@ -237,7 +228,7 @@ impl Mesh {
                     let mut before_index = 0;
                     let mut current_index = 0;
 
-                    while (before_index < before_len && current_index < current_len) {
+                    while before_index < before_len && current_index < current_len {
                         let before_face = before_layer[layer_index][before_index];
                         let current_face = current_layer[layer_index][current_index];
                         let merged_face_option = match side {
@@ -271,12 +262,12 @@ impl Mesh {
                                 before_index += 1;
                                 current_index += 1;
                             } else if before_boundary < current_boundary {
-                                while (before_index < before_len && Self::get_boundary_from_face(&before_layer[layer_index][before_index]) < current_boundary) {
+                                while before_index < before_len && Self::get_boundary_from_face(&before_layer[layer_index][before_index]) < current_boundary {
                                     faces_to_make.push(before_layer[layer_index][before_index]);
                                     before_index += 1;
                                 }
                             } else if before_boundary > current_boundary {
-                                while (current_index < current_len && Self::get_boundary_from_face(&current_layer[layer_index][current_index]) < before_boundary) {
+                                while current_index < current_len && Self::get_boundary_from_face(&current_layer[layer_index][current_index]) < before_boundary {
                                     current_index += 1;
                                 }
                                 if current_index == current_len {
@@ -313,7 +304,7 @@ impl Mesh {
 
         let mut faces_to_make = Vec::new();
 
-        let mut current_x = 0;
+        let mut current_x;
         let mut current_y = 0;
         let mut current_z = 0;
 
@@ -451,7 +442,7 @@ impl Mesh {
         for face in faces_to_make {
             let face_index = face.block_side as usize;
             vertex_vec[face_index].extend(Self::generate_face_vertices(&face, index));
-            index_vec[face_index].extend(Self::generate_face_indices(&face, index, num_faces_generated[face_index]));
+            index_vec[face_index].extend(Self::generate_face_indices(num_faces_generated[face_index]));
             num_faces_generated[face_index] += 1;
         }
 
@@ -542,119 +533,11 @@ impl Mesh {
         
     }
 
-    fn generate_face_indices(face: &Face, index: u32, num_faces_generated: u32) -> Vec<u32> {
+    fn generate_face_indices(num_faces_generated: u32) -> Vec<u32> {
         [
             0+num_faces_generated*4,1+num_faces_generated*4,3+num_faces_generated*4,
             0+num_faces_generated*4,3+num_faces_generated*4,2+num_faces_generated*4,
         ].to_vec()
-    }
-    
-    fn generate_cube(pos: WorldPosition, tex_index_arr: [usize; 6], adjacent_blocks_data: &[bool;6], index: u32) -> [Vec<Vertex>; 6] {
-        let positions = pos.generate_vertex_world_positions();
-        let mut vertices_arr = [Vec::new(),Vec::new(),Vec::new(),Vec::new(),Vec::new(),Vec::new(),];
-        let all_vertices_arr = 
-        [
-            //Front
-            [
-            Vertex::new(positions[0], tex_index_arr[0], 0, 1, index),
-            Vertex::new(positions[1], tex_index_arr[0], 1, 1, index),
-            Vertex::new(positions[2], tex_index_arr[0], 0, 0, index),
-            Vertex::new(positions[3], tex_index_arr[0], 1, 0, index),
-            ].to_vec(),
-            //Back
-            [
-            Vertex::new(positions[4], tex_index_arr[1], 1, 1, index),
-            Vertex::new(positions[5], tex_index_arr[1], 0, 1, index),
-            Vertex::new(positions[6], tex_index_arr[1], 1, 0, index),
-            Vertex::new(positions[7], tex_index_arr[1], 0, 0, index),
-            ].to_vec(),
-            //Left
-            [
-            Vertex::new(positions[0], tex_index_arr[2], 1, 1, index),
-            Vertex::new(positions[2], tex_index_arr[2], 1, 0, index),
-            Vertex::new(positions[4], tex_index_arr[2], 0, 1, index),
-            Vertex::new(positions[6], tex_index_arr[2], 0, 0, index),
-            ].to_vec(),
-            //Right
-            [
-            Vertex::new(positions[1], tex_index_arr[3], 0, 1, index),
-            Vertex::new(positions[3], tex_index_arr[3], 0, 0, index),
-            Vertex::new(positions[5], tex_index_arr[3], 1, 1, index),
-            Vertex::new(positions[7], tex_index_arr[3], 1, 0, index),
-            ].to_vec(),
-            //Top
-            [
-            Vertex::new(positions[2], tex_index_arr[4], 0, 1, index),
-            Vertex::new(positions[3], tex_index_arr[4], 1, 1, index),
-            Vertex::new(positions[6], tex_index_arr[4], 0, 0, index),
-            Vertex::new(positions[7], tex_index_arr[4], 1, 0, index),
-            ].to_vec(),
-            //Bottom
-            [
-            Vertex::new(positions[0], tex_index_arr[5], 0, 0, index),
-            Vertex::new(positions[1], tex_index_arr[5], 1, 0, index),
-            Vertex::new(positions[4], tex_index_arr[5], 0, 1, index),
-            Vertex::new(positions[5], tex_index_arr[5], 1, 1, index),
-            ].to_vec()
-        ];
-    
-        for i in 0..6 {
-            if !adjacent_blocks_data[i] {
-                vertices_arr[i] = all_vertices_arr[i].clone();
-            }
-        }
-    
-        vertices_arr
-    }
-    fn generate_cube_indices(adjacent_blocks_data: &[bool;6]) -> [Vec<u32>;6] {
-        let mut indices_arr = [Vec::new(),Vec::new(),Vec::new(),Vec::new(),Vec::new(),Vec::new(),];
-        let all_indices_arr = 
-        [
-            // Front Face
-            [
-            0,1,3,
-            0,3,2,
-            ].to_vec(),
-                
-            // Back Face
-            [    
-            1,0,2,
-            1,2,3,
-            ].to_vec(),
-                
-            // Left Face
-            [
-            2,0,1,
-            2,1,3,
-            ].to_vec(),
-                
-            // Right Face
-            [
-            0,2,3,
-            0,3,1,
-            ].to_vec(),
-                
-            // Top Face
-            [
-            0,1,3,
-            0,3,2,
-            ].to_vec(),
-            
-            // Bottom Face
-            [
-            1,0,2,
-            1,2,3
-            ].to_vec()
-                
-        ];
-    
-        for i in 0..6 {
-            if !adjacent_blocks_data[i] {
-                indices_arr[i] = all_indices_arr[i].clone();
-            }
-        }
-    
-        indices_arr
     }
 
     fn generate_cube_side(pos: WorldPosition, tex_index_arr: [usize; 6], index: u32, side: BlockSide) -> Vec<Vertex> {

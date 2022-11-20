@@ -1,7 +1,6 @@
 use std::path::Path;
 use std::fs::File;
 use std::io::{BufWriter, Write};
-use fundamentals::enums::block_type::BlockTypeSize;
 
 pub fn build_block_file() {
     let block_path = Path::new("src/block.rs");

@@ -12,7 +12,6 @@ pub mod gpu_data;
 use camera_state::CameraState;
 use compute_state::ComputeState;
 use flag_state::FlagState;
-use log::info;
 use render_state::RenderState;
 use surface_state::SurfaceState;
 use texture_state::TextureState;
@@ -21,7 +20,7 @@ use gpu_data::vertex_gpu_data::VertexGPUData;
 use fundamentals::{world_position::WorldPosition, enums::block_side::BlockSide};
 use winit::window::Window;
 
-use crate::{texture, camera::CameraController, tasks::Task, voxels::{world::World, chunk::Chunk}};
+use crate::{texture, camera::CameraController, tasks::Task, voxels::chunk::Chunk};
 
 pub struct GPUManager {
     pub device: Arc<RwLock<wgpu::Device>>,

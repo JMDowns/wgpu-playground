@@ -16,7 +16,7 @@ impl CameraState {
     pub fn new(device: &Device, config: &SurfaceConfiguration) -> Self {
         let camera_position = Point3::new(0.0, 0.0, 0.0);
         let camera = camera::Camera::new(camera_position, cgmath::Deg(0.0), cgmath::Deg(0.0));
-        let projection = camera::Projection::new(config.width, config.height, cgmath::Deg(45.0), 0.1, 100.0);
+        let projection = camera::Projection::new(config.width, config.height, cgmath::Deg(45.0), 0.1, 1000.0);
 
         let mut camera_uniform = camera::CameraUniform::new();
         camera_uniform.update_view_proj(&camera, &projection);
