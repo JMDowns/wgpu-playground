@@ -74,8 +74,8 @@ pub async fn run() {
                     Err(wgpu::SurfaceError::Lost) => state.resize(state.gpu_manager.surface_state.size),
                     //System is out of memory, so we should probably quit
                     Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
-                    Err(e) => {
-                        loge!("{:?}", e)
+                    Err(_e) => {
+                        loge!("{:?}", _e)
                     }
                 }
             }

@@ -50,7 +50,8 @@ pub struct VertexGPUData {
     pub number_of_buckets_in_last_buffer: usize,
     pub vertex_bucket_size: usize,
     pub index_bucket_size: usize,
-    pub frustum_bucket_data_to_update: Vec<(WorldPosition, BlockSide, u32, BucketPosition, i32)>
+    pub frustum_bucket_data_to_update: Vec<(WorldPosition, BlockSide, u32, BucketPosition)>,
+    pub frustum_bucket_data_to_clear: Vec<(WorldPosition, BlockSide, u32)>
 }
 
 impl VertexGPUData {
@@ -98,7 +99,6 @@ impl VertexGPUData {
         let mut vertex_pool_buffers = Vec::new();
         let mut index_pool_buffers = Vec::new();
         let mut indirect_pool_buffers = Vec::new();
-        let mut index_count_pool_buffers = Vec::new();
 
         for i in 0..buffer_size_fn_return.number_of_buffers-1 {
             let pool_vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
@@ -120,7 +120,7 @@ impl VertexGPUData {
             for i in 0..buffer_size_fn_return.number_of_buckets_per_buffer as u32 {
                 let indirect_command = wgpu::util::DrawIndexedIndirect {
                     vertex_count: buffer_size_fn_return.index_bucket_size as u32 / std::mem::size_of::<i32>() as u32,
-                    instance_count: 1,
+                    instance_count: 0,
                     base_index: i * buffer_size_fn_return.index_bucket_size as u32 / std::mem::size_of::<i32>() as u32,
                     vertex_offset: i as i32 * buffer_size_fn_return.vertex_bucket_size as i32 / std::mem::size_of::<Vertex>() as i32,
                     base_instance: 0
@@ -143,17 +143,9 @@ impl VertexGPUData {
                 usage: BufferUsages::INDIRECT | BufferUsages::COPY_DST | BufferUsages::STORAGE,
             });
 
-            let pool_vertex_count_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-                label: Some(format!("Vertex Count Pool Buffer {i}").as_str()),
-                size: (buffer_size_fn_return.number_of_buckets_per_buffer * (std::mem::size_of::<u32>())) as u64,
-                usage: BufferUsages::COPY_DST | BufferUsages::STORAGE,
-                mapped_at_creation: false
-            });
-
             vertex_pool_buffers.push(pool_vertex_buffer);
             index_pool_buffers.push(pool_index_buffer);
             indirect_pool_buffers.push(pool_indirect_buffer);
-            index_count_pool_buffers.push(pool_vertex_count_buffer);
         }
         {
             let last_buffer_num = buffer_size_fn_return.number_of_buffers-1;
@@ -200,17 +192,9 @@ impl VertexGPUData {
                 usage: BufferUsages::INDIRECT | BufferUsages::COPY_DST | BufferUsages::STORAGE,
             });
 
-            let pool_vertex_count_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-                label: Some(format!("Vertex Count Pool Buffer {last_buffer_num}").as_str()),
-                size: (buffer_size_fn_return.number_of_buckets_per_buffer * (std::mem::size_of::<u32>())) as u64,
-                usage: BufferUsages::COPY_DST | BufferUsages::STORAGE,
-                mapped_at_creation: false
-            });
-
             vertex_pool_buffers.push(pool_vertex_buffer);
             index_pool_buffers.push(pool_index_buffer);
             indirect_pool_buffers.push(pool_indirect_buffer);
-            index_count_pool_buffers.push(pool_vertex_count_buffer);
         }
 
         let pool_position_to_mesh_bucket_data = HashMap::new();
@@ -244,14 +228,19 @@ impl VertexGPUData {
             index_pool_buffers,
             indirect_pool_buffers,
             frustum_bucket_data_to_update: Vec::new(),
+            frustum_bucket_data_to_clear: Vec::new(),
             pool_position_to_mesh_bucket_data,
             lru_vertex_buffer_bucket_index,
             lru_index_buffer_bucket_index
         }
     }
 
-    pub fn return_frustum_bucket_data_to_update_and_empty_counts(&mut self) -> Vec<(WorldPosition, BlockSide, u32, BucketPosition, i32)> {
+    pub fn return_frustum_bucket_data_to_update_and_empty_counts(&mut self) -> Vec<(WorldPosition, BlockSide, u32, BucketPosition)> {
         self.frustum_bucket_data_to_update.drain(..).collect()
+    }
+
+    pub fn return_frustum_bucket_data_to_clear_and_empty_counts(&mut self) -> Vec<(WorldPosition, BlockSide, u32)> {
+        self.frustum_bucket_data_to_clear.drain(..).collect()
     }
 
     pub fn add_vertex_vec(&mut self, vertex_vec: &Vec<Vertex>, queue: &Arc<RwLock<Queue>>, side: BlockSide,  mesh_position: &WorldPosition) -> Vec<BucketPosition> {
@@ -283,21 +272,13 @@ impl VertexGPUData {
         };
         
         //TODO: Remove logic around getting bucket once bucket requesting is implemented - self.lru_vertex_buffer_bucket_index.get(&bucket);
-        if vertex_vec.len() == 0 {
-            for bucket in buckets_to_use.iter() {
-                self.lru_vertex_buffer_bucket_index.get(bucket);
-            }
-        } else {
+        if vertex_vec.len() != 0 {
             if buckets_to_use.len() < vertex_chunks_len {
                 panic!("There are more chunks than vertex buckets to use! Need to implement requesting a bucket.");
             }
             for (i, vertex_bucket) in vertex_buckets.enumerate() {
                 let bucket = buckets_to_use[i];
                 queue.read().unwrap().write_buffer(&self.vertex_pool_buffers[bucket.buffer_number as usize], (bucket.bucket_number as usize * self.vertex_bucket_size) as u64, bytemuck::cast_slice(vertex_bucket));
-                self.lru_vertex_buffer_bucket_index.get(&bucket);
-            }
-            for i in vertex_chunks_len..buckets_to_use.len() {
-                let bucket = buckets_to_use[i];
                 self.lru_vertex_buffer_bucket_index.get(&bucket);
             }
         }
@@ -333,10 +314,9 @@ impl VertexGPUData {
         };
 
         if index_vec.len() == 0 {
-            for (i, bucket) in buckets_to_use.iter().enumerate() {
-                //Basically free up the index bucket (which frees the bucket pair from vertices indirectly)
-                self.frustum_bucket_data_to_update.push((*mesh_position, side, i as u32, *bucket, 0));
-                self.lru_index_buffer_bucket_index.get(bucket);
+            for (i, bucket_position) in buckets_to_use.iter().enumerate() {
+                self.frustum_bucket_data_to_clear.push((*mesh_position, side, i as u32));
+                self.update_indirect_index_count(*bucket_position, 0, queue);
             }
         } else {
             if buckets_to_use.len() < index_chunks_len {
@@ -345,18 +325,22 @@ impl VertexGPUData {
             for (i, index_bucket) in index_buckets.enumerate() {
                 let bucket = buckets_to_use[i];
                 queue.read().unwrap().write_buffer(&self.index_pool_buffers[bucket.buffer_number as usize], (bucket.bucket_number as usize * self.index_bucket_size) as u64, bytemuck::cast_slice(index_bucket));
-                self.frustum_bucket_data_to_update.push((*mesh_position, side, i as u32, bucket, index_bucket.len() as i32));
+                self.update_indirect_index_count(bucket, index_bucket.len(), queue);
+                self.frustum_bucket_data_to_update.push((*mesh_position, side, i as u32, bucket));
                 self.lru_index_buffer_bucket_index.get(&bucket);
             }
             for i in index_chunks_len..buckets_to_use.len() {
-                let bucket = buckets_to_use[i];
-                //Basically free up the index bucket (which frees the bucket pair from vertices indirectly)
-                self.frustum_bucket_data_to_update.push((*mesh_position, side, i as u32, bucket, 0));
-                self.lru_index_buffer_bucket_index.get(&bucket);
+                let bucket_position = buckets_to_use[i];
+                self.frustum_bucket_data_to_clear.push((*mesh_position, side, i as u32));
+                self.update_indirect_index_count(bucket_position, 0, queue);
             }
         }
         buckets_to_use.to_vec()
     }
+
+    fn update_indirect_index_count(&self, bucket_position: BucketPosition, index_count: usize, queue: &Arc<RwLock<Queue>>) {
+        queue.read().unwrap().write_buffer(&self.indirect_pool_buffers[bucket_position.buffer_number as usize], (bucket_position.bucket_number as usize * std::mem::size_of::<i32>()*5) as u64, bytemuck::cast_slice(&[index_count]))
+    }   
 
     pub fn add_mesh_data_drain(&mut self, mesh: Mesh, mesh_position: &WorldPosition, queue: Arc<RwLock<Queue>>) {
         let front_bucket_data_vertices = self.add_vertex_vec(&mesh.front.0, &queue, BlockSide::FRONT, mesh_position);

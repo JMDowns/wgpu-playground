@@ -12,12 +12,13 @@ pub mod gpu_data;
 use camera_state::CameraState;
 use compute_state::ComputeState;
 use flag_state::FlagState;
+use instant::Instant;
 use render_state::RenderState;
 use surface_state::SurfaceState;
 use texture_state::TextureState;
 use gpu_data::vertex_gpu_data::VertexGPUData;
 
-use fundamentals::{world_position::WorldPosition, enums::block_side::BlockSide};
+use fundamentals::{world_position::WorldPosition, enums::block_side::BlockSide, logi};
 use winit::window::Window;
 
 use crate::{texture, camera::CameraController, tasks::Task, voxels::chunk::Chunk};
@@ -140,6 +141,7 @@ impl GPUManager {
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
+        let now = Instant::now();
         let output = self.surface_state.surface.get_current_texture()?;
         let view = output
             .texture
@@ -154,8 +156,11 @@ impl GPUManager {
 
         {
             let mut vertex_gpu_data = self.vertex_gpu_data.write().unwrap();
-            for (mesh_position, side, side_offset, bucket_position, index_count) in vertex_gpu_data.return_frustum_bucket_data_to_update_and_empty_counts() {
-                self.compute_state.update_frustum_bucket_data(mesh_position, side, side_offset, bucket_position, index_count, &queue);
+            for (mesh_position, side, side_offset, bucket_position) in vertex_gpu_data.return_frustum_bucket_data_to_update_and_empty_counts() {
+                self.compute_state.update_frustum_bucket_data(mesh_position, side, side_offset, bucket_position, &queue);
+            }
+            for (mesh_position, side, side_offset) in vertex_gpu_data.return_frustum_bucket_data_to_clear_and_empty_counts() {
+                self.compute_state.clear_frustum_bucket_data(mesh_position, side, side_offset, &queue);
             }
         }
 
@@ -220,6 +225,9 @@ impl GPUManager {
         // submit will accept anything that implements IntoIter
         queue.submit(std::iter::once(encoder.finish()));
         output.present();
+        let after = Instant::now();
+        let time = (after-now).as_millis();
+        logi!("Time to render was {}", time);
         Ok(())
     }
 

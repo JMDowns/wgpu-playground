@@ -1,4 +1,4 @@
-let CHUNKS_AROUND_PLAYER = 1;
+let CHUNKS_AROUND_PLAYER = 611;
 let CHUNK_DIMENSION = 32;
 let NUM_BUCKETS_PER_CHUNK = 12;
 let NUM_BUCKETS_PER_SIDE = 2;
@@ -22,7 +22,6 @@ struct DrawIndexedIndirect {
 struct BucketData {
     buffer_index: i32,
     bucket_index: i32,
-    vertex_count: u32,
     side: u32,
 };
 
@@ -35,7 +34,13 @@ struct ComputeData {
 var<storage> computeDataArray: array<ComputeData, CHUNKS_AROUND_PLAYER>;
 
 @group(1) @binding(0)
-var<storage, read_write> indirect_buffer_0: array<DrawIndexedIndirect, 12>;
+var<storage, read_write> indirect_buffer_0: array<DrawIndexedIndirect, 2048>;
+@group(1) @binding(1)
+var<storage, read_write> indirect_buffer_1: array<DrawIndexedIndirect, 2048>;
+@group(1) @binding(2)
+var<storage, read_write> indirect_buffer_2: array<DrawIndexedIndirect, 2048>;
+@group(1) @binding(3)
+var<storage, read_write> indirect_buffer_3: array<DrawIndexedIndirect, 1188>;
 
 fn is_not_in_frustum_via_plane(center_point: vec3<f32>, plane_normal: vec3<f32>, plane_distance: f32) -> bool {
     var r = abs(plane_normal.x * f32(CHUNK_DIMENSION / 2)) 
@@ -128,13 +133,34 @@ fn is_in_frustum(index: u32) -> InFrustumResult {
     return frustum_result;
 }
 
-fn set_vertex_count_in_bucket(buffer_number: i32, bucket_number: i32, vertex_count: u32) {
+fn set_instance_count_in_bucket(buffer_number: i32, bucket_number: i32, instance_count: u32) {
     switch buffer_number {
         case 0: {
-    indirect_buffer_0[bucket_number].vertex_count = vertex_count;
+    indirect_buffer_0[bucket_number].instance_count = instance_count;
+}
+case 1: {
+    indirect_buffer_1[bucket_number].instance_count = instance_count;
+}
+case 2: {
+    indirect_buffer_2[bucket_number].instance_count = instance_count;
+}
+case 3: {
+    indirect_buffer_3[bucket_number].instance_count = instance_count;
 }
 default: {{}}
     }
+}
+
+fn is_chunk_mesh_empty(index: u32) -> bool {
+    for (var side: i32 = 0; side < 6; side++) {
+        for (var i: i32 = 0; i < NUM_BUCKETS_PER_SIDE; i++) {
+            var frustum_bucket_data = computeDataArray[index].bucket_data[side * NUM_BUCKETS_PER_SIDE + i];
+            if (frustum_bucket_data.buffer_index != -1) {
+                return false;
+            }
+        }
+    }
+    return true;
 }
 
 @compute
@@ -144,6 +170,9 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     if (index >= u32(CHUNKS_AROUND_PLAYER)) {
         return;
     } 
+    if (is_chunk_mesh_empty(index)) {
+        return;
+    }
     var frustum_result = is_in_frustum(index);
     if (frustum_result.in_frustum) {
 
@@ -175,14 +204,17 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                     for (var i: i32 = 0; i < NUM_BUCKETS_PER_SIDE; i++) {
                         var frustum_bucket_data = computeDataArray[index].bucket_data[side * NUM_BUCKETS_PER_SIDE + i];
                         if (frustum_bucket_data.buffer_index != -1) {
-                            set_vertex_count_in_bucket(frustum_bucket_data.buffer_index, frustum_bucket_data.bucket_index, frustum_bucket_data.vertex_count);
+                            set_instance_count_in_bucket(frustum_bucket_data.buffer_index, frustum_bucket_data.bucket_index, 1u);
+                        }
+                        else {
+                            set_instance_count_in_bucket(frustum_bucket_data.buffer_index, frustum_bucket_data.bucket_index, 0u);
                         }
                     }
                 } else {
                     for (var i: i32 = 0; i < NUM_BUCKETS_PER_SIDE; i++) {
                         var frustum_bucket_data = computeDataArray[index].bucket_data[side * NUM_BUCKETS_PER_SIDE + i];
                         if (frustum_bucket_data.buffer_index != -1) {
-                            set_vertex_count_in_bucket(frustum_bucket_data.buffer_index, frustum_bucket_data.bucket_index, 0u);
+                            set_instance_count_in_bucket(frustum_bucket_data.buffer_index, frustum_bucket_data.bucket_index, 0u);
                         }
                     }
                 }
@@ -191,15 +223,16 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                     for (var i: i32 = 0; i < NUM_BUCKETS_PER_SIDE; i++) {
                         var frustum_bucket_data = computeDataArray[index].bucket_data[side * NUM_BUCKETS_PER_SIDE + i];
                         if (frustum_bucket_data.buffer_index != -1) {
-                            set_vertex_count_in_bucket(frustum_bucket_data.buffer_index, frustum_bucket_data.bucket_index, frustum_bucket_data.vertex_count);
+                            set_instance_count_in_bucket(frustum_bucket_data.buffer_index, frustum_bucket_data.bucket_index, 1u);
+                        }
+                        else {
+                            set_instance_count_in_bucket(frustum_bucket_data.buffer_index, frustum_bucket_data.bucket_index, 0u);
                         }
                     }
                 } else {
                     for (var i: i32 = 0; i < NUM_BUCKETS_PER_SIDE; i++) {
                         var frustum_bucket_data = computeDataArray[index].bucket_data[side * NUM_BUCKETS_PER_SIDE + i];
-                        if (frustum_bucket_data.buffer_index != -1) {
-                            set_vertex_count_in_bucket(frustum_bucket_data.buffer_index, frustum_bucket_data.bucket_index, 0u);
-                        }
+                        set_instance_count_in_bucket(frustum_bucket_data.buffer_index, frustum_bucket_data.bucket_index, 0u);
                     }
                 }
             }
@@ -208,9 +241,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     } else {
         for (var i: i32 = 0; i < NUM_BUCKETS_PER_CHUNK; i++) {
             var frustum_bucket_data = computeDataArray[index].bucket_data[i];
-            if (frustum_bucket_data.buffer_index != -1) {
-                set_vertex_count_in_bucket(frustum_bucket_data.buffer_index, frustum_bucket_data.bucket_index, 0u);
-            }
+            set_instance_count_in_bucket(frustum_bucket_data.buffer_index, frustum_bucket_data.bucket_index, 0u);
         }
     }
 }

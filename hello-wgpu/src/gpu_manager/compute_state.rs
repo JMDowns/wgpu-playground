@@ -15,7 +15,6 @@ use super::gpu_data::vertex_gpu_data::BucketPosition;
 pub struct FrustumBucketData {
     pub buffer_index: i32,
     pub bucket_index: i32,
-    pub vertex_count: u32,
     pub side: u32,
 }
 
@@ -43,7 +42,6 @@ impl ComputeState {
                 bucket_data: [FrustumBucketData {
                     buffer_index: -1,
                     bucket_index: -1,
-                    vertex_count: 0,
                     side: 0,
                 }; fundamentals::consts::NUM_BUCKETS_PER_CHUNK]
             }).collect();
@@ -134,9 +132,15 @@ impl ComputeState {
         }
     }
 
-    pub fn update_frustum_bucket_data(&mut self, mesh_position: WorldPosition, side: BlockSide, side_offset: u32, bucket_position: BucketPosition, index_count: i32, queue: &wgpu::Queue) {
+    pub fn update_frustum_bucket_data(&mut self, mesh_position: WorldPosition, side: BlockSide, side_offset: u32, bucket_position: BucketPosition, queue: &wgpu::Queue) {
         let data_beginning_offset = *self.world_position_to_compute_data_offset.get(&mesh_position).unwrap();
         let offset = (data_beginning_offset as usize + std::mem::size_of::<WorldPosition>() + std::mem::size_of::<FrustumBucketData>() * (side as u32 * fundamentals::consts::NUM_BUCKETS_PER_SIDE + side_offset) as usize) as u64;
-        queue.write_buffer(&self.compute_bucket_data_buffer, offset, bytemuck::cast_slice(&[bucket_position.buffer_number, bucket_position.bucket_number, index_count, side as i32]));
+        queue.write_buffer(&self.compute_bucket_data_buffer, offset, bytemuck::cast_slice(&[bucket_position.buffer_number, bucket_position.bucket_number, side as i32]));
+    }
+
+    pub fn clear_frustum_bucket_data(&mut self, mesh_position: WorldPosition, side: BlockSide, side_offset: u32, queue: &wgpu::Queue) {
+        let data_beginning_offset = *self.world_position_to_compute_data_offset.get(&mesh_position).unwrap();
+        let offset = (data_beginning_offset as usize + std::mem::size_of::<WorldPosition>() + std::mem::size_of::<FrustumBucketData>() * (side as u32 * fundamentals::consts::NUM_BUCKETS_PER_SIDE + side_offset) as usize) as u64;
+        queue.write_buffer(&self.compute_bucket_data_buffer, offset, bytemuck::cast_slice(&[-1, -1, side as i32]));
     }
 }

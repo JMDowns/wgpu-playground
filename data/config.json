@@ -1,7 +1,7 @@
 {
     "num_additional_threads_specified": 1,
     "use_all_system_threads": true,
-    "render_radius": 0,
+    "render_radius": 5,
     "max_amount_of_blocktypes": 65536,
     "texture_dimension": 16,
     "chunk_dimension": 32,
@@ -20,6 +20,6 @@
     "chunk_generation_options": {
         "perlin_positive_threshold": 0.2,
         "perlin_negative_threshold": -0.2,
-        "perlin_scale_factor": 0.005
+        "perlin_scale_factor": 0.05
     }
 }

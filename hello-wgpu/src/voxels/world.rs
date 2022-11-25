@@ -16,6 +16,7 @@ impl World {
             "perlin" => Chunk::perlin(position),
             "checkerboard" => Chunk::checkerboard(position),
             "solid" => Chunk::solid(position),
+            "empty" => Chunk::empty(position),
             _ => Chunk::empty(position)
         }
     }

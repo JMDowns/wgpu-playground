@@ -18,7 +18,7 @@ pub fn build_compute_file() {
 
 fn build_compute_string() -> String {
     let buffer_binding_string = generate_indirect_buffer_bindings();
-    let vertex_count_fn_string = generate_set_vertex_count_fn();
+    let vertex_count_fn_string = generate_set_instance_count_fn();
     format!("let CHUNKS_AROUND_PLAYER = {NUMBER_OF_CHUNKS_AROUND_PLAYER};
 let CHUNK_DIMENSION = {CHUNK_DIMENSION};
 let NUM_BUCKETS_PER_CHUNK = {NUM_BUCKETS_PER_CHUNK};
@@ -43,7 +43,6 @@ struct DrawIndexedIndirect {{
 struct BucketData {{
     buffer_index: i32,
     bucket_index: i32,
-    vertex_count: u32,
     side: u32,
 }};
 
@@ -150,6 +149,18 @@ fn is_in_frustum(index: u32) -> InFrustumResult {{
 
 {vertex_count_fn_string}
 
+fn is_chunk_mesh_empty(index: u32) -> bool {{
+    for (var side: i32 = 0; side < 6; side++) {{
+        for (var i: i32 = 0; i < NUM_BUCKETS_PER_SIDE; i++) {{
+            var frustum_bucket_data = computeDataArray[index].bucket_data[side * NUM_BUCKETS_PER_SIDE + i];
+            if (frustum_bucket_data.buffer_index != -1) {{
+                return false;
+            }}
+        }}
+    }}
+    return true;
+}}
+
 @compute
 @workgroup_size({WORKGROUP_SIZE})
 fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {{
@@ -157,6 +168,9 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {{
     if (index >= u32(CHUNKS_AROUND_PLAYER)) {{
         return;
     }} 
+    if (is_chunk_mesh_empty(index)) {{
+        return;
+    }}
     var frustum_result = is_in_frustum(index);
     if (frustum_result.in_frustum) {{
 
@@ -188,14 +202,17 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {{
                     for (var i: i32 = 0; i < NUM_BUCKETS_PER_SIDE; i++) {{
                         var frustum_bucket_data = computeDataArray[index].bucket_data[side * NUM_BUCKETS_PER_SIDE + i];
                         if (frustum_bucket_data.buffer_index != -1) {{
-                            set_vertex_count_in_bucket(frustum_bucket_data.buffer_index, frustum_bucket_data.bucket_index, frustum_bucket_data.vertex_count);
+                            set_instance_count_in_bucket(frustum_bucket_data.buffer_index, frustum_bucket_data.bucket_index, 1u);
+                        }}
+                        else {{
+                            set_instance_count_in_bucket(frustum_bucket_data.buffer_index, frustum_bucket_data.bucket_index, 0u);
                         }}
                     }}
                 }} else {{
                     for (var i: i32 = 0; i < NUM_BUCKETS_PER_SIDE; i++) {{
                         var frustum_bucket_data = computeDataArray[index].bucket_data[side * NUM_BUCKETS_PER_SIDE + i];
                         if (frustum_bucket_data.buffer_index != -1) {{
-                            set_vertex_count_in_bucket(frustum_bucket_data.buffer_index, frustum_bucket_data.bucket_index, 0u);
+                            set_instance_count_in_bucket(frustum_bucket_data.buffer_index, frustum_bucket_data.bucket_index, 0u);
                         }}
                     }}
                 }}
@@ -204,15 +221,16 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {{
                     for (var i: i32 = 0; i < NUM_BUCKETS_PER_SIDE; i++) {{
                         var frustum_bucket_data = computeDataArray[index].bucket_data[side * NUM_BUCKETS_PER_SIDE + i];
                         if (frustum_bucket_data.buffer_index != -1) {{
-                            set_vertex_count_in_bucket(frustum_bucket_data.buffer_index, frustum_bucket_data.bucket_index, frustum_bucket_data.vertex_count);
+                            set_instance_count_in_bucket(frustum_bucket_data.buffer_index, frustum_bucket_data.bucket_index, 1u);
+                        }}
+                        else {{
+                            set_instance_count_in_bucket(frustum_bucket_data.buffer_index, frustum_bucket_data.bucket_index, 0u);
                         }}
                     }}
                 }} else {{
                     for (var i: i32 = 0; i < NUM_BUCKETS_PER_SIDE; i++) {{
                         var frustum_bucket_data = computeDataArray[index].bucket_data[side * NUM_BUCKETS_PER_SIDE + i];
-                        if (frustum_bucket_data.buffer_index != -1) {{
-                            set_vertex_count_in_bucket(frustum_bucket_data.buffer_index, frustum_bucket_data.bucket_index, 0u);
-                        }}
+                        set_instance_count_in_bucket(frustum_bucket_data.buffer_index, frustum_bucket_data.bucket_index, 0u);
                     }}
                 }}
             }}
@@ -221,9 +239,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {{
     }} else {{
         for (var i: i32 = 0; i < NUM_BUCKETS_PER_CHUNK; i++) {{
             var frustum_bucket_data = computeDataArray[index].bucket_data[i];
-            if (frustum_bucket_data.buffer_index != -1) {{
-                set_vertex_count_in_bucket(frustum_bucket_data.buffer_index, frustum_bucket_data.bucket_index, 0u);
-            }}
+            set_instance_count_in_bucket(frustum_bucket_data.buffer_index, frustum_bucket_data.bucket_index, 0u);
         }}
     }}
 }}")
@@ -250,20 +266,20 @@ var<storage, read_write> indirect_buffer_{last_buffer_number}: array<DrawIndexed
     binding_string_list.join("\n")
 }
 
-fn generate_set_vertex_count_fn() -> String {
+fn generate_set_instance_count_fn() -> String {
     let buffer_size_fn_return = buffer_size_function::return_bucket_buffer_size_and_amount_information(super::vertex_builder::return_size_of_vertex_in_bytes());
     let mut switch_cases = Vec::new();
     for i in 0..buffer_size_fn_return.number_of_buffers {
         let case = format!(
 "case {i}: {{
-    indirect_buffer_{i}[bucket_number].vertex_count = vertex_count;
+    indirect_buffer_{i}[bucket_number].instance_count = instance_count;
 }}");
         switch_cases.push(case);
     }
     switch_cases.push(String::from("default: {{}}"));
     let switch_cases_string = switch_cases.join("\n");
     format!(
-"fn set_vertex_count_in_bucket(buffer_number: i32, bucket_number: i32, vertex_count: u32) {{
+"fn set_instance_count_in_bucket(buffer_number: i32, bucket_number: i32, instance_count: u32) {{
     switch buffer_number {{
         {switch_cases_string}
     }}

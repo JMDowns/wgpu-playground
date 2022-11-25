@@ -20,7 +20,11 @@ pub struct Chunk {
 impl Chunk {
 
     pub fn empty(position: &WorldPosition) -> Self {
-        let cci = ChunkCreationIterator::new(*position);
+        let mut cci = ChunkCreationIterator::new(*position);
+
+        for _ in 0..CHUNK_SIZE {
+            cci.push_block_type(BlockType::AIR);
+        }
 
         cci.return_chunk()
     }
