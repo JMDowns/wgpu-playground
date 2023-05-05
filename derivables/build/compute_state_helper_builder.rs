@@ -41,7 +41,7 @@ fn build_compute_helper_string() -> String {
 fn build_layout_entries() -> String {
     let buffer_info = buffer_size_function::return_bucket_buffer_size_and_amount_information(super::vertex_builder::return_size_of_vertex_in_bytes());
     let mut bind_group_layout_vec = Vec::new();
-    for i in 0..buffer_info.number_of_buffers {
+    for i in 0..buffer_info.num_max_buffers {
         let binding = format!("wgpu::BindGroupLayoutEntry {{
             binding: {i},
             visibility: wgpu::ShaderStages::COMPUTE,
@@ -61,7 +61,7 @@ fn build_layout_entries() -> String {
 fn build_bind_group_entries() -> String {
     let buffer_info = buffer_size_function::return_bucket_buffer_size_and_amount_information(super::vertex_builder::return_size_of_vertex_in_bytes());
     let mut bind_group_entry_vec = Vec::new();
-    for i in 0..buffer_info.number_of_buffers {
+    for i in 0..buffer_info.num_max_buffers {
         let binding = format!("wgpu::BindGroupEntry {{
             binding: {i},
             resource: indirect_buffers[{i}].as_entire_binding(),

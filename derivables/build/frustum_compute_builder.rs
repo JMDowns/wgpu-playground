@@ -249,19 +249,13 @@ fn generate_indirect_buffer_bindings() -> String {
     let buffer_size_fn_return = buffer_size_function::return_bucket_buffer_size_and_amount_information(super::vertex_builder::return_size_of_vertex_in_bytes());
     let mut binding_string_list = Vec::new();
     let number_of_buckets = buffer_size_fn_return.number_of_buckets_per_buffer;
-    for i in 0..buffer_size_fn_return.number_of_buffers-1 {
+    for i in 0..buffer_size_fn_return.num_max_buffers {
         
         binding_string_list.push(format!(
             "@group(1) @binding({i})
 var<storage, read_write> indirect_buffer_{i}: array<DrawIndexedIndirect, {number_of_buckets}>;"
         ));
     }
-    let last_buffer_number = buffer_size_fn_return.number_of_buffers - 1;
-    let number_of_buckets_in_last_buffer = buffer_size_fn_return.number_of_buckets_in_last_buffer;
-    binding_string_list.push(format!(
-        "@group(1) @binding({last_buffer_number})
-var<storage, read_write> indirect_buffer_{last_buffer_number}: array<DrawIndexedIndirect, {number_of_buckets_in_last_buffer}>;"
-    ));
 
     binding_string_list.join("\n")
 }
@@ -269,7 +263,7 @@ var<storage, read_write> indirect_buffer_{last_buffer_number}: array<DrawIndexed
 fn generate_set_instance_count_fn() -> String {
     let buffer_size_fn_return = buffer_size_function::return_bucket_buffer_size_and_amount_information(super::vertex_builder::return_size_of_vertex_in_bytes());
     let mut switch_cases = Vec::new();
-    for i in 0..buffer_size_fn_return.number_of_buffers {
+    for i in 0..buffer_size_fn_return.num_max_buffers {
         let case = format!(
 "case {i}: {{
     indirect_buffer_{i}[bucket_number].instance_count = instance_count;
