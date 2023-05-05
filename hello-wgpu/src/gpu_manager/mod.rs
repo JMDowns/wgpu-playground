@@ -211,15 +211,11 @@ impl GPUManager {
             render_pass.set_bind_group(1, &self.texture_state.diffuse_bind_group, &[]);
             render_pass.set_bind_group(2, &vertex_gpu_data.chunk_index_bind_group, &[]);
 
-            for i in 0..vertex_gpu_data.vertex_pool_buffers.len() - 1 {
+            for i in 0..vertex_gpu_data.vertex_pool_buffers.len() {
                 render_pass.set_vertex_buffer(0, vertex_gpu_data.vertex_pool_buffers[i].slice(..));
                 render_pass.set_index_buffer(vertex_gpu_data.index_pool_buffers[i].slice(..), wgpu::IndexFormat::Uint32);
                 render_pass.multi_draw_indexed_indirect(&vertex_gpu_data.indirect_pool_buffers[i], 0, vertex_gpu_data.number_of_buckets_per_buffer as u32);
             }
-
-            render_pass.set_vertex_buffer(0, vertex_gpu_data.vertex_pool_buffers[vertex_gpu_data.vertex_pool_buffers.len() - 1].slice(..));
-            render_pass.set_index_buffer(vertex_gpu_data.index_pool_buffers[vertex_gpu_data.vertex_pool_buffers.len() - 1].slice(..), wgpu::IndexFormat::Uint32);
-            render_pass.multi_draw_indexed_indirect(&vertex_gpu_data.indirect_pool_buffers[vertex_gpu_data.vertex_pool_buffers.len() - 1], 0, vertex_gpu_data.number_of_buckets_in_last_buffer as u32);
         }
 
         // submit will accept anything that implements IntoIter
