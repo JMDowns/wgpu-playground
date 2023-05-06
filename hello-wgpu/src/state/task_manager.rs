@@ -144,7 +144,9 @@ impl TaskManager {
                         self.thread_task_manager.push_task(gpu_manager.create_generate_chunk_side_mesh_task(chunk_position, world.read().unwrap().get_chunk_at(&chunk_position).unwrap(), side));
                     }
                 }
-                TaskResult::UpdateChunkSideMesh {  } => {}
+                TaskResult::UpdateChunkSideMesh {  } => {
+                    gpu_manager.process_update_chunk_side_mesh_result();
+                }
                 TaskResult::Requeue { task } => {
                     self.thread_task_manager.push_task(task);
                 }

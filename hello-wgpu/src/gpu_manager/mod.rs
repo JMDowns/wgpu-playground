@@ -250,6 +250,15 @@ impl GPUManager {
 
     pub fn process_generate_chunk_mesh_task_result(&mut self) {
         self.flag_state.should_calculate_frustum = true;
+        while self.vertex_gpu_data.read().unwrap().should_allocate_new_buffer() {
+            self.vertex_gpu_data.write().unwrap().allocate_new_buffer(self.device.clone());
+        }
+    }
+
+    pub fn process_update_chunk_side_mesh_result(&mut self) {
+        while self.vertex_gpu_data.read().unwrap().should_allocate_new_buffer() {
+            self.vertex_gpu_data.write().unwrap().allocate_new_buffer(self.device.clone());
+        }
     }
 }
 

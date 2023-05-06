@@ -17,7 +17,14 @@ impl GenerateChunkMeshProcessor {
             _ => {}
         }
         
+        let mut enough_memory = vertex_gpu_data.read().unwrap().enough_memory_for_mesh(&mesh, chunk_position);
+        while !enough_memory {
+            std::thread::sleep(std::time::Duration::from_millis(1000));
+            enough_memory = vertex_gpu_data.read().unwrap().enough_memory_for_mesh(&mesh, chunk_position);
+        }
+
         vertex_gpu_data.write().unwrap().add_mesh_data_drain(mesh, chunk_position, queue);
+
         TaskResult::GenerateChunkMesh {  }
     }
 }
@@ -35,6 +42,13 @@ impl GenerateChunkSideMeshesProcessor {
                 "greedy" => mesh = Mesh::greedy_sided(&chunk.read().unwrap(), chunk_index, &sides),
                 "cull" => mesh = Mesh::cull_side(&chunk.read().unwrap(), chunk_index, &sides),
                 _ => {}
+            }
+
+            let mut enough_memory = vertex_gpu_data.read().unwrap().enough_memory_for_mesh(&mesh, &chunk_position);
+            while !enough_memory {
+                println!("Not enough memory for the mesh!");
+                std::thread::sleep(std::time::Duration::from_millis(1000));
+                enough_memory = vertex_gpu_data.read().unwrap().enough_memory_for_mesh(&mesh, &chunk_position);
             }
             
             vertex_gpu_data.write().unwrap().update_side_mesh_data_drain(mesh, &chunk_position, queue, &sides);
