@@ -28,7 +28,7 @@ pub struct FrustumComputeData {
 pub struct ComputeState {
     pub compute_pipeline: wgpu::ComputePipeline,
     pub compute_bind_group: wgpu::BindGroup,
-    pub compute_indirect_bind_group: wgpu::BindGroup,
+    pub compute_indirect_bind_groups: Vec<wgpu::BindGroup>,
     pub compute_bucket_data_buffer: wgpu::Buffer,
     pub compute_staging_vec: Vec<u32>,
     pub world_position_to_compute_data_offset: HashMap<WorldPosition, usize>
@@ -104,14 +104,16 @@ impl ComputeState {
             ]
         });
 
-        let (compute_indirect_bind_group, indirect_bind_group_layout) = compute_state_generated_helper::return_bind_group_and_layout(device, indirect_buffers);
+        let (compute_indirect_bind_groups, indirect_bind_group_layouts) = compute_state_generated_helper::return_bind_group_and_layout(device, indirect_buffers);
+
+        let mut compute_pipeline_bind_group_layouts = vec![&compute_bind_group_layout];
+        for layout in indirect_bind_group_layouts.iter() {
+            compute_pipeline_bind_group_layouts.push(layout);
+        }
 
         let compute_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Compute Pipeline Layout"),
-            bind_group_layouts: &[
-                &compute_bind_group_layout,
-                &indirect_bind_group_layout,
-            ],
+            bind_group_layouts: &compute_pipeline_bind_group_layouts,
             push_constant_ranges: &[],
         });
 
@@ -124,7 +126,7 @@ impl ComputeState {
 
         ComputeState {
             compute_bind_group,
-            compute_indirect_bind_group,
+            compute_indirect_bind_groups,
             compute_bucket_data_buffer,
             compute_pipeline,
             compute_staging_vec: vec![0; fundamentals::consts::NUMBER_OF_CHUNKS_AROUND_PLAYER as usize],

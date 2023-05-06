@@ -250,9 +250,10 @@ fn generate_indirect_buffer_bindings() -> String {
     let mut binding_string_list = Vec::new();
     let number_of_buckets = buffer_size_fn_return.number_of_buckets_per_buffer;
     for i in 0..buffer_size_fn_return.num_max_buffers {
-        
+        let group = i / 8 + 1;
+        let binding = i % 8;
         binding_string_list.push(format!(
-            "@group(1) @binding({i})
+            "@group({group}) @binding({binding})
 var<storage, read_write> indirect_buffer_{i}: array<DrawIndexedIndirect, {number_of_buckets}>;"
         ));
     }

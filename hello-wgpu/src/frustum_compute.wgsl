@@ -1,7 +1,7 @@
-let CHUNKS_AROUND_PLAYER = 1599;
-let CHUNK_DIMENSION = 32;
-let NUM_BUCKETS_PER_CHUNK = 192;
-let NUM_BUCKETS_PER_SIDE = 32;
+let CHUNKS_AROUND_PLAYER = 1045;
+let CHUNK_DIMENSION = 64;
+let NUM_BUCKETS_PER_CHUNK = 1536;
+let NUM_BUCKETS_PER_SIDE = 256;
 let SQRT_2_DIV_2 = .7071;
 let NEG_SQRT_2_DIV_2 = -.7071;
 
@@ -49,29 +49,29 @@ var<storage, read_write> indirect_buffer_5: array<DrawIndexedIndirect, 8192>;
 var<storage, read_write> indirect_buffer_6: array<DrawIndexedIndirect, 8192>;
 @group(1) @binding(7)
 var<storage, read_write> indirect_buffer_7: array<DrawIndexedIndirect, 8192>;
-@group(1) @binding(8)
+@group(2) @binding(0)
 var<storage, read_write> indirect_buffer_8: array<DrawIndexedIndirect, 8192>;
-@group(1) @binding(9)
+@group(2) @binding(1)
 var<storage, read_write> indirect_buffer_9: array<DrawIndexedIndirect, 8192>;
-@group(1) @binding(10)
+@group(2) @binding(2)
 var<storage, read_write> indirect_buffer_10: array<DrawIndexedIndirect, 8192>;
-@group(1) @binding(11)
+@group(2) @binding(3)
 var<storage, read_write> indirect_buffer_11: array<DrawIndexedIndirect, 8192>;
-@group(1) @binding(12)
+@group(2) @binding(4)
 var<storage, read_write> indirect_buffer_12: array<DrawIndexedIndirect, 8192>;
-@group(1) @binding(13)
+@group(2) @binding(5)
 var<storage, read_write> indirect_buffer_13: array<DrawIndexedIndirect, 8192>;
-@group(1) @binding(14)
+@group(2) @binding(6)
 var<storage, read_write> indirect_buffer_14: array<DrawIndexedIndirect, 8192>;
-@group(1) @binding(15)
+@group(2) @binding(7)
 var<storage, read_write> indirect_buffer_15: array<DrawIndexedIndirect, 8192>;
-@group(1) @binding(16)
+@group(3) @binding(0)
 var<storage, read_write> indirect_buffer_16: array<DrawIndexedIndirect, 8192>;
-@group(1) @binding(17)
+@group(3) @binding(1)
 var<storage, read_write> indirect_buffer_17: array<DrawIndexedIndirect, 8192>;
-@group(1) @binding(18)
+@group(3) @binding(2)
 var<storage, read_write> indirect_buffer_18: array<DrawIndexedIndirect, 8192>;
-@group(1) @binding(19)
+@group(3) @binding(3)
 var<storage, read_write> indirect_buffer_19: array<DrawIndexedIndirect, 8192>;
 
 fn is_not_in_frustum_via_plane(center_point: vec3<f32>, plane_normal: vec3<f32>, plane_distance: f32) -> bool {

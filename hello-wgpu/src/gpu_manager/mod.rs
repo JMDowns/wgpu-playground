@@ -173,7 +173,9 @@ impl GPUManager {
 
             compute_pass.set_pipeline(&self.compute_state.compute_pipeline);
             compute_pass.set_bind_group(0, &self.compute_state.compute_bind_group, &[]);
-            compute_pass.set_bind_group(1, &self.compute_state.compute_indirect_bind_group, &[]);
+            for i in 0..(&self.compute_state.compute_indirect_bind_groups).len() {
+                compute_pass.set_bind_group((i as u32)+1, &self.compute_state.compute_indirect_bind_groups[i], &[]);
+            }
 
             compute_pass.dispatch_workgroups((fundamentals::consts::NUMBER_OF_CHUNKS_AROUND_PLAYER as f32 / 256.0).ceil() as u32, 1, 1);
 
