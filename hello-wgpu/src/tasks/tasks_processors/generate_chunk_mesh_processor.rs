@@ -1,6 +1,7 @@
+use core::time;
 use std::sync::{Arc, RwLock};
 
-use crate::{voxels::{mesh::Mesh, chunk::Chunk}, tasks::{TaskResult, Task}, gpu_manager::gpu_data::vertex_gpu_data::VertexGPUData};
+use crate::{voxels::{mesh::Mesh, chunk::Chunk}, tasks::{TaskResult, Task, TaskError}, gpu_manager::gpu_data::vertex_gpu_data::VertexGPUData};
 use fundamentals::{world_position::WorldPosition, enums::block_side::BlockSide, consts::MESH_METHOD};
 
 pub struct GenerateChunkMeshProcessor {}
@@ -16,10 +17,19 @@ impl GenerateChunkMeshProcessor {
             "cull" => mesh = Mesh::cull(&chunk.read().unwrap(), chunk_index),
             _ => {}
         }
+
+        let mut times_out_of_memory = 0;
         
         let mut enough_memory = vertex_gpu_data.read().unwrap().enough_memory_for_mesh(&mesh, chunk_position);
         while !enough_memory {
-            println!("Not enough memory for the mesh!");
+            times_out_of_memory += 1;
+                if times_out_of_memory == 5 {
+                    let memory_info = vertex_gpu_data.read().unwrap().get_memory_info();
+                    return TaskResult::Requeue { 
+                        task: Task::GenerateChunkMesh { chunk_position: *chunk_position, chunk, vertex_gpu_data, queue }, 
+                        error: Some(TaskError::OutOfMemory { memory_info }) 
+                    }
+                }
             std::thread::sleep(std::time::Duration::from_millis(1000));
             enough_memory = vertex_gpu_data.read().unwrap().enough_memory_for_mesh(&mesh, chunk_position);
         }
@@ -45,9 +55,18 @@ impl GenerateChunkSideMeshesProcessor {
                 _ => {}
             }
 
+            let mut times_out_of_memory = 0;
+
             let mut enough_memory = vertex_gpu_data.read().unwrap().enough_memory_for_mesh(&mesh, &chunk_position);
             while !enough_memory {
-                println!("Not enough memory for the mesh update!");
+                times_out_of_memory += 1;
+                if times_out_of_memory == 5 {
+                    let memory_info = vertex_gpu_data.read().unwrap().get_memory_info();
+                    return TaskResult::Requeue { 
+                        task: Task::GenerateChunkSideMeshes { chunk_position, chunk, vertex_gpu_data, queue, sides }, 
+                        error: Some(TaskError::OutOfMemory { memory_info }) 
+                    }
+                }
                 std::thread::sleep(std::time::Duration::from_millis(1000));
                 enough_memory = vertex_gpu_data.read().unwrap().enough_memory_for_mesh(&mesh, &chunk_position);
             }
@@ -56,10 +75,7 @@ impl GenerateChunkSideMeshesProcessor {
 
             TaskResult::UpdateChunkSideMesh {  }
         } else {
-            TaskResult::Requeue { task: Task::GenerateChunkSideMeshes { chunk_position, chunk, vertex_gpu_data, queue, sides } }
+            TaskResult::Requeue { task: Task::GenerateChunkSideMeshes { chunk_position, chunk, vertex_gpu_data, queue, sides }, error: None }
         }
-        
-
-        
     }
 }

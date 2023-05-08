@@ -9,6 +9,11 @@ use crate::voxels::mesh::Mesh;
 
 pub const NUM_BUCKETS: usize = (fundamentals::consts::NUMBER_OF_CHUNKS_AROUND_PLAYER as usize) * fundamentals::consts::NUM_BUCKETS_PER_CHUNK;
 
+#[derive(PartialEq, Eq)]
+pub struct MemoryInfo {
+    pub buckets_total: usize
+}
+
 #[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
 pub struct BucketPosition {
     pub buffer_number: i32,
@@ -455,9 +460,15 @@ impl VertexGPUData {
 
         self.vertex_pool_buffers.push(pool_vertex_buffer);
         self.index_pool_buffers.push(pool_index_buffer);
+
+        println!("Allocated new buffer!");
     }
 
     pub fn has_meshed_position(&self, mesh_position: &WorldPosition) -> bool {
         self.pool_position_to_mesh_bucket_data.contains_key(mesh_position)
+    }
+
+    pub fn get_memory_info(&self) -> MemoryInfo {
+        MemoryInfo { buckets_total: self.vertex_buckets_total }
     }
 }

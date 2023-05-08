@@ -1,7 +1,7 @@
 use std::sync::{Arc, RwLock};
 use std::hash::{Hash, Hasher};
 
-use crate::gpu_manager::gpu_data::vertex_gpu_data::VertexGPUData;
+use crate::gpu_manager::gpu_data::vertex_gpu_data::{VertexGPUData, MemoryInfo};
 use crate::voxels::chunk::Chunk;
 use crate::voxels::world::World;
 use fundamentals::enums::block_side::BlockSide;
@@ -151,9 +151,13 @@ pub fn get_task_priority(task: &Task) -> u32 {
 }
 
 pub enum TaskResult {
-    Requeue { task: Task },
+    Requeue { task: Task, error: Option<TaskError> },
     GenerateChunkMesh { },
     GenerateChunk { chunk_position: WorldPosition },
     UpdateChunkPadding { chunk_positions: Vec<(WorldPosition, BlockSide)> },
     UpdateChunkSideMesh { }
+}
+
+pub enum TaskError {
+    OutOfMemory { memory_info: MemoryInfo }
 }

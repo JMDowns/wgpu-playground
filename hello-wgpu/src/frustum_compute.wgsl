@@ -1,7 +1,7 @@
-let CHUNKS_AROUND_PLAYER = 57;
-let CHUNK_DIMENSION = 32;
-let NUM_BUCKETS_PER_CHUNK = 8;
-let NUM_BUCKETS_PER_SIDE = 1;
+let CHUNKS_AROUND_PLAYER = 3335;
+let CHUNK_DIMENSION = 64;
+let NUM_BUCKETS_PER_CHUNK = 64;
+let NUM_BUCKETS_PER_SIDE = 10;
 let SQRT_2_DIV_2 = .7071;
 let NEG_SQRT_2_DIV_2 = -.7071;
 
@@ -34,45 +34,45 @@ struct ComputeData {
 var<storage> computeDataArray: array<ComputeData, CHUNKS_AROUND_PLAYER>;
 
 @group(1) @binding(0)
-var<storage, read_write> indirect_buffer_0: array<DrawIndexedIndirect, 456>;
+var<storage, read_write> indirect_buffer_0: array<DrawIndexedIndirect, 1>;
 @group(1) @binding(1)
-var<storage, read_write> indirect_buffer_1: array<DrawIndexedIndirect, 456>;
+var<storage, read_write> indirect_buffer_1: array<DrawIndexedIndirect, 1>;
 @group(1) @binding(2)
-var<storage, read_write> indirect_buffer_2: array<DrawIndexedIndirect, 456>;
+var<storage, read_write> indirect_buffer_2: array<DrawIndexedIndirect, 1>;
 @group(1) @binding(3)
-var<storage, read_write> indirect_buffer_3: array<DrawIndexedIndirect, 456>;
+var<storage, read_write> indirect_buffer_3: array<DrawIndexedIndirect, 1>;
 @group(1) @binding(4)
-var<storage, read_write> indirect_buffer_4: array<DrawIndexedIndirect, 456>;
+var<storage, read_write> indirect_buffer_4: array<DrawIndexedIndirect, 1>;
 @group(1) @binding(5)
-var<storage, read_write> indirect_buffer_5: array<DrawIndexedIndirect, 456>;
+var<storage, read_write> indirect_buffer_5: array<DrawIndexedIndirect, 1>;
 @group(1) @binding(6)
-var<storage, read_write> indirect_buffer_6: array<DrawIndexedIndirect, 456>;
+var<storage, read_write> indirect_buffer_6: array<DrawIndexedIndirect, 1>;
 @group(1) @binding(7)
-var<storage, read_write> indirect_buffer_7: array<DrawIndexedIndirect, 456>;
+var<storage, read_write> indirect_buffer_7: array<DrawIndexedIndirect, 1>;
 @group(2) @binding(0)
-var<storage, read_write> indirect_buffer_8: array<DrawIndexedIndirect, 456>;
+var<storage, read_write> indirect_buffer_8: array<DrawIndexedIndirect, 1>;
 @group(2) @binding(1)
-var<storage, read_write> indirect_buffer_9: array<DrawIndexedIndirect, 456>;
+var<storage, read_write> indirect_buffer_9: array<DrawIndexedIndirect, 1>;
 @group(2) @binding(2)
-var<storage, read_write> indirect_buffer_10: array<DrawIndexedIndirect, 456>;
+var<storage, read_write> indirect_buffer_10: array<DrawIndexedIndirect, 1>;
 @group(2) @binding(3)
-var<storage, read_write> indirect_buffer_11: array<DrawIndexedIndirect, 456>;
+var<storage, read_write> indirect_buffer_11: array<DrawIndexedIndirect, 1>;
 @group(2) @binding(4)
-var<storage, read_write> indirect_buffer_12: array<DrawIndexedIndirect, 456>;
+var<storage, read_write> indirect_buffer_12: array<DrawIndexedIndirect, 1>;
 @group(2) @binding(5)
-var<storage, read_write> indirect_buffer_13: array<DrawIndexedIndirect, 456>;
+var<storage, read_write> indirect_buffer_13: array<DrawIndexedIndirect, 1>;
 @group(2) @binding(6)
-var<storage, read_write> indirect_buffer_14: array<DrawIndexedIndirect, 456>;
+var<storage, read_write> indirect_buffer_14: array<DrawIndexedIndirect, 1>;
 @group(2) @binding(7)
-var<storage, read_write> indirect_buffer_15: array<DrawIndexedIndirect, 456>;
+var<storage, read_write> indirect_buffer_15: array<DrawIndexedIndirect, 1>;
 @group(3) @binding(0)
-var<storage, read_write> indirect_buffer_16: array<DrawIndexedIndirect, 456>;
+var<storage, read_write> indirect_buffer_16: array<DrawIndexedIndirect, 1>;
 @group(3) @binding(1)
-var<storage, read_write> indirect_buffer_17: array<DrawIndexedIndirect, 456>;
+var<storage, read_write> indirect_buffer_17: array<DrawIndexedIndirect, 1>;
 @group(3) @binding(2)
-var<storage, read_write> indirect_buffer_18: array<DrawIndexedIndirect, 456>;
+var<storage, read_write> indirect_buffer_18: array<DrawIndexedIndirect, 1>;
 @group(3) @binding(3)
-var<storage, read_write> indirect_buffer_19: array<DrawIndexedIndirect, 456>;
+var<storage, read_write> indirect_buffer_19: array<DrawIndexedIndirect, 1>;
 
 fn is_not_in_frustum_via_plane(center_point: vec3<f32>, plane_normal: vec3<f32>, plane_distance: f32) -> bool {
     var r = abs(plane_normal.x * f32(CHUNK_DIMENSION / 2)) 

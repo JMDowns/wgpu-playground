@@ -1,8 +1,9 @@
 use std::sync::{Arc, RwLock};
 
+use bitvec::mem;
 use fundamentals::logi;
 
-use crate::{thread_task_manager::ThreadTaskManager, voxels::world::World, gpu_manager::GPUManager, tasks::{Task, TaskResult, ChunkUpdateTaskIdentifyingInfo}};
+use crate::{thread_task_manager::ThreadTaskManager, voxels::world::World, gpu_manager::GPUManager, tasks::{Task, TaskResult, ChunkUpdateTaskIdentifyingInfo, TaskError}};
 
 pub struct TaskManager {
     thread_task_manager: ThreadTaskManager,
@@ -147,8 +148,22 @@ impl TaskManager {
                 TaskResult::UpdateChunkSideMesh {  } => {
                     gpu_manager.process_update_chunk_side_mesh_result();
                 }
-                TaskResult::Requeue { task } => {
-                    self.thread_task_manager.push_task(task);
+                TaskResult::Requeue { task, error } => {
+                    match error {
+                        Some(error) => {
+                            match error {
+                                TaskError::OutOfMemory { memory_info } => {
+                                    let current_memory_info = gpu_manager.vertex_gpu_data.read().unwrap().get_memory_info();
+                                    if current_memory_info == memory_info {
+                                        gpu_manager.allocate_new_buffer();
+                                    }
+                                }
+                            }
+                        }
+                        None => {}
+                    }
+
+                    self.thread_task_manager.push_task(task)
                 }
             }
         }

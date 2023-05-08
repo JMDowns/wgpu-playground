@@ -260,5 +260,9 @@ impl GPUManager {
             self.vertex_gpu_data.write().unwrap().allocate_new_buffer(self.device.clone());
         }
     }
+
+    pub fn allocate_new_buffer(&mut self) { 
+        self.vertex_gpu_data.write().unwrap().allocate_new_buffer(self.device.clone());
+    }
 }
 
