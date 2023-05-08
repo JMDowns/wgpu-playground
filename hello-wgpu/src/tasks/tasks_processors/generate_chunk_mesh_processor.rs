@@ -19,6 +19,7 @@ impl GenerateChunkMeshProcessor {
         
         let mut enough_memory = vertex_gpu_data.read().unwrap().enough_memory_for_mesh(&mesh, chunk_position);
         while !enough_memory {
+            println!("Not enough memory for the mesh!");
             std::thread::sleep(std::time::Duration::from_millis(1000));
             enough_memory = vertex_gpu_data.read().unwrap().enough_memory_for_mesh(&mesh, chunk_position);
         }
@@ -46,7 +47,7 @@ impl GenerateChunkSideMeshesProcessor {
 
             let mut enough_memory = vertex_gpu_data.read().unwrap().enough_memory_for_mesh(&mesh, &chunk_position);
             while !enough_memory {
-                println!("Not enough memory for the mesh!");
+                println!("Not enough memory for the mesh update!");
                 std::thread::sleep(std::time::Duration::from_millis(1000));
                 enough_memory = vertex_gpu_data.read().unwrap().enough_memory_for_mesh(&mesh, &chunk_position);
             }

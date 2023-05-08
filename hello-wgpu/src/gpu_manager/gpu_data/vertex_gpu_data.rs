@@ -349,19 +349,27 @@ impl VertexGPUData {
 
     pub fn enough_memory_for_mesh(&self, mesh: &Mesh, mesh_position: &WorldPosition) -> bool {
         let number_of_vertices = mesh.front.0.len() + mesh.back.0.len() + mesh.left.0.len() + mesh.right.0.len() + mesh.top.0.len() + mesh.bottom.0.len();
-        let buckets_needed = 1 + (number_of_vertices - 1) / (fundamentals::consts::NUM_VERTICES_IN_BUCKET as usize);
+        let buckets_needed = (1 + (number_of_vertices - 1) / (fundamentals::consts::NUM_VERTICES_IN_BUCKET as usize)) as i32;
 
         let mut buckets_used = 0;
 
         match self.pool_position_to_mesh_bucket_data.get(mesh_position) {
             Some(mesh) => {
-                buckets_used = mesh.front_bucket_data_vertices.len() + mesh.back_bucket_data_vertices.len() + mesh.left_bucket_data_vertices.len() + mesh.right_bucket_data_vertices.len() + mesh.top_bucket_data_vertices.len() + mesh.bottom_bucket_data_vertices.len();
+                buckets_used = (mesh.front_bucket_data_vertices.len() + mesh.back_bucket_data_vertices.len() + mesh.left_bucket_data_vertices.len() + mesh.right_bucket_data_vertices.len() + mesh.top_bucket_data_vertices.len() + mesh.bottom_bucket_data_vertices.len()) as i32;
             }
 
             None => {}
         }
         
-        self.vertex_buckets_used + buckets_needed - buckets_used < self.vertex_buckets_total
+        let enough_memory = ((self.vertex_buckets_used as i32 + buckets_needed - buckets_used) as usize) < self.vertex_buckets_total;
+
+        if !enough_memory {
+            let vertex_buckets_used = self.vertex_buckets_used;
+            let new_buckets_needed = buckets_needed - buckets_used;
+            println!("Buckets used: {vertex_buckets_used}, Buckets: needed: {new_buckets_needed}");
+        }
+
+        enough_memory
     }
 
     pub fn update_side_mesh_data_drain(&mut self, mesh: Mesh, mesh_position: &WorldPosition, queue: Arc<RwLock<Queue>>, sides: &Vec<BlockSide>) {
