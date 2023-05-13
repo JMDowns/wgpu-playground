@@ -1,7 +1,7 @@
 use std::{collections::HashMap, num::NonZeroUsize, sync::{Arc, RwLock}};
 use cgmath::Point3;
 use derivables::vertex::Vertex;
-use fundamentals::{world_position::WorldPosition, enums::block_side::BlockSide};
+use fundamentals::{world_position::WorldPosition, enums::block_side::BlockSide, consts};
 use lru::LruCache;
 use wgpu::{Device, util::DeviceExt, BufferUsages, Queue};
 
@@ -42,12 +42,14 @@ pub struct VertexGPUData {
     pub chunk_index_bind_group_layout: wgpu::BindGroupLayout,
     pub chunk_index_bind_group: wgpu::BindGroup,
     pub pos_to_gpu_index: HashMap<WorldPosition, usize>,
-    pub pos_to_loaded_index: HashMap<WorldPosition, usize>,
-    pub loaded_chunks: Vec<WorldPosition>,
-    //Vertex Pooling
     pub vertex_pool_buffers: Vec<wgpu::Buffer>,
     pub index_pool_buffers: Vec<wgpu::Buffer>,
     pub indirect_pool_buffers: Vec<wgpu::Buffer>,
+    pub visibility_buffer: wgpu::Buffer,
+    pub visibility_bind_group_layout: wgpu::BindGroupLayout,
+    pub visibility_bind_group: wgpu::BindGroup,
+    pub occlusion_cube_vertex_buffer: wgpu::Buffer,
+    pub occlusion_cube_index_buffer: wgpu::Buffer,
     pub pool_position_to_mesh_bucket_data: HashMap<WorldPosition, MeshBucketData>,
     pub lru_vertex_buffer_bucket_index: LruCache<BucketPosition, u32>,
     pub lru_index_buffer_bucket_index: LruCache<BucketPosition, u32>,
@@ -199,20 +201,69 @@ impl VertexGPUData {
             }
         }
 
+        let occlusion_cube_vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some(format!("Occlusion Cube Vertex Buffer").as_str()),
+            size: (consts::NUMBER_OF_CHUNKS_AROUND_PLAYER * 24 * std::mem::size_of::<Vertex>() as u32) as u64,
+            usage: BufferUsages::VERTEX | BufferUsages::COPY_DST | BufferUsages::STORAGE,
+            mapped_at_creation: false
+        });
+
+        let occlusion_cube_index_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some(format!("Occlusion Cube Index Buffer").as_str()),
+            size: (consts::NUMBER_OF_CHUNKS_AROUND_PLAYER * 36 * std::mem::size_of::<u32>() as u32) as u64,
+            usage: BufferUsages::INDEX | BufferUsages::COPY_DST | BufferUsages::STORAGE,
+            mapped_at_creation: false
+        });
+
+        let visibility_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some(format!("Chunk Visibility Buffer").as_str()),
+            size: (consts::NUMBER_OF_CHUNKS_AROUND_PLAYER * std::mem::size_of::<u32>() as u32) as u64,
+            usage: BufferUsages::STORAGE | BufferUsages::COPY_SRC | BufferUsages::COPY_DST,
+            mapped_at_creation: false
+        });
+
+        let visibility_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+                    ty: wgpu::BindingType::Buffer { 
+                        ty: wgpu::BufferBindingType::Storage { read_only: false }, 
+                        has_dynamic_offset: false, 
+                        min_binding_size: None 
+                    },
+                    count: None
+                }
+            ],
+            label: Some("visibility_bind_group_layout")
+        });
+
+        let visibility_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &visibility_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: visibility_buffer.as_entire_binding()
+                }
+            ],
+            label: Some("visibility_bind_group")
+        });
+
         Self {
             pos_to_gpu_index,
-            pos_to_loaded_index: HashMap::new(),
             chunk_index_array,
             chunk_index_buffer,
             chunk_index_bind_group_layout,
             chunk_index_bind_group,
-            loaded_chunks: Vec::new(),
             vertex_bucket_size: buffer_size_fn_return.vertex_bucket_size,
             index_bucket_size: buffer_size_fn_return.index_bucket_size,
             number_of_buckets_per_buffer: buffer_size_fn_return.number_of_buckets_per_buffer,
             vertex_pool_buffers,
             index_pool_buffers,
             indirect_pool_buffers,
+            visibility_buffer,
+            visibility_bind_group_layout,
+            visibility_bind_group,
             frustum_bucket_data_to_update: Vec::new(),
             frustum_bucket_data_to_clear: Vec::new(),
             pool_position_to_mesh_bucket_data,
@@ -220,6 +271,8 @@ impl VertexGPUData {
             lru_index_buffer_bucket_index,
             vertex_buckets_used: 0,
             vertex_buckets_total,
+            occlusion_cube_vertex_buffer,
+            occlusion_cube_index_buffer
         }
     }
 
@@ -336,7 +389,7 @@ impl VertexGPUData {
         queue.read().unwrap().write_buffer(&indirect_pool_buffers[buffer_number as usize], (bucket_number as usize * std::mem::size_of::<i32>()*5) as u64, bytemuck::cast_slice(&[index_count]))
     }   
 
-    pub fn add_mesh_data_drain(&mut self, mesh: Mesh, mesh_position: &WorldPosition, queue: Arc<RwLock<Queue>>) {
+    pub fn add_mesh_data_drain(&mut self, mesh: Mesh, occlusion_cube_mesh: Mesh, mesh_position: &WorldPosition, queue: Arc<RwLock<Queue>>) {
         let front_bucket_data_vertices = self.add_vertex_vec(&mesh.front.0, &queue, BlockSide::FRONT, mesh_position);
         let front_bucket_data_indices = self.add_index_vec_and_update_index_count_vec(&mesh.front.1, &queue, BlockSide::FRONT, mesh_position);
         let back_bucket_data_vertices = self.add_vertex_vec(&mesh.back.0, &queue, BlockSide::BACK, mesh_position);
@@ -350,6 +403,39 @@ impl VertexGPUData {
         let bottom_bucket_data_vertices = self.add_vertex_vec(&mesh.bottom.0, &queue, BlockSide::BOTTOM, mesh_position);
         let bottom_bucket_data_indices = self.add_index_vec_and_update_index_count_vec(&mesh.bottom.1, &queue, BlockSide::BOTTOM, mesh_position);
         self.pool_position_to_mesh_bucket_data.insert(*mesh_position, MeshBucketData { front_bucket_data_vertices, front_bucket_data_indices, back_bucket_data_vertices, back_bucket_data_indices, left_bucket_data_vertices, left_bucket_data_indices, right_bucket_data_vertices, right_bucket_data_indices, top_bucket_data_vertices, top_bucket_data_indices, bottom_bucket_data_vertices, bottom_bucket_data_indices });
+
+        // Do Occlusion Cube adding
+        let gpu_index = self.pos_to_gpu_index.get(mesh_position).unwrap();
+        let occlusion_vertices = [
+            occlusion_cube_mesh.front.0,
+            occlusion_cube_mesh.back.0,
+            occlusion_cube_mesh.left.0,
+            occlusion_cube_mesh.right.0,
+            occlusion_cube_mesh.top.0,
+            occlusion_cube_mesh.bottom.0,
+        ].concat();
+        let occlusion_indices = [
+            occlusion_cube_mesh.front.1.iter().map(|v| *v + 24*(*gpu_index as u32)).collect::<Vec<u32>>(),
+            occlusion_cube_mesh.back.1.iter().map(|v| *v + 24*(*gpu_index as u32)).collect(),
+            occlusion_cube_mesh.left.1.iter().map(|v| *v + 24*(*gpu_index as u32)).collect(),
+            occlusion_cube_mesh.right.1.iter().map(|v| *v + 24*(*gpu_index as u32)).collect(),
+            occlusion_cube_mesh.top.1.iter().map(|v| *v + 24*(*gpu_index as u32)).collect(),
+            occlusion_cube_mesh.bottom.1.iter().map(|v| *v + 24*(*gpu_index as u32)).collect(),
+            // occlusion_cube_mesh.front.1,
+            // occlusion_cube_mesh.back.1,
+            // occlusion_cube_mesh.left.1,
+            // occlusion_cube_mesh.right.1,
+            // occlusion_cube_mesh.top.1,
+            // occlusion_cube_mesh.bottom.1,
+            // occlusion_cube_mesh.front.1.into_iter().map(|v| v + 24*1).collect::<Vec<u32>>(),
+            // occlusion_cube_mesh.back.1.into_iter().map(|v| v + 24*1).collect(),
+            // occlusion_cube_mesh.left.1.into_iter().map(|v| v + 24*1).collect(),
+            // occlusion_cube_mesh.right.1.into_iter().map(|v| v + 24*1).collect(),
+            // occlusion_cube_mesh.top.1.into_iter().map(|v| v + 24*1).collect(),
+            // occlusion_cube_mesh.bottom.1.into_iter().map(|v| v + 24*1).collect(),
+        ].concat();
+        queue.read().unwrap().write_buffer(&self.occlusion_cube_vertex_buffer, (gpu_index * std::mem::size_of::<Vertex>()*24 as usize) as u64, bytemuck::cast_slice(occlusion_vertices.as_slice()));
+        queue.read().unwrap().write_buffer(&self.occlusion_cube_index_buffer, (gpu_index * std::mem::size_of::<u32>()*36 as usize) as u64, bytemuck::cast_slice(occlusion_indices.as_slice()));
     }
 
     pub fn enough_memory_for_mesh(&self, mesh: &Mesh, mesh_position: &WorldPosition) -> bool {
@@ -371,7 +457,6 @@ impl VertexGPUData {
         if !enough_memory {
             let vertex_buckets_used = self.vertex_buckets_used;
             let new_buckets_needed = buckets_needed - buckets_used;
-            println!("Buckets used: {vertex_buckets_used}, Buckets: needed: {new_buckets_needed}");
         }
 
         enough_memory
@@ -460,8 +545,6 @@ impl VertexGPUData {
 
         self.vertex_pool_buffers.push(pool_vertex_buffer);
         self.index_pool_buffers.push(pool_index_buffer);
-
-        println!("Allocated new buffer!");
     }
 
     pub fn has_meshed_position(&self, mesh_position: &WorldPosition) -> bool {

@@ -54,6 +54,9 @@ struct ComputeData {{
 @group(0) @binding(1)
 var<storage> computeDataArray: array<ComputeData, CHUNKS_AROUND_PLAYER>;
 
+@group(0) @binding(2)
+var<storage> visibility_array: array<u32, CHUNKS_AROUND_PLAYER>;
+
 {buffer_binding_string}
 
 fn is_not_in_frustum_via_plane(center_point: vec3<f32>, plane_normal: vec3<f32>, plane_distance: f32) -> bool {{
@@ -168,6 +171,13 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {{
     if (index >= u32(CHUNKS_AROUND_PLAYER)) {{
         return;
     }} 
+    if (visibility_array[index] == 0u) {{
+        for (var i: i32 = 0; i < NUM_BUCKETS_PER_CHUNK; i++) {{
+            var frustum_bucket_data = computeDataArray[index].bucket_data[i];
+            set_instance_count_in_bucket(frustum_bucket_data.buffer_index, frustum_bucket_data.bucket_index, 0u);
+        }}
+        return;
+    }}
     if (is_chunk_mesh_empty(index)) {{
         return;
     }}

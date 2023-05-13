@@ -18,6 +18,8 @@ impl GenerateChunkMeshProcessor {
             _ => {}
         }
 
+        let occlusion_cube_mesh = Mesh::generate_occlusion_cube(chunk_position, chunk_index);
+
         let mut times_out_of_memory = 0;
         
         let mut enough_memory = vertex_gpu_data.read().unwrap().enough_memory_for_mesh(&mesh, chunk_position);
@@ -34,7 +36,7 @@ impl GenerateChunkMeshProcessor {
             enough_memory = vertex_gpu_data.read().unwrap().enough_memory_for_mesh(&mesh, chunk_position);
         }
 
-        vertex_gpu_data.write().unwrap().add_mesh_data_drain(mesh, chunk_position, queue);
+        vertex_gpu_data.write().unwrap().add_mesh_data_drain(mesh, occlusion_cube_mesh, chunk_position, queue.clone());
 
         TaskResult::GenerateChunkMesh {  }
     }

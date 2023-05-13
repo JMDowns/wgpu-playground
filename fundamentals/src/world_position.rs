@@ -1,6 +1,8 @@
 use std::fmt::Display;
 use bytemuck::{Pod, Zeroable};
 
+use crate::consts;
+
 #[repr(C)]
 #[derive(Hash, PartialEq, Eq, Clone, Copy, Pod, Zeroable, Debug)]
 pub struct WorldPosition {
@@ -28,6 +30,19 @@ impl WorldPosition {
             WorldPosition::new(self.x+1, self.y, self.z+1),
             WorldPosition::new(self.x+1, self.y+1, self.z),
             WorldPosition::new(self.x+1, self.y+1, self.z+1),
+        ]
+    }
+
+    pub fn generate_occlusion_cube_world_positions(&self) -> [WorldPosition; 8] {
+        [
+            WorldPosition::new(0, 0, 0),
+            WorldPosition::new(0, 0, consts::CHUNK_DIMENSION),
+            WorldPosition::new(0, consts::CHUNK_DIMENSION, 0),
+            WorldPosition::new(0, consts::CHUNK_DIMENSION, consts::CHUNK_DIMENSION),
+            WorldPosition::new(consts::CHUNK_DIMENSION, 0, 0),
+            WorldPosition::new(consts::CHUNK_DIMENSION, 0, consts::CHUNK_DIMENSION),
+            WorldPosition::new(consts::CHUNK_DIMENSION, consts::CHUNK_DIMENSION, 0),
+            WorldPosition::new(consts::CHUNK_DIMENSION, consts::CHUNK_DIMENSION, consts::CHUNK_DIMENSION),
         ]
     }
 

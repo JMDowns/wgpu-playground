@@ -224,4 +224,136 @@ impl Mesh {
             }
         }
     }
+
+    fn generate_occlusion_cube_indices_side(side: BlockSide, num_faces_generated: u32) -> Vec<u32> {
+        match side {
+            BlockSide::FRONT => {
+                [
+                    (0+4*num_faces_generated),(1+4*num_faces_generated),(3+4*num_faces_generated),
+                    (0+4*num_faces_generated),(3+4*num_faces_generated),(2+4*num_faces_generated),
+                ].to_vec()
+            },
+            BlockSide::BACK => {
+                [    
+                    (1+4*num_faces_generated),(0+4*num_faces_generated),(2+4*num_faces_generated),
+                    (1+4*num_faces_generated),(2+4*num_faces_generated),(3+4*num_faces_generated),
+                ].to_vec()
+            },
+            BlockSide::LEFT => {
+                [
+                    (2+4*num_faces_generated),(0+4*num_faces_generated),(1+4*num_faces_generated),
+                    (2+4*num_faces_generated),(1+4*num_faces_generated),(3+4*num_faces_generated),
+                ].to_vec()
+            },
+            BlockSide::RIGHT => {
+                [
+                    (0+4*num_faces_generated),(2+4*num_faces_generated),(3+4*num_faces_generated),
+                    (0+4*num_faces_generated),(3+4*num_faces_generated),(1+4*num_faces_generated),
+                ].to_vec()
+            },
+            BlockSide::TOP => {
+                [
+                    (0+4*num_faces_generated),(1+4*num_faces_generated),(3+4*num_faces_generated),
+                    (0+4*num_faces_generated),(3+4*num_faces_generated),(2+4*num_faces_generated),
+                ].to_vec()
+            },
+            BlockSide::BOTTOM => {
+                [
+                    (1+4*num_faces_generated),(0+4*num_faces_generated),(2+4*num_faces_generated),
+                    (1+4*num_faces_generated),(2+4*num_faces_generated),(3+4*num_faces_generated)
+                ].to_vec()
+            }
+        }
+    }
+
+    fn generate_occlusion_cube_side(chunk_position: &WorldPosition, index: u32, side: BlockSide) -> Vec<Vertex> {
+        let positions = chunk_position.generate_occlusion_cube_world_positions();
+
+        let tex_index_arr = [0,0,0,0,0,0];
+
+        match side {
+            BlockSide::FRONT => {
+                [
+                    Vertex::new(positions[0], tex_index_arr[0], 0, 1, index),
+                    Vertex::new(positions[1], tex_index_arr[0], 1, 1, index),
+                    Vertex::new(positions[2], tex_index_arr[0], 0, 0, index),
+                    Vertex::new(positions[3], tex_index_arr[0], 1, 0, index),
+                ].to_vec()
+            },
+            BlockSide::BACK => {
+                [
+                    Vertex::new(positions[4], tex_index_arr[1], 1, 1, index),
+                    Vertex::new(positions[5], tex_index_arr[1], 0, 1, index),
+                    Vertex::new(positions[6], tex_index_arr[1], 1, 0, index),
+                    Vertex::new(positions[7], tex_index_arr[1], 0, 0, index),
+                ].to_vec()
+            },
+            BlockSide::LEFT => {
+                [
+                    Vertex::new(positions[0], tex_index_arr[2], 1, 1, index),
+                    Vertex::new(positions[2], tex_index_arr[2], 1, 0, index),
+                    Vertex::new(positions[4], tex_index_arr[2], 0, 1, index),
+                    Vertex::new(positions[6], tex_index_arr[2], 0, 0, index),
+                ].to_vec()
+            },
+            BlockSide::RIGHT => {
+                [
+                    Vertex::new(positions[1], tex_index_arr[3], 0, 1, index),
+                    Vertex::new(positions[3], tex_index_arr[3], 0, 0, index),
+                    Vertex::new(positions[5], tex_index_arr[3], 1, 1, index),
+                    Vertex::new(positions[7], tex_index_arr[3], 1, 0, index),
+                ].to_vec()
+            },
+            BlockSide::TOP => {
+                [
+                    Vertex::new(positions[2], tex_index_arr[4], 0, 1, index),
+                    Vertex::new(positions[3], tex_index_arr[4], 1, 1, index),
+                    Vertex::new(positions[6], tex_index_arr[4], 0, 0, index),
+                    Vertex::new(positions[7], tex_index_arr[4], 1, 0, index),
+                ].to_vec()
+            },
+            BlockSide::BOTTOM => {
+                [
+                    Vertex::new(positions[0], tex_index_arr[5], 0, 0, index),
+                    Vertex::new(positions[1], tex_index_arr[5], 1, 0, index),
+                    Vertex::new(positions[4], tex_index_arr[5], 0, 1, index),
+                    Vertex::new(positions[5], tex_index_arr[5], 1, 1, index),
+                ].to_vec()
+            }
+        }
+    }
+
+    pub fn generate_occlusion_cube(chunk_position: &WorldPosition, chunk_index: u32) -> Mesh {
+        let front_vertices = Self::generate_occlusion_cube_side(chunk_position, chunk_index, BlockSide::FRONT);
+        let front_indices = Self::generate_occlusion_cube_indices_side(BlockSide::FRONT, 0);
+        let front_len = front_vertices.len();
+
+        let back_vertices = Self::generate_occlusion_cube_side(chunk_position, chunk_index, BlockSide::BACK);
+        let back_indices = Self::generate_occlusion_cube_indices_side(BlockSide::BACK, 1);
+        let back_len = back_vertices.len();
+
+        let left_vertices = Self::generate_occlusion_cube_side(chunk_position, chunk_index, BlockSide::LEFT);
+        let left_indices = Self::generate_occlusion_cube_indices_side(BlockSide::LEFT, 2);
+        let left_len = left_vertices.len();
+
+        let right_vertices = Self::generate_occlusion_cube_side(chunk_position, chunk_index, BlockSide::RIGHT);
+        let right_indices = Self::generate_occlusion_cube_indices_side(BlockSide::RIGHT, 3);
+        let right_len = right_vertices.len();
+
+        let top_vertices = Self::generate_occlusion_cube_side(chunk_position, chunk_index, BlockSide::TOP);
+        let top_indices = Self::generate_occlusion_cube_indices_side(BlockSide::TOP, 4);
+        let top_len = top_vertices.len();
+
+        let bottom_vertices = Self::generate_occlusion_cube_side(chunk_position, chunk_index, BlockSide::BOTTOM);
+        let bottom_indices = Self::generate_occlusion_cube_indices_side(BlockSide::BOTTOM, 5);
+        let bottom_len = bottom_vertices.len();
+        Mesh {
+            front: ( front_vertices, front_indices, front_len as u32 ),
+            back: ( back_vertices, back_indices, back_len as u32 ),
+            left: ( left_vertices, left_indices, left_len as u32 ),
+            right: ( right_vertices, right_indices, right_len as u32 ),
+            top: ( top_vertices, top_indices, top_len as u32 ),
+            bottom: ( bottom_vertices, bottom_indices, bottom_len as u32 ),
+        }
+    }
 }

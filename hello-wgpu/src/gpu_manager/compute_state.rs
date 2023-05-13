@@ -35,7 +35,7 @@ pub struct ComputeState {
 }
 
 impl ComputeState {
-    pub fn new(camera_position: Point3<f32>, device: &Device, camera_buffer: &Buffer, indirect_buffers: &Vec<Buffer>) -> Self {
+    pub fn new(camera_position: Point3<f32>, device: &Device, camera_buffer: &Buffer, indirect_buffers: &Vec<Buffer>, visibility_buffer: &Buffer) -> Self {
         let frustum_compute_data: Vec<FrustumComputeData> = fundamentals::consts::get_positions_around_player(WorldPosition::from(camera_position)).into_iter()
             .map(|pos| FrustumComputeData {
                 world_position: pos,
@@ -83,6 +83,16 @@ impl ComputeState {
                         min_binding_size: None,
                     },
                     count: None
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer { 
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None
                 }
             ],
             label: Some("Compute Bind Group Layout")
@@ -99,6 +109,10 @@ impl ComputeState {
                 wgpu::BindGroupEntry {
                     binding: 1,
                     resource: compute_bucket_data_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: visibility_buffer.as_entire_binding(),
                 },
                 
             ]

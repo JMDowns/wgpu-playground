@@ -33,10 +33,12 @@ format!("    chunk_positions: array<i32,{}>", NUMBER_OF_CHUNKS_AROUND_PLAYER * 3
 build_vertex_data().as_str(),
 "};",
 "",
+"@group(3) @binding(0)",
+format!("var<storage, read_write> visibility_array: array<u32, {}>;", NUMBER_OF_CHUNKS_AROUND_PLAYER).as_str(),
 "struct VertexOutput {",
 "    @builtin(position) clip_position:vec4<f32>,",
 "    @location(0) tex_index: u32,",
-"    @location(2) tex_coords: vec2<f32>,",
+"    @location(1) tex_coords: vec2<f32>,",
 "};",
 "",
 "@vertex",
@@ -70,9 +72,21 @@ fn build_vertex_data() -> String {
 }
 
 fn build_vs_main_statements() -> String {
+    let (data_unpack_vec, chunk_index_statement) = build_data_unpack_vec();
+    [
+        chunk_index_statement,
+        format!("    visibility_array[chunk_index]=0u;"),
+        format!("    out.clip_position = camera.view_proj * vec4<f32>(f32({}) + f32(chunkPositions.chunk_positions[3u*chunk_index]*{CHUNK_DIMENSION}), f32({}) + f32(chunkPositions.chunk_positions[3u*chunk_index+1u]*{CHUNK_DIMENSION}), f32({}) + f32(chunkPositions.chunk_positions[3u*chunk_index+2u]*{CHUNK_DIMENSION}), 1.0);", data_unpack_vec[0], data_unpack_vec[1], data_unpack_vec[2]),
+        format!("    out.tex_index = {};", data_unpack_vec[3]),
+        format!("    out.tex_coords = vec2<f32>(f32({}), f32({}));", data_unpack_vec[4], data_unpack_vec[5])
+    ].join("\n")
+}
+
+pub fn build_data_unpack_vec() -> (Vec<String>, String) {
     let mut data_unpack_vec = Vec::new();
     let mut chunk_index_statement = String::new();
     let mut data_bits_used = 0;
+
     for (name, size) in VAR_SIZE_LIST.iter() {
         if *name == "chunk_index" {
             if *size == 0 {
@@ -109,12 +123,7 @@ fn build_vs_main_statements() -> String {
         data_bits_used += size;
     }
 
-    [
-        chunk_index_statement,
-        format!("    out.clip_position = camera.view_proj * vec4<f32>(f32({}) + f32(chunkPositions.chunk_positions[3u*chunk_index]*{CHUNK_DIMENSION}), f32({}) + f32(chunkPositions.chunk_positions[3u*chunk_index+1u]*{CHUNK_DIMENSION}), f32({}) + f32(chunkPositions.chunk_positions[3u*chunk_index+2u]*{CHUNK_DIMENSION}), 1.0);", data_unpack_vec[0], data_unpack_vec[1], data_unpack_vec[2]),
-        format!("    out.tex_index = {};", data_unpack_vec[3]),
-        format!("    out.tex_coords = vec2<f32>(f32({}), f32({}));", data_unpack_vec[4], data_unpack_vec[5])
-    ].join("\n")
+    (data_unpack_vec, chunk_index_statement)
 }
 
 fn get_mask(number_of_ones: u32, number_of_zeroes: u32) -> u32 {

@@ -1,17 +1,5 @@
 [
     {
-        "block_type": "TRANSPARENT",
-        "texture": {
-            "front": "Transparent.png",
-            "back": "Transparent.png",
-            "left": "Transparent.png",
-            "right": "Transparent.png",
-            "top": "Transparent.png",
-            "bottom": "Transparent.png"
-        }
-    },
-    
-    {
         "block_type": "WOOD",
         "texture": {
             "front": "wooden-plank.png",

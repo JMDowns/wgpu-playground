@@ -1,4 +1,5 @@
 use cgmath::*;
+use fundamentals::{world_position::WorldPosition, consts::CHUNK_DIMENSION};
 use instant::Duration;
 use std::f32::consts::FRAC_PI_2;
 
@@ -121,6 +122,26 @@ impl Camera {
         } else if self.pitch > Rad(SAFE_FRAC_PI_2) {
             self.pitch = Rad(SAFE_FRAC_PI_2);
         }
+    }
+
+    pub fn get_chunk_coordinates(&self) -> WorldPosition {
+        let mut posx = self.position.x;
+        let mut posy = self.position.y;
+        let mut posz = self.position.z;
+        if posx < 0.0 {
+            posx -= CHUNK_DIMENSION as f32;
+        }
+        if posy < 0.0 {
+            posy -= CHUNK_DIMENSION as f32;
+        }
+        if posz < 0.0 {
+            posz -= CHUNK_DIMENSION as f32;
+        }
+        let x = posx.trunc() as i32 / CHUNK_DIMENSION;
+        let y = posy.trunc() as i32 / CHUNK_DIMENSION;
+        let z = posz.trunc() as i32 / CHUNK_DIMENSION;
+
+        WorldPosition { x, y, z }
     }
 }
 
