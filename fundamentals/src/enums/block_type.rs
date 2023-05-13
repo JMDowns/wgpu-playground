@@ -5,7 +5,6 @@ use core::hash::{Hash, Hasher};
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, FromPrimitive)]
 pub enum BlockType {
 	AIR = 0,
-	TRANSPARENT,
 	WOOD,
 	DIRT,
 	GRASS,
@@ -18,7 +17,7 @@ impl BlockType {
         btype_option.unwrap()
     }
    pub fn get_random_type() -> Self {
-       num::FromPrimitive::from_u8(fastrand::u8(1..6)).unwrap()
+       num::FromPrimitive::from_u8(fastrand::u8(1..5)).unwrap()
    }
 }
 impl phf_shared::FmtConst for BlockType {

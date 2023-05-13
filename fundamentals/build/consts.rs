@@ -12,7 +12,7 @@ pub fn generate_consts(config_format: &ConfigFormat, consts_model: &ConstsModel,
     let num_chunks_around_player = position_offset_vec.len();
 
     let num_vertices_in_bucket = config_format.vertices_per_bucket;
-    let num_buckets_per_chunk = (config_format.chunk_dimension as u32)*(config_format.chunk_dimension as u32)*(config_format.chunk_dimension as u32) / num_vertices_in_bucket;
+    let num_buckets_per_chunk = (config_format.chunk_dimension as u32)*(config_format.chunk_dimension as u32)*(config_format.chunk_dimension as u32) * 8 / num_vertices_in_bucket;
 
     let mip_level = (config_format.texture_dimension as f32).log2() as u32;
     let texture_length_with_mipmaps = generate_texture_length_with_mipmap_level(mip_level, config_format.texture_dimension);
@@ -48,7 +48,6 @@ pub fn generate_consts(config_format: &ConfigFormat, consts_model: &ConstsModel,
             format!("pub const NUMBER_OF_CHUNKS_TO_RENDER: u32 = {};", (num_chunks_around_player as f32 / 8 as f32).ceil() as u32),
             format!("pub const BITS_PER_CHUNK_INDEX: u32 = {};", ((num_chunks_around_player) as f32).log2().ceil() as u32),
             format!("pub const WORKGROUP_SIZE: u16 = {};", 255),
-            //The maximum number of vertices per chunk is NxNxNx12 for a checkerboard pattern.
             format!("pub const NUM_VERTICES_IN_BUCKET: u32 = {};", num_vertices_in_bucket), 
             format!("pub const NUM_BUCKETS_PER_CHUNK: usize = {};", num_buckets_per_chunk),
             format!("pub const NUM_BUCKETS_PER_SIDE: u32 = {};", num_buckets_per_chunk / 6),

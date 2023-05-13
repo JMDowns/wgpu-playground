@@ -404,7 +404,6 @@ impl VertexGPUData {
         let bottom_bucket_data_indices = self.add_index_vec_and_update_index_count_vec(&mesh.bottom.1, &queue, BlockSide::BOTTOM, mesh_position);
         self.pool_position_to_mesh_bucket_data.insert(*mesh_position, MeshBucketData { front_bucket_data_vertices, front_bucket_data_indices, back_bucket_data_vertices, back_bucket_data_indices, left_bucket_data_vertices, left_bucket_data_indices, right_bucket_data_vertices, right_bucket_data_indices, top_bucket_data_vertices, top_bucket_data_indices, bottom_bucket_data_vertices, bottom_bucket_data_indices });
 
-        // Do Occlusion Cube adding
         let gpu_index = self.pos_to_gpu_index.get(mesh_position).unwrap();
         let occlusion_vertices = [
             occlusion_cube_mesh.front.0,
@@ -421,18 +420,6 @@ impl VertexGPUData {
             occlusion_cube_mesh.right.1.iter().map(|v| *v + 24*(*gpu_index as u32)).collect(),
             occlusion_cube_mesh.top.1.iter().map(|v| *v + 24*(*gpu_index as u32)).collect(),
             occlusion_cube_mesh.bottom.1.iter().map(|v| *v + 24*(*gpu_index as u32)).collect(),
-            // occlusion_cube_mesh.front.1,
-            // occlusion_cube_mesh.back.1,
-            // occlusion_cube_mesh.left.1,
-            // occlusion_cube_mesh.right.1,
-            // occlusion_cube_mesh.top.1,
-            // occlusion_cube_mesh.bottom.1,
-            // occlusion_cube_mesh.front.1.into_iter().map(|v| v + 24*1).collect::<Vec<u32>>(),
-            // occlusion_cube_mesh.back.1.into_iter().map(|v| v + 24*1).collect(),
-            // occlusion_cube_mesh.left.1.into_iter().map(|v| v + 24*1).collect(),
-            // occlusion_cube_mesh.right.1.into_iter().map(|v| v + 24*1).collect(),
-            // occlusion_cube_mesh.top.1.into_iter().map(|v| v + 24*1).collect(),
-            // occlusion_cube_mesh.bottom.1.into_iter().map(|v| v + 24*1).collect(),
         ].concat();
         queue.read().unwrap().write_buffer(&self.occlusion_cube_vertex_buffer, (gpu_index * std::mem::size_of::<Vertex>()*24 as usize) as u64, bytemuck::cast_slice(occlusion_vertices.as_slice()));
         queue.read().unwrap().write_buffer(&self.occlusion_cube_index_buffer, (gpu_index * std::mem::size_of::<u32>()*36 as usize) as u64, bytemuck::cast_slice(occlusion_indices.as_slice()));

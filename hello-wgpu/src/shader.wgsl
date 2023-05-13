@@ -28,7 +28,7 @@ fn vs_main(
 ) -> VertexOutput {
     var out: VertexOutput;
     let chunk_index = (model.data1 & 112u) >> 4u;
-    visibility_array[chunk_index]=1u;
+    visibility_array[chunk_index]=0u;
     out.clip_position = camera.view_proj * vec4<f32>(f32((model.data0 & 63u)) + f32(chunkPositions.chunk_positions[3u*chunk_index]*32), f32((model.data0 & 4032u) >> 6u) + f32(chunkPositions.chunk_positions[3u*chunk_index+1u]*32), f32((model.data0 & 258048u) >> 12u) + f32(chunkPositions.chunk_positions[3u*chunk_index+2u]*32), 1.0);
     out.tex_index = (model.data0 & 16515072u) >> 18u;
     out.tex_coords = vec2<f32>(f32((model.data0 & 1056964608u) >> 24u), f32(((model.data0 & 3221225472u) >> 30u) | ((model.data1 & 15u) << 2u)));

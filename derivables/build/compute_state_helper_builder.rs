@@ -51,8 +51,6 @@ fn build_bind_group_layouts_string() -> String {
         let indirect_bind_group_layouts = vec![
             {indirect_bind_group_layout_string}
         ];") 
-
-    //indirect_bind_group_layouts_vec.push(String::from("];"))
 }
 
 fn build_bind_groups_string() -> String {

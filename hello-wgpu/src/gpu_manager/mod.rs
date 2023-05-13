@@ -183,13 +183,6 @@ impl GPUManager {
             self.flag_state.should_calculate_frustum = false;
         }
 
-        let visibility_staging_buffer = self.device.write().unwrap().create_buffer(&wgpu::BufferDescriptor {
-            label: None,
-            size: NUMBER_OF_CHUNKS_AROUND_PLAYER as u64 * std::mem::size_of::<i32>() as u64,
-            usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        });
-
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
@@ -240,7 +233,6 @@ impl GPUManager {
         }
 
         let current_chunk = self.camera_state.camera.get_chunk_coordinates();
-        //println!("{:?}", current_chunk);
 
         match vertex_gpu_data.pos_to_gpu_index.get(&current_chunk) {
             Some(index) => {
@@ -249,43 +241,7 @@ impl GPUManager {
             None => {}
         }
 
-        encoder.copy_buffer_to_buffer(&vertex_gpu_data.visibility_buffer, 0, &visibility_staging_buffer, 0, NUMBER_OF_CHUNKS_AROUND_PLAYER as u64*std::mem::size_of::<i32>() as u64);
-
-        // submit will accept anything that implements IntoIter
         queue.submit(std::iter::once(encoder.finish()));
-
-        // Note that we're not calling `.await` here.
-        let buffer_slice = visibility_staging_buffer.slice(..);
-        // Sets the buffer up for mapping, sending over the result of the mapping back to us when it is finished.
-        let (sender, receiver) = futures_intrusive::channel::shared::oneshot_channel();
-        buffer_slice.map_async(wgpu::MapMode::Read, move |v| sender.send(v).unwrap());
-
-        // Poll the device in a blocking manner so that our future resolves.
-        // In an actual application, `device.poll(...)` should
-        // be called in an event loop or on another thread.
-        self.device.write().unwrap().poll(wgpu::Maintain::Wait);
-
-        // Awaits until `buffer_future` can be read from
-        if let Some(Ok(())) = pollster::block_on(receiver.receive()) {
-            // Gets contents of buffer
-            let data = buffer_slice.get_mapped_range();
-            // Since contents are got in bytes, this converts these bytes back to u32
-            let result: Vec<u32> = bytemuck::cast_slice(&data).to_vec();
-
-            // With the current interface, we have to make sure all mapped views are
-            // dropped before we unmap the buffer.
-            drop(data);
-            visibility_staging_buffer.unmap(); // Unmaps buffer from memory
-                                    // If you are familiar with C++ these 2 lines can be thought of similarly to:
-                                    //   delete myPointer;
-                                    //   myPointer = NULL;
-                                    // It effectively frees the memory
-
-            // Returns data from buffer
-            println!("{:?}", result);
-        } else {
-            panic!("failed to run compute on gpu!")
-        }
         output.present();
         let after = Instant::now();
         let time = (after-now).as_millis();
