@@ -15,8 +15,7 @@ pub struct ConfigFormat {
     pub chunk_generation_method: String,
     pub chunk_generation_options: ChunkGenerationOptions,
     pub min_memory_mb: u32,
-    pub max_memory_mb: u32,
-    pub vertices_per_bucket: u32
+    pub max_memory_mb: u32
 }
 
 #[derive(Serialize, Deserialize)]

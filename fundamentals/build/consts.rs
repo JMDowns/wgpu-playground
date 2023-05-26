@@ -11,8 +11,8 @@ pub fn generate_consts(config_format: &ConfigFormat, consts_model: &ConstsModel,
     let position_offset_vec = generate_chunk_pos_around_player_fn(config_format);
     let num_chunks_around_player = position_offset_vec.len();
 
-    let num_vertices_in_bucket = config_format.vertices_per_bucket;
-    let num_buckets_per_chunk = (config_format.chunk_dimension as u32)*(config_format.chunk_dimension as u32)*(config_format.chunk_dimension as u32) * 8 / num_vertices_in_bucket;
+    let num_vertices_in_bucket = (config_format.chunk_dimension as u32)*(config_format.chunk_dimension as u32);
+    let num_buckets_per_chunk = (config_format.chunk_dimension as u32)*(config_format.chunk_dimension as u32)*(config_format.chunk_dimension as u32) * 2 / num_vertices_in_bucket;
 
     let mip_level = (config_format.texture_dimension as f32).log2() as u32;
     let texture_length_with_mipmaps = generate_texture_length_with_mipmap_level(mip_level, config_format.texture_dimension);

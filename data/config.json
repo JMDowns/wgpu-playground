@@ -23,6 +23,5 @@
         "perlin_scale_factor": 0.02
     },
     "min_memory_mb": 512,
-    "max_memory_mb": 10240,
-    "vertices_per_bucket": 4096
+    "max_memory_mb": 10240
 }
