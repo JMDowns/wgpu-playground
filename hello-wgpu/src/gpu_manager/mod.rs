@@ -210,6 +210,8 @@ impl GPUManager {
                 render_pass.set_pipeline(&self.render_state.render_pipeline_regular);
             }
 
+            //Grid-Aligned Vertices
+
             render_pass.set_bind_group(0, &self.camera_state.camera_bind_group, &[]);
             render_pass.set_bind_group(1, &self.texture_state.diffuse_bind_group, &[]);
             render_pass.set_bind_group(2, &vertex_gpu_data.chunk_index_bind_group, &[]);
@@ -221,6 +223,8 @@ impl GPUManager {
                 render_pass.multi_draw_indexed_indirect(&vertex_gpu_data.indirect_pool_buffers[i], 0, vertex_gpu_data.number_of_buckets_per_buffer as u32);
             }
 
+            //Occlusion
+
             render_pass.set_pipeline(&self.render_state.occlusion_cube_render_pipeline);
 
             render_pass.set_bind_group(0, &self.camera_state.camera_bind_group, &[]);
@@ -230,6 +234,17 @@ impl GPUManager {
             render_pass.set_vertex_buffer(0, vertex_gpu_data.occlusion_cube_vertex_buffer.slice(..));
             render_pass.set_index_buffer(vertex_gpu_data.occlusion_cube_index_buffer.slice(..), wgpu::IndexFormat::Uint32);
             render_pass.draw_indexed(0..36*consts::NUMBER_OF_CHUNKS_AROUND_PLAYER, 0, 0..1);
+
+            //Subvoxel
+
+            render_pass.set_pipeline(&self.render_state.subvoxel_render_pipeline);
+
+            render_pass.set_bind_group(0, &self.camera_state.camera_bind_group, &[]);
+
+            render_pass.set_vertex_buffer(0, vertex_gpu_data.sv_testing_vertex_buffer.slice(..));
+            render_pass.set_index_buffer(vertex_gpu_data.sv_testing_index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+            render_pass.draw_indexed(0..derivables::subvoxel_vertex::INDICES_CUBE_LEN, 0, 0..1);
+
         }
 
         let current_chunk = self.camera_state.camera.get_chunk_coordinates();

@@ -5,6 +5,9 @@ use fundamentals::{world_position::WorldPosition, enums::block_side::BlockSide, 
 use lru::LruCache;
 use wgpu::{Device, util::DeviceExt, BufferUsages, Queue};
 
+use derivables::subvoxel_vertex::generate_cube;
+use derivables::subvoxel_vertex::INDICES_CUBE;
+
 use crate::voxels::mesh::Mesh;
 
 pub const NUM_BUCKETS: usize = (fundamentals::consts::NUMBER_OF_CHUNKS_AROUND_PLAYER as usize) * fundamentals::consts::NUM_BUCKETS_PER_CHUNK;
@@ -60,6 +63,8 @@ pub struct VertexGPUData {
     pub frustum_bucket_data_to_clear: Vec<(WorldPosition, BlockSide, u32)>,
     pub vertex_buckets_used: usize,
     pub vertex_buckets_total: usize,
+    pub sv_testing_vertex_buffer: wgpu::Buffer,
+    pub sv_testing_index_buffer: wgpu::Buffer
 }
 
 impl VertexGPUData {
@@ -249,6 +254,22 @@ impl VertexGPUData {
             label: Some("visibility_bind_group")
         });
 
+        let sv_testing_vertex_buffer = device.create_buffer_init(
+            &wgpu::util::BufferInitDescriptor {
+                label: Some("Cube Vertex Buffer"),
+                contents: bytemuck::cast_slice(&generate_cube(-1.0, -1.0, 0.0, 2)),
+                usage: wgpu::BufferUsages::VERTEX,
+            }
+        );
+
+        let sv_testing_index_buffer = device.create_buffer_init(
+            &wgpu::util::BufferInitDescriptor {
+                label: Some("Cube Index Buffer"),
+                contents: bytemuck::cast_slice(INDICES_CUBE),
+                usage: wgpu::BufferUsages::INDEX,
+            }
+        );
+
         Self {
             pos_to_gpu_index,
             chunk_index_array,
@@ -272,7 +293,9 @@ impl VertexGPUData {
             vertex_buckets_used: 0,
             vertex_buckets_total,
             occlusion_cube_vertex_buffer,
-            occlusion_cube_index_buffer
+            occlusion_cube_index_buffer,
+            sv_testing_vertex_buffer,
+            sv_testing_index_buffer
         }
     }
 
