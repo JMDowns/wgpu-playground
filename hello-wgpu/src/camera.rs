@@ -88,20 +88,6 @@ impl Camera {
         self.yaw += Rad(controller.rotate_horizontal) * controller.sensitivity * dt;
         self.pitch += Rad(-controller.rotate_vertical) * controller.sensitivity * dt;
 
-        // Adjust normals
-        self.view_x_vec.x = self.yaw.cos();
-        self.view_x_vec.y = self.pitch.sin();
-        self.view_x_vec.z = self.yaw.sin();
-        self.view_x_vec = self.view_x_vec.normalize();
-
-        self.view_y_vec.x = -self.pitch.sin();
-        self.view_y_vec.y = self.pitch.cos();
-        self.view_y_vec = self.view_y_vec.normalize();
-
-        self.view_z_vec.x = -self.yaw.sin();
-        self.view_z_vec.z = self.yaw.cos();
-        self.view_z_vec = self.view_z_vec.normalize();
-
         // If process_mouse isn't called every frame, these values
         // will not get set to zero, and the camera will rotate
         // when moving in a non cardinal direction.
@@ -122,6 +108,21 @@ impl Camera {
         } else if self.pitch > Rad(SAFE_FRAC_PI_2) {
             self.pitch = Rad(SAFE_FRAC_PI_2);
         }
+
+        // Adjust normals
+        self.view_x_vec.x = self.pitch.cos() * self.yaw.cos();
+        self.view_x_vec.y = self.pitch.sin();
+        self.view_x_vec.z = self.pitch.cos() * self.yaw.sin();
+        self.view_x_vec = self.view_x_vec.normalize();
+
+        self.view_y_vec.x = -self.pitch.sin() * self.yaw.cos();
+        self.view_y_vec.y = self.pitch.cos();
+        self.view_y_vec.z = -self.pitch.sin() * self.yaw.sin();
+        self.view_y_vec = self.view_y_vec.normalize();
+
+        self.view_z_vec.x = -self.yaw.sin();
+        self.view_z_vec.z = self.yaw.cos();
+        self.view_z_vec = self.view_z_vec.normalize();
     }
 
     pub fn get_chunk_coordinates(&self) -> WorldPosition {
@@ -254,6 +255,17 @@ impl CameraController {
         }
         movement
     }
+
+    pub fn has_updates(&mut self) -> bool {
+        self.amount_forward > 0.0 ||
+        self.amount_backward > 0.0 ||
+        self.amount_left > 0.0 ||
+        self.amount_right > 0.0 ||
+        self.amount_up > 0.0 ||
+        self.amount_down > 0.0 ||
+        self.rotate_horizontal != 0.0 ||
+        self.rotate_vertical != 0.0
+    }
 }
 
 // We need this for Rust to store our data correctly for the shaders
@@ -263,14 +275,25 @@ impl CameraController {
 pub struct CameraUniform {
     // We can't use cgmath with bytemuck directly so we'll have to conver the Matrix4 into a 4x4 f32 array
     view_proj: [[f32; 4]; 4],
+    view_proj_inverse: [[f32; 4]; 4],
+    position: [f32; 4],
 }
 
 impl CameraUniform {
     pub fn new() -> Self {
-        Self { view_proj: cgmath::Matrix4::identity().into()}
+        Self { 
+            view_proj: cgmath::Matrix4::identity().into(), 
+            view_proj_inverse: cgmath::Matrix4::identity().into(), 
+            position: [0.0, 0.0, 0.0, 0.0],
+        }
     }
 
-    pub fn update_view_proj(&mut self, camera: &Camera, projection: &Projection) {
-        self.view_proj = (projection.calc_matrix() * camera.calc_matrix()).into();
+    pub fn update_view_proj_and_pos(&mut self, camera: &Camera, projection: &Projection) {
+        let viewproj = projection.calc_matrix() * camera.calc_matrix();
+        self.view_proj = (viewproj).into();
+        self.view_proj_inverse = (viewproj.invert().unwrap()).into();
+        let pos3: [f32;3] = camera.position.into();
+
+        self.position = [pos3[0], pos3[1], pos3[2], 0.0];
     }
 }

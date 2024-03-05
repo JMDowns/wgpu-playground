@@ -9,6 +9,7 @@ build = "build/main.rs"
 [dependencies]
 phf = "0.11"
 wgpu = "0.13.1"
+cgmath = "0.18"
 fundamentals = { path = "../fundamentals" }
 bytemuck = { version = "1.12.1", features = [ "derive" ] }
 num = "0.4.0"

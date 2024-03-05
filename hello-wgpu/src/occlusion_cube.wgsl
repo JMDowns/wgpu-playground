@@ -5,7 +5,7 @@ struct CameraUniform {
     var<uniform> camera: CameraUniform;
     
     struct ChunkPositions {
-        chunk_positions: array<i32,21>
+        chunk_positions: array<i32,3>
     };
     @group(1) @binding(0)
     var<storage> chunkPositions: ChunkPositions;
@@ -23,7 +23,7 @@ struct CameraUniform {
         model: VertexInput,
     ) -> VertexOutput {
         var out: VertexOutput;
-            let chunk_index = (model.data1 & 112u) >> 4u;
+            let chunk_index = 0u;
         let posx = (model.data0 & 63u);
         let posy = (model.data0 & 4032u) >> 6u;
         let posz = (model.data0 & 258048u) >> 12u;
@@ -51,7 +51,7 @@ struct CameraUniform {
     }
     
     @group(2) @binding(0)
-    var<storage, read_write> visibility_array: array<u32, 7>;
+    var<storage, read_write> visibility_array: array<u32, 1>;
     
     @fragment
     fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {

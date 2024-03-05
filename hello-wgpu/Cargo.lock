@@ -499,6 +499,7 @@ name = "derivables"
 version = "0.1.0"
 dependencies = [
  "bytemuck",
+ "cgmath",
  "formats",
  "fundamentals",
  "num",

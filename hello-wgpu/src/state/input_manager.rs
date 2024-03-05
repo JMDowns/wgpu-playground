@@ -35,7 +35,7 @@ impl InputManager {
         }
     }
 
-    pub fn input(&mut self, event: &WindowEvent) -> (bool, bool) {
+    pub fn input(&mut self, event: &WindowEvent) -> (bool, bool, bool) {
         match event {
             WindowEvent::KeyboardInput {
                 input:
@@ -49,6 +49,7 @@ impl InputManager {
             {
                 let mut input_movement_character = false;
                 let mut should_switch_wireframe = false;
+                let mut should_rotate_subvoxel = false;
                 if key == &fundamentals::consts::FORWARD_KEY {
                     self.input_state.is_forward_pressed = state == &ElementState::Pressed;
                     input_movement_character = true;
@@ -78,11 +79,16 @@ impl InputManager {
                         should_switch_wireframe = true;
                     }
                 }
-                (input_movement_character, should_switch_wireframe)
+                if key == &VirtualKeyCode::R {
+                    if state == &ElementState::Pressed {
+                        should_rotate_subvoxel = true;
+                    }
+                }
+                (input_movement_character, should_switch_wireframe, should_rotate_subvoxel)
             }
             WindowEvent::MouseWheel { delta, .. } => {
                 self.input_state.mouse_scroll_delta = *delta;
-                (true, false)
+                (true, false, false)
             }
             WindowEvent::MouseInput {
                 button: MouseButton::Left,
@@ -96,9 +102,9 @@ impl InputManager {
                     self.input_state.mouse_delta_x = 0.0;
                     self.input_state.mouse_delta_y = 0.0;
                 }
-                (true, false)
+                (true, false, false)
             }
-            _ => (false, false)
+            _ => (false, false, false)
         }
     }
 

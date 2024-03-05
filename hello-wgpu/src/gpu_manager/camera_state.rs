@@ -19,7 +19,7 @@ impl CameraState {
         let projection = camera::Projection::new(config.width, config.height, cgmath::Deg(45.0), 0.1, 1000.0);
 
         let mut camera_uniform = camera::CameraUniform::new();
-        camera_uniform.update_view_proj(&camera, &projection);
+        camera_uniform.update_view_proj_and_pos(&camera, &projection);
 
         let camera_buffer = device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
@@ -33,7 +33,7 @@ impl CameraState {
             entries: &[
                 wgpu::BindGroupLayoutEntry {
                     binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX,
+                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Buffer {
                         ty: wgpu::BufferBindingType::Uniform,
                         has_dynamic_offset: false,
