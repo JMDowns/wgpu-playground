@@ -14,7 +14,7 @@ pub struct RenderState {
 }
 
 impl RenderState {
-    pub fn new(device: &wgpu::Device, config: &SurfaceConfiguration, camera_bind_group_layout: &BindGroupLayout, diffuse_bind_group_layout: &BindGroupLayout, chunk_index_bind_group_layout: &BindGroupLayout, visibility_bind_group_layout: &BindGroupLayout) -> Self {
+    pub fn new(device: &wgpu::Device, config: &SurfaceConfiguration, camera_bind_group_layout: &BindGroupLayout, diffuse_bind_group_layout: &BindGroupLayout, chunk_index_bind_group_layout: &BindGroupLayout, visibility_bind_group_layout: &BindGroupLayout, subvoxel_bind_group_layout: &BindGroupLayout, ambient_occlusion_bind_group_layout: &BindGroupLayout) -> Self {
         let render_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Render Shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("../shader.wgsl").into()),
@@ -200,7 +200,9 @@ impl RenderState {
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Subvoxel Render Pipeline Layout"),
                 bind_group_layouts: &[
-                    camera_bind_group_layout
+                    camera_bind_group_layout,
+                    subvoxel_bind_group_layout,
+                    ambient_occlusion_bind_group_layout
                 ],
                 push_constant_ranges: &[],
             });
