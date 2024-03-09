@@ -5,21 +5,24 @@ use cgmath;
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct SubvoxelVertex {
     position: [f32; 3],
-    side: i32
+    side: i32,
+    sv_id: u32,
 }
 
 impl SubvoxelVertex {
     pub fn rotate(&self, rotation_matrix: &cgmath::Matrix3<f32>) -> SubvoxelVertex {
         SubvoxelVertex {
             position: (rotation_matrix * cgmath::Vector3::<f32>::from(self.position)).into(),
-            side: self.side
+            side: self.side,
+            sv_id: self.sv_id
         }
     }
 
     pub fn translate(&self, translation: cgmath::Vector3<f32>) -> SubvoxelVertex {
         SubvoxelVertex {
             position: (cgmath::Point3::<f32>::from(self.position) + translation).into(),
-            side: self.side
+            side: self.side,
+            sv_id: self.sv_id
         }
     }
 
@@ -37,52 +40,58 @@ impl SubvoxelVertex {
                     offset: std::mem::size_of::<[f32;3]>() as wgpu::BufferAddress,
                     shader_location: 1,
                     format: wgpu::VertexFormat::Sint32,
+                },
+                wgpu::VertexAttribute {
+                    offset: (std::mem::size_of::<[f32;3]>() + std::mem::size_of::<i32>()) as wgpu::BufferAddress,
+                    shader_location: 2,
+                    format: wgpu::VertexFormat::Uint32,
                 }
             ]
         }
     }
 }
 
-pub fn generate_cube(x: f32,y: f32, z: f32, scale: cgmath::Vector3<f32>) -> [SubvoxelVertex; 24] {
+pub fn generate_cube(x: f32,y: f32, z: f32, scale: cgmath::Vector3<f32>, subvoxel_id: u32) -> [SubvoxelVertex; 24] {
     [
-        SubvoxelVertex { position: [x, y, z], side: BlockSide::LEFT as i32},
-        SubvoxelVertex { position: [x-(scale.x as f32), y, z], side: BlockSide::LEFT as i32},
-        SubvoxelVertex { position: [x-(scale.x as f32), y-(scale.y as f32), z], side: BlockSide::LEFT as i32},
-        SubvoxelVertex { position: [x, y-(scale.y as f32), z], side: BlockSide::LEFT as i32},
+        SubvoxelVertex { position: [x, y, z], side: BlockSide::LEFT as i32, sv_id: subvoxel_id},
+        SubvoxelVertex { position: [x-(scale.x as f32), y, z], side: BlockSide::LEFT as i32, sv_id: subvoxel_id},
+        SubvoxelVertex { position: [x-(scale.x as f32), y-(scale.y as f32), z], side: BlockSide::LEFT as i32, sv_id: subvoxel_id},
+        SubvoxelVertex { position: [x, y-(scale.y as f32), z], side: BlockSide::LEFT as i32, sv_id: subvoxel_id},
 
-        SubvoxelVertex { position: [x, y, z-(scale.z as f32)], side: BlockSide::RIGHT as i32},
-        SubvoxelVertex { position: [x-(scale.x as f32), y, z-(scale.z as f32)], side: BlockSide::RIGHT as i32},
-        SubvoxelVertex { position: [x-(scale.x as f32), y-(scale.y as f32), z-(scale.z as f32)], side: BlockSide::RIGHT as i32},
-        SubvoxelVertex { position: [x, y-(scale.y as f32), z-(scale.z as f32)], side: BlockSide::RIGHT as i32},
+        SubvoxelVertex { position: [x, y, z-(scale.z as f32)], side: BlockSide::RIGHT as i32, sv_id: subvoxel_id},
+        SubvoxelVertex { position: [x-(scale.x as f32), y, z-(scale.z as f32)], side: BlockSide::RIGHT as i32, sv_id: subvoxel_id},
+        SubvoxelVertex { position: [x-(scale.x as f32), y-(scale.y as f32), z-(scale.z as f32)], side: BlockSide::RIGHT as i32, sv_id: subvoxel_id},
+        SubvoxelVertex { position: [x, y-(scale.y as f32), z-(scale.z as f32)], side: BlockSide::RIGHT as i32, sv_id: subvoxel_id},
 
-        SubvoxelVertex { position: [x-(scale.x as f32), y, z], side: BlockSide::FRONT as i32},
-        SubvoxelVertex { position: [x-(scale.x as f32), y-(scale.y as f32), z], side: BlockSide::FRONT as i32},
-        SubvoxelVertex { position: [x-(scale.x as f32), y, z-(scale.z as f32)], side: BlockSide::FRONT as i32},
-        SubvoxelVertex { position: [x-(scale.x as f32), y-(scale.y as f32), z-(scale.z as f32)], side: BlockSide::FRONT as i32},
+        SubvoxelVertex { position: [x-(scale.x as f32), y, z], side: BlockSide::FRONT as i32, sv_id: subvoxel_id},
+        SubvoxelVertex { position: [x-(scale.x as f32), y-(scale.y as f32), z], side: BlockSide::FRONT as i32, sv_id: subvoxel_id},
+        SubvoxelVertex { position: [x-(scale.x as f32), y, z-(scale.z as f32)], side: BlockSide::FRONT as i32, sv_id: subvoxel_id},
+        SubvoxelVertex { position: [x-(scale.x as f32), y-(scale.y as f32), z-(scale.z as f32)], side: BlockSide::FRONT as i32, sv_id: subvoxel_id},
 
-        SubvoxelVertex { position: [x, y, z], side: BlockSide::BACK as i32},
-        SubvoxelVertex { position: [x, y-(scale.y as f32), z], side: BlockSide::BACK as i32},
-        SubvoxelVertex { position: [x, y, z-(scale.z as f32)], side: BlockSide::BACK as i32},
-        SubvoxelVertex { position: [x, y-(scale.y as f32), z-(scale.z as f32)], side: BlockSide::BACK as i32},
+        SubvoxelVertex { position: [x, y, z], side: BlockSide::BACK as i32, sv_id: subvoxel_id},
+        SubvoxelVertex { position: [x, y-(scale.y as f32), z], side: BlockSide::BACK as i32, sv_id: subvoxel_id},
+        SubvoxelVertex { position: [x, y, z-(scale.z as f32)], side: BlockSide::BACK as i32, sv_id: subvoxel_id},
+        SubvoxelVertex { position: [x, y-(scale.y as f32), z-(scale.z as f32)], side: BlockSide::BACK as i32, sv_id: subvoxel_id},
 
-        SubvoxelVertex { position: [x-(scale.x as f32), y-(scale.y as f32), z], side: BlockSide::BOTTOM as i32},
-        SubvoxelVertex { position: [x, y-(scale.y as f32), z], side: BlockSide::BOTTOM as i32},
-        SubvoxelVertex { position: [x-(scale.x as f32), y-(scale.y as f32), z-(scale.z as f32)], side: BlockSide::BOTTOM as i32},
-        SubvoxelVertex { position: [x, y-(scale.y as f32), z-(scale.z as f32)], side: BlockSide::BOTTOM as i32},
+        SubvoxelVertex { position: [x-(scale.x as f32), y-(scale.y as f32), z], side: BlockSide::BOTTOM as i32, sv_id: subvoxel_id},
+        SubvoxelVertex { position: [x, y-(scale.y as f32), z], side: BlockSide::BOTTOM as i32, sv_id: subvoxel_id},
+        SubvoxelVertex { position: [x-(scale.x as f32), y-(scale.y as f32), z-(scale.z as f32)], side: BlockSide::BOTTOM as i32, sv_id: subvoxel_id},
+        SubvoxelVertex { position: [x, y-(scale.y as f32), z-(scale.z as f32)], side: BlockSide::BOTTOM as i32, sv_id: subvoxel_id},
 
-        SubvoxelVertex { position: [x, y, z], side: BlockSide::TOP as i32},
-        SubvoxelVertex { position: [x-(scale.x as f32), y, z], side: BlockSide::TOP as i32},
-        SubvoxelVertex { position: [x, y, z-(scale.z as f32)], side: BlockSide::TOP as i32},
-        SubvoxelVertex { position: [x-(scale.x as f32), y, z-(scale.z as f32)], side: BlockSide::TOP as i32}
+        SubvoxelVertex { position: [x, y, z], side: BlockSide::TOP as i32, sv_id: subvoxel_id},
+        SubvoxelVertex { position: [x-(scale.x as f32), y, z], side: BlockSide::TOP as i32, sv_id: subvoxel_id},
+        SubvoxelVertex { position: [x, y, z-(scale.z as f32)], side: BlockSide::TOP as i32, sv_id: subvoxel_id},
+        SubvoxelVertex { position: [x-(scale.x as f32), y, z-(scale.z as f32)], side: BlockSide::TOP as i32, sv_id: subvoxel_id}
     ]
 }
 
-pub fn generate_cube_at_center(center: cgmath::Point3<f32>, scale: cgmath::Vector3<f32>) -> [SubvoxelVertex; 24] {
+pub fn generate_cube_at_center(center: cgmath::Point3<f32>, scale: cgmath::Vector3<f32>, sv_id: u32) -> [SubvoxelVertex; 24] {
     let radius = scale / 2.;
-    generate_cube(center.x + radius.x, center.y + radius.y, center.z + radius.z, scale)
+    generate_cube(center.x + radius.x, center.y + radius.y, center.z + radius.z, scale, sv_id)
 }
 
-pub const INDICES_CUBE: &[u32] = &[
+pub fn generate_indices_for_index(index: u32) -> [u32; 36]{
+    [
      // Front Face
      0,1,2,
      0,2,3,
@@ -101,6 +110,7 @@ pub const INDICES_CUBE: &[u32] = &[
      // Top Face
      23,21,20,
      23,20,22,
-];
+    ].map(|i| i + 36*index)
+}
 
-pub const INDICES_CUBE_LEN: u32 = INDICES_CUBE.len() as u32;
+pub const INDICES_CUBE_LEN: u32 = 36;
