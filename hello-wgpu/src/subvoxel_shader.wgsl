@@ -45,7 +45,8 @@ struct SubvoxelObject {
     center_x: f32,
     center_y: f32,
     center_z: f32,
-    ao_id: u32
+    ao_offset: u32,
+    ao_length_in_u32s: u32,
 }
 
 @group(1) @binding(0)
@@ -55,7 +56,7 @@ var<storage> sv_voxels: array<u32, 2>;
 @group(1) @binding(2)
 var<storage> sv_palette: array<vec4<f32>, 4>;
 @group(1) @binding(3)
-var<storage> ambient_occlusion_array: array<array<u32,5>, 1>;
+var<storage> ambient_occlusion_array: array<u32, 5>;
 
 fn get_initial_subvoxel_block_grid_coordinates(step: vec3<f32>, position: vec3<f32>) -> vec3<i32> {
     return vec3<i32>(position / step);
@@ -74,19 +75,18 @@ let RIGHT = 3;
 let TOP = 4;
 let BOTTOM = 5;
 
-fn ao_calc(subvoxel_step: vec3<f32>, current_position_fract: vec3<f32>, block_index: u32, current_side: i32, color: vec4<f32>, ao_id: u32) -> vec4<f32> {
-    var AMBIENTOCCLUSION = ambient_occlusion_array[ao_id];
+fn ao_calc(subvoxel_step: vec3<f32>, current_position_fract: vec3<f32>, block_index: u32, current_side: i32, color: vec4<f32>, ao_offset: u32) -> vec4<f32> {
     let block_index_bits_start = block_index * 20u;
     let block_index_bits_end = block_index_bits_start + 20u;
     let ambient_occlusion_voxel_start_bits_index = block_index_bits_start / 32u;
     let ambient_occlusion_voxel_end_bits_index = block_index_bits_end / 32u;
     var ao_bits = 0u;
     if (ambient_occlusion_voxel_start_bits_index != ambient_occlusion_voxel_end_bits_index) {
-        let start_bits = AMBIENTOCCLUSION[ambient_occlusion_voxel_start_bits_index] << (block_index_bits_start % 32u);
-        let end_bits = AMBIENTOCCLUSION[ambient_occlusion_voxel_end_bits_index] >> (32u - (block_index_bits_start % 32u));
+        let start_bits = ambient_occlusion_array[ambient_occlusion_voxel_start_bits_index + ao_offset] << (block_index_bits_start % 32u);
+        let end_bits = ambient_occlusion_array[ambient_occlusion_voxel_end_bits_index + ao_offset] >> (32u - (block_index_bits_start % 32u));
         ao_bits = (start_bits | end_bits) >> 12u;
     } else {
-        ao_bits = AMBIENTOCCLUSION[ambient_occlusion_voxel_start_bits_index] >> (32u - (block_index_bits_end % 32u));
+        ao_bits = ambient_occlusion_array[ambient_occlusion_voxel_start_bits_index + ao_offset] >> (32u - (block_index_bits_end % 32u));
     }
 
     var FRONT_TOP_LEFT = f32((ao_bits & 524288u) >> 19u);
@@ -303,7 +303,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         let block_index = get_subvoxel_block_index(dimension, vec3<u32>(model_grid_coordinates));
         let subvoxel_palette = get_subvoxel_at_index(block_index);
         if (subvoxel_palette != 0u) {
-            return ao_calc(subvoxel_step, fract(current_position / subvoxel_step), block_index, dot(step_axis, step_faces), sv_palette[subvoxel_palette], sv_object.ao_id);
+            return ao_calc(subvoxel_step, fract(current_position / subvoxel_step), block_index, dot(step_axis, step_faces), sv_palette[subvoxel_palette], sv_object.ao_offset);
         }
     }
     

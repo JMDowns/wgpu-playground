@@ -16,5 +16,6 @@ pub struct SubvoxelGpuData {
     pub center_x: f32,
     pub center_y: f32,
     pub center_z: f32,
-    pub ao_id: u32,
+    pub ao_offset: u32,
+    pub ao_length: u32
 }

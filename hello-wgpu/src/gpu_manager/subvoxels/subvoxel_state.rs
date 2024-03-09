@@ -198,8 +198,9 @@ impl SubvoxelState {
     fn apply_changes_to_sv_data(&self, id: usize) {
         let sv_object = self.get_subvoxel_object(id);
         let ao_offset = self.ambient_occlusion_state.subvoxel_id_to_ao_offset.get(&(id as u32)).unwrap();
+        let ao_length_in_u32s = (sv_object.subvoxel_vec.len() * 20).div_ceil(32);
         let voxel_offset = self.sv_id_to_vec_offset.get(&(id as u32)).unwrap();
         self.queue.read().unwrap().write_buffer(&self.sv_vertex_buffer, id as u64 * std::mem::size_of::<SubvoxelVertex>() as u64 * 24, bytemuck::cast_slice(&sv_object.subvoxel_vertices));
-        self.queue.read().unwrap().write_buffer(&self.sv_data_buffer, id as u64 * std::mem::size_of::<SubvoxelGpuData>() as u64, bytemuck::cast_slice(&[sv_object.to_gpu_data(*ao_offset)]));
+        self.queue.read().unwrap().write_buffer(&self.sv_data_buffer, id as u64 * std::mem::size_of::<SubvoxelGpuData>() as u64, bytemuck::cast_slice(&[sv_object.to_gpu_data(*ao_offset, ao_length_in_u32s as u32)]));
     }
 }
