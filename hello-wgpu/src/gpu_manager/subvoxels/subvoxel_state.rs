@@ -1,8 +1,8 @@
-use std::{collections::HashMap};
+use std::collections::HashMap;
 use num_traits::Zero;
 use wgpu::{Device, util::DeviceExt, Queue, BufferUsages};
 use cgmath::{EuclideanSpace, Matrix3, Point3, Rad, Vector3, Deg, Vector4};
-use derivables::subvoxel_vertex::{SubvoxelVertex, generate_cube_at_center, INDICES_CUBE};
+use derivables::subvoxel_vertex::{generate_cube_at_center, generate_indices_for_index, SubvoxelVertex};
 use bytemuck::{Zeroable, Pod};
 use std::sync::{Arc, RwLock};
 
@@ -25,6 +25,10 @@ pub struct SubvoxelState {
     pub queue: Arc<RwLock<Queue>>,
     pub sv_id_to_vec_offset: HashMap<u32, u32>,
 }
+
+const MAX_SUBVOXEL_OBJECTS: u64 = 32;
+const MAX_SUBVOXELS: u64 = 4096;
+const MAX_COLORS: u64 = 32;
 
 impl SubvoxelState {
     pub fn new(device: &Device, queue: Arc<RwLock<Queue>>) -> Self {
@@ -78,7 +82,7 @@ impl SubvoxelState {
         let sv_data_buffer = device.create_buffer(
             &wgpu::BufferDescriptor {
                 label: Some("Subvoxel Data Buffer"),
-                size: (std::mem::size_of::<SubvoxelGpuData>() * 1) as u64,
+                size: (std::mem::size_of::<SubvoxelGpuData>()) as u64  * MAX_SUBVOXEL_OBJECTS,
                 mapped_at_creation: false,
                 usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
             }
@@ -87,18 +91,16 @@ impl SubvoxelState {
         let sv_voxel_buffer = device.create_buffer(
             &wgpu::BufferDescriptor {
                 label: Some("Subvoxel Voxel Buffer"),
-                size: (std::mem::size_of::<SUBVOXEL_PALETTE>() * 8) as u64,
+                size: (std::mem::size_of::<SUBVOXEL_PALETTE>()) as u64  * MAX_SUBVOXELS,
                 mapped_at_creation: false,
                 usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
             }
         );
 
-        let num_colors = 4;
-
         let sv_palette_buffer = device.create_buffer(
             &wgpu::BufferDescriptor {
                 label: Some("Subvoxel Palette Buffer"),
-                size: (std::mem::size_of::<f32>() * 4 * num_colors) as u64,
+                size: (std::mem::size_of::<f32>() * 4) as u64 * MAX_COLORS,
                 mapped_at_creation: false,
                 usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
             }
@@ -113,23 +115,23 @@ impl SubvoxelState {
 
         queue.read().unwrap().write_buffer(&sv_palette_buffer, 0, bytemuck::cast_slice(&colors));
 
-        let sv_vertex_buffer = device.create_buffer_init(
-            &wgpu::util::BufferInitDescriptor {
+        let sv_vertex_buffer = device.create_buffer(
+            &wgpu::BufferDescriptor {
                 label: Some("Cube Vertex Buffer"),
-                contents: bytemuck::cast_slice(&generate_cube_at_center(Point3{x:0., y:0., z:0.}, Vector3::<f32>{ x: 2.0, y: 2.0, z: 2.0})),
-                usage: wgpu::BufferUsages::VERTEX | BufferUsages::COPY_DST
+                size: (std::mem::size_of::<SubvoxelVertex>() * 24) as u64 * MAX_SUBVOXEL_OBJECTS,
+                mapped_at_creation: false,
+                usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             }
         );
 
-        let sv_index_buffer = device.create_buffer_init(
-            &wgpu::util::BufferInitDescriptor {
+        let sv_index_buffer = device.create_buffer(
+            &wgpu::BufferDescriptor {
                 label: Some("Cube Index Buffer"),
-                contents: bytemuck::cast_slice(INDICES_CUBE),
+                size: (std::mem::size_of::<u32>() * 36) as u64 * MAX_SUBVOXEL_OBJECTS,
+                mapped_at_creation: false,
                 usage: wgpu::BufferUsages::INDEX | BufferUsages::COPY_DST,
             }
         );
-
-        let sv_id_to_buffer_location = HashMap::from([(0, 0)]);
 
         let ambient_occlusion_state = AmbientOcclusionState::new(device, queue.clone());
 
@@ -175,8 +177,11 @@ impl SubvoxelState {
         let id = self.subvoxel_objects.len();
         let object = SubvoxelObject::new(id as u32, spec);
         self.ambient_occlusion_state.set_ambient_occlusion(&object, self.queue.clone());
+        let offset = 0;
+        self.sv_id_to_vec_offset.insert(id as u32, offset);
+        self.queue.read().unwrap().write_buffer(&self.sv_index_buffer, id as u64 * std::mem::size_of::<u32>() as u64 * 36, bytemuck::cast_slice(&generate_indices_for_index(id as u32)));
+        self.queue.read().unwrap().write_buffer(&self.sv_voxel_buffer, offset as u64, bytemuck::cast_slice(&object.subvoxel_vec));
         self.subvoxel_objects.push(object);
-        self.sv_id_to_vec_offset.insert(id as u32, 0);
         self.apply_changes_to_sv_data(id);
         return id;
     }
@@ -195,7 +200,6 @@ impl SubvoxelState {
         let ao_offset = self.ambient_occlusion_state.subvoxel_id_to_ao_offset.get(&(id as u32)).unwrap();
         let voxel_offset = self.sv_id_to_vec_offset.get(&(id as u32)).unwrap();
         self.queue.read().unwrap().write_buffer(&self.sv_vertex_buffer, id as u64 * std::mem::size_of::<SubvoxelVertex>() as u64 * 24, bytemuck::cast_slice(&sv_object.subvoxel_vertices));
-        self.queue.read().unwrap().write_buffer(&self.sv_voxel_buffer, *voxel_offset as u64, bytemuck::cast_slice(&sv_object.subvoxel_vec));
         self.queue.read().unwrap().write_buffer(&self.sv_data_buffer, id as u64 * std::mem::size_of::<SubvoxelGpuData>() as u64, bytemuck::cast_slice(&[sv_object.to_gpu_data(*ao_offset)]));
     }
 }

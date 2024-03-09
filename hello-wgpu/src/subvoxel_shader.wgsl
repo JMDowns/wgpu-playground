@@ -9,12 +9,14 @@ var<uniform> camera: CameraUniform;
 struct VertexOutput {
     @builtin(position) clip_position:vec4<f32>,
     @location(0) world_position: vec3<f32>,
-    @location(1) side: i32
+    @location(1) side: i32,
+    @location(2) sv_id: u32,
 };
 
 struct VertexInput {
     @location(0) position: vec3<f32>,
-    @location(1) side: i32
+    @location(1) side: i32,
+    @location(2) sv_id: u32,
 };
 
 @vertex
@@ -25,6 +27,7 @@ fn vs_main(
     out.clip_position = camera.view_proj * vec4<f32>(model.position.x, model.position.y, model.position.z, 1.0);
     out.world_position = model.position;
     out.side = model.side;
+    out.sv_id = model.sv_id;
     return out;
 }
 
@@ -42,6 +45,7 @@ struct SubvoxelObject {
     center_x: f32,
     center_y: f32,
     center_z: f32,
+    ao_id: u32
 }
 
 @group(1) @binding(0)
@@ -70,8 +74,8 @@ let RIGHT = 3;
 let TOP = 4;
 let BOTTOM = 5;
 
-fn ao_calc(subvoxel_step: vec3<f32>, current_position_fract: vec3<f32>, block_index: u32, current_side: i32, color: vec4<f32>) -> vec4<f32> {
-    var AMBIENTOCCLUSION = ambient_occlusion_array[0];
+fn ao_calc(subvoxel_step: vec3<f32>, current_position_fract: vec3<f32>, block_index: u32, current_side: i32, color: vec4<f32>, ao_id: u32) -> vec4<f32> {
+    var AMBIENTOCCLUSION = ambient_occlusion_array[ao_id];
     let block_index_bits_start = block_index * 20u;
     let block_index_bits_end = block_index_bits_start + 20u;
     let ambient_occlusion_voxel_start_bits_index = block_index_bits_start / 32u;
@@ -226,8 +230,7 @@ fn get_subvoxel_at_index(index: u32) -> u32 {
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    var sv_id = 0;
-    var sv_object = sv_objects[sv_id];
+    var sv_object = sv_objects[in.sv_id];
     var center = vec3<f32>(sv_object.center_x, sv_object.center_y, sv_object.center_z);
     var size = vec3<f32>(sv_object.size_x, sv_object.size_y, sv_object.size_z);
     var dimension = vec3<u32>(sv_object.subvoxel_dimension_x, sv_object.subvoxel_dimension_y, sv_object.subvoxel_dimension_z);
@@ -300,7 +303,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         let block_index = get_subvoxel_block_index(dimension, vec3<u32>(model_grid_coordinates));
         let subvoxel_palette = get_subvoxel_at_index(block_index);
         if (subvoxel_palette != 0u) {
-            return ao_calc(subvoxel_step, fract(current_position / subvoxel_step), block_index, dot(step_axis, step_faces), sv_palette[subvoxel_palette]);
+            return ao_calc(subvoxel_step, fract(current_position / subvoxel_step), block_index, dot(step_axis, step_faces), sv_palette[subvoxel_palette], sv_object.ao_id);
         }
     }
     

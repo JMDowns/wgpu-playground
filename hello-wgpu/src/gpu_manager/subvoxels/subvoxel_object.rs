@@ -23,7 +23,7 @@ impl SubvoxelObject {
         let z_rotation = Matrix3::<f32>::from_angle_z(spec.initial_rotation.z);
         let rotation_matrix = (z_rotation * y_rotation * x_rotation);
         let subvoxel_vertices = 
-            generate_cube_at_center(Point3 { x: 0.0, y: 0.0, z: 0.0 }, spec.size)
+            generate_cube_at_center(Point3 { x: 0.0, y: 0.0, z: 0.0 }, spec.size, id)
             .into_iter()
             .map(|vertex| vertex.rotate(&rotation_matrix) )
             .map(|vertex| vertex.translate(spec.center.to_vec()))
@@ -50,7 +50,7 @@ impl SubvoxelObject {
         let z_rotation = Matrix3::<f32>::from_angle_z(self.rotation.z);
         self.rotation_matrix = (z_rotation * y_rotation * x_rotation);
         self.subvoxel_vertices = 
-            generate_cube_at_center(Point3 { x: 0.0, y: 0.0, z: 0.0 }, self.size)
+            generate_cube_at_center(Point3 { x: 0.0, y: 0.0, z: 0.0 }, self.size, self.id)
             .into_iter()
             .map(|vertex| vertex.rotate(&self.rotation_matrix) )
             .map(|vertex| vertex.translate(self.center.to_vec()))
@@ -79,7 +79,6 @@ impl SubvoxelObject {
                 rotation_matrix_y.into(),
                 rotation_matrix_z.into()
             ],
-            sv_id: self.id,
             ao_id
         }
     }

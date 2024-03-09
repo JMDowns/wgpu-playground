@@ -5,9 +5,6 @@ use fundamentals::{world_position::WorldPosition, enums::block_side::BlockSide, 
 use lru::LruCache;
 use wgpu::{Device, util::DeviceExt, BufferUsages, Queue};
 
-use derivables::subvoxel_vertex::generate_cube;
-use derivables::subvoxel_vertex::INDICES_CUBE;
-
 use crate::{voxels::mesh::Mesh};
 
 pub const NUM_BUCKETS: usize = (fundamentals::consts::NUMBER_OF_CHUNKS_AROUND_PLAYER as usize) * fundamentals::consts::NUM_BUCKETS_PER_CHUNK;
