@@ -46,7 +46,11 @@ struct SubvoxelObject {
 
 @group(1) @binding(0)
 var<storage> sv_objects: array<SubvoxelObject, 1>;
-@group(2) @binding(0)
+@group(1) @binding(1)
+var<storage> sv_voxels: array<u32, 2>;
+@group(1) @binding(2)
+var<storage> sv_palette: array<vec4<f32>, 4>;
+@group(1) @binding(3)
 var<storage> ambient_occlusion_array: array<array<u32,5>, 1>;
 
 fn get_initial_subvoxel_block_grid_coordinates(step: vec3<f32>, position: vec3<f32>) -> vec3<i32> {
@@ -212,10 +216,16 @@ fn ao_calc(subvoxel_step: vec3<f32>, current_position_fract: vec3<f32>, block_in
     return new_color;
 }
 
+fn get_subvoxel_at_index(index: u32) -> u32 {
+    let BITS_PER_SUBVOXEL = 8u;
+    let u32_offset = (index * BITS_PER_SUBVOXEL) / 32u;
+    let bit_offset = (index * BITS_PER_SUBVOXEL) % 32u;
+    let subvoxel_palette_value = (sv_voxels[u32_offset] >> bit_offset) & 255u;
+    return subvoxel_palette_value;
+}
+
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    var SUBVOXELS = array<u32, 8>(0u, 1u, 1u, 0u, 1u, 0u, 0u, 1u);
-
     var sv_id = 0;
     var sv_object = sv_objects[sv_id];
     var center = vec3<f32>(sv_object.center_x, sv_object.center_y, sv_object.center_z);
@@ -265,11 +275,10 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         step_faces.z = LEFT;
     }
 
-    var color = vec4<f32>(1., 0., 0., 0.);
-
     let block_index = get_subvoxel_block_index(dimension, vec3<u32>(model_grid_coordinates));
-    if (SUBVOXELS[block_index] == 1u) {
-        return color;
+    let subvoxel_palette = get_subvoxel_at_index(block_index);
+    if (subvoxel_palette != 0u) {
+        return sv_palette[subvoxel_palette];
     }
 
     for(var i: i32 = 1; i <= MAX_STEP_SIZE; i++) {
@@ -289,8 +298,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         }
 
         let block_index = get_subvoxel_block_index(dimension, vec3<u32>(model_grid_coordinates));
-        if (SUBVOXELS[block_index] == 1u) {
-            return ao_calc(subvoxel_step, fract(current_position / subvoxel_step), block_index, dot(step_axis, step_faces), color);
+        let subvoxel_palette = get_subvoxel_at_index(block_index);
+        if (subvoxel_palette != 0u) {
+            return ao_calc(subvoxel_step, fract(current_position / subvoxel_step), block_index, dot(step_axis, step_faces), sv_palette[subvoxel_palette]);
         }
     }
     

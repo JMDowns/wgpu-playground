@@ -8,7 +8,7 @@ use wgpu::{Device, util::DeviceExt, BufferUsages, Queue};
 use derivables::subvoxel_vertex::generate_cube;
 use derivables::subvoxel_vertex::INDICES_CUBE;
 
-use crate::{gpu_manager::subvoxel_state::{SubvoxelGpuData, SubvoxelObject}, voxels::mesh::Mesh};
+use crate::{voxels::mesh::Mesh};
 
 pub const NUM_BUCKETS: usize = (fundamentals::consts::NUMBER_OF_CHUNKS_AROUND_PLAYER as usize) * fundamentals::consts::NUM_BUCKETS_PER_CHUNK;
 
@@ -62,10 +62,7 @@ pub struct VertexGPUData {
     pub frustum_bucket_data_to_update: Vec<(WorldPosition, BlockSide, u32, BucketPosition)>,
     pub frustum_bucket_data_to_clear: Vec<(WorldPosition, BlockSide, u32)>,
     pub vertex_buckets_used: usize,
-    pub vertex_buckets_total: usize,
-    pub sv_testing_vertex_buffer: wgpu::Buffer,
-    pub sv_testing_index_buffer: wgpu::Buffer,
-    pub sv_id_to_buffer_location: HashMap<u32, u64>
+    pub vertex_buckets_total: usize
 }
 
 impl VertexGPUData {
@@ -255,24 +252,6 @@ impl VertexGPUData {
             label: Some("visibility_bind_group")
         });
 
-        let sv_testing_vertex_buffer = device.create_buffer_init(
-            &wgpu::util::BufferInitDescriptor {
-                label: Some("Cube Vertex Buffer"),
-                contents: bytemuck::cast_slice(&generate_cube_at_center(Point3{x:0., y:0., z:0.}, Vector3::<f32>{ x: 2.0, y: 2.0, z: 2.0})),
-                usage: wgpu::BufferUsages::VERTEX | BufferUsages::COPY_DST
-            }
-        );
-
-        let sv_testing_index_buffer = device.create_buffer_init(
-            &wgpu::util::BufferInitDescriptor {
-                label: Some("Cube Index Buffer"),
-                contents: bytemuck::cast_slice(INDICES_CUBE),
-                usage: wgpu::BufferUsages::INDEX | BufferUsages::COPY_DST,
-            }
-        );
-
-        let sv_id_to_buffer_location = HashMap::from([(0, 0)]);
-
         Self {
             pos_to_gpu_index,
             chunk_index_array,
@@ -296,10 +275,7 @@ impl VertexGPUData {
             vertex_buckets_used: 0,
             vertex_buckets_total,
             occlusion_cube_vertex_buffer,
-            occlusion_cube_index_buffer,
-            sv_testing_vertex_buffer,
-            sv_testing_index_buffer,
-            sv_id_to_buffer_location
+            occlusion_cube_index_buffer
         }
     }
 
@@ -570,9 +546,5 @@ impl VertexGPUData {
 
     pub fn get_memory_info(&self) -> MemoryInfo {
         MemoryInfo { buckets_total: self.vertex_buckets_total }
-    }
-
-    pub fn apply_changes_to_sv_vertices(&mut self, sv_id: usize, sv_object: &SubvoxelObject, queue: Arc<RwLock<Queue>>) {
-        queue.read().unwrap().write_buffer(&self.sv_testing_vertex_buffer, sv_id as u64 * std::mem::size_of::<SubvoxelVertex>() as u64 * 24, bytemuck::cast_slice(&sv_object.subvoxel_vertices));
     }
 }

@@ -1,14 +1,12 @@
-use std::sync::{Arc, RwLock};
+use std::{collections::HashMap, hash::Hash, sync::{Arc, RwLock}};
 
 use wgpu::{BufferUsages, Queue};
 
-use super::subvoxel_state::SubvoxelObject;
+use super::subvoxel_object::SubvoxelObject;
 
 pub struct AmbientOcclusionState {
     pub ao_buffer: wgpu::Buffer,
-    pub ao_bind_group_layout: wgpu::BindGroupLayout,
-    pub ao_bind_group: wgpu::BindGroup,
-    pub queue: Arc<RwLock<Queue>>
+    pub subvoxel_id_to_ao_offset: HashMap<u32, u32>
 }
 
 //Each Bucket is 20 bytes long
@@ -57,19 +55,27 @@ impl AmbientOcclusionState {
 
         AmbientOcclusionState {
             ao_buffer,
-            ao_bind_group,
-            ao_bind_group_layout,
-            queue
+            subvoxel_id_to_ao_offset: HashMap::new(),
         }
     }
 
-    pub fn set_ambient_occlusion(&self, voxel_object: &SubvoxelObject, queue: Arc<RwLock<Queue>>) {
+    pub fn set_ambient_occlusion(&mut self, voxel_object: &SubvoxelObject, queue: Arc<RwLock<Queue>>) {
         let ao_calculator = AmbientOcclusionCalculator {
             voxel_object
         };
 
         let vec = ao_calculator.generate_bits();
-        queue.read().unwrap().write_buffer(&self.ao_buffer, 0, bytemuck::cast_slice(&vec));
+
+        let mut ao_offset: u32 = 0;
+        if (self.subvoxel_id_to_ao_offset.contains_key(&voxel_object.id)) {
+            ao_offset = *self.subvoxel_id_to_ao_offset.get(&voxel_object.id).unwrap();
+        }
+        else {
+            ao_offset = 0;
+            self.subvoxel_id_to_ao_offset.insert(voxel_object.id, ao_offset);
+        }
+
+        queue.read().unwrap().write_buffer(&self.ao_buffer, ao_offset as u64 * 20, bytemuck::cast_slice(&vec));
     }
 }
 

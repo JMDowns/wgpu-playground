@@ -7,9 +7,8 @@ mod flag_state;
 mod render_state;
 mod surface_state;
 mod texture_state;
-mod subvoxel_state;
-mod ambient_occlusion_state;
 pub mod gpu_data;
+mod subvoxels;
 
 use camera_state::CameraState;
 use cgmath::{Deg, Point3, Rad, SquareMatrix, Vector3};
@@ -25,9 +24,9 @@ use gpu_data::vertex_gpu_data::VertexGPUData;
 use fundamentals::{world_position::WorldPosition, enums::block_side::BlockSide, logi, consts::{self, NUMBER_OF_CHUNKS_AROUND_PLAYER}};
 use winit::window::Window;
 
-use crate::{camera::CameraController, gpu_manager::{ambient_occlusion_state::AmbientOcclusionState, subvoxel_state::{SubvoxelObject, SubvoxelObjectSpecification}}, tasks::Task, texture, voxels::chunk::Chunk};
+use crate::{camera::CameraController, tasks::Task, texture, voxels::chunk::Chunk};
 
-use self::subvoxel_state::SubvoxelState;
+use self::subvoxels::{subvoxel_state::SubvoxelState, subvoxel_object_specification::SubvoxelObjectSpecification};
 
 pub struct GPUManager {
     pub device: Arc<RwLock<wgpu::Device>>,
@@ -39,7 +38,6 @@ pub struct GPUManager {
     pub camera_state: CameraState,
     pub flag_state: FlagState,
     pub subvoxel_state: SubvoxelState,
-    pub ambient_occlusion_state: AmbientOcclusionState,
     pub vertex_gpu_data: Arc<RwLock<VertexGPUData>>,
 }
 
@@ -105,12 +103,8 @@ impl GPUManager {
             subvoxel_size: Vector3 { x: 2, y: 2, z: 2 }, 
             center: Point3 { x: 0.0, y: 0.0, z: 0.0},
             initial_rotation: Vector3 {x: Deg(0.), y: Deg(0.), z: Deg(0.)},
-            subvoxel_vec: vec![0, 1, 1, 0, 1, 0, 0, 1]
+            subvoxel_vec: vec![0, 2, 1, 0, 1, 0, 0, 1]
         });
-        subvoxel_state.apply_changes_to_sv_data(sv_id);
-
-        let mut ambient_occlusion_state = AmbientOcclusionState::new(&device, queue_rwlock.clone());
-        ambient_occlusion_state.set_ambient_occlusion(subvoxel_state.get_subvoxel_object(0), queue_rwlock.clone());
 
         let render_state = RenderState::new(
             &device, 
@@ -119,8 +113,7 @@ impl GPUManager {
             &texture_state.diffuse_bind_group_layout, 
             &vertex_gpu_data.read().unwrap().chunk_index_bind_group_layout,
             &vertex_gpu_data.read().unwrap().visibility_bind_group_layout,
-            &subvoxel_state.subvoxel_bind_group_layout,
-            &ambient_occlusion_state.ao_bind_group_layout
+            &subvoxel_state.subvoxel_bind_group_layout
         );
 
         GPUManager {
@@ -141,7 +134,6 @@ impl GPUManager {
                 render_wireframe: false,
             },
             subvoxel_state,
-            ambient_occlusion_state,
             vertex_gpu_data,
         }
     }
@@ -268,10 +260,9 @@ impl GPUManager {
 
             render_pass.set_bind_group(0, &self.camera_state.camera_bind_group, &[]);
             render_pass.set_bind_group(1, &self.subvoxel_state.subvoxel_bind_group, &[]);
-            render_pass.set_bind_group(2, &self.ambient_occlusion_state.ao_bind_group, &[]);
 
-            render_pass.set_vertex_buffer(0, vertex_gpu_data.sv_testing_vertex_buffer.slice(..));
-            render_pass.set_index_buffer(vertex_gpu_data.sv_testing_index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+            render_pass.set_vertex_buffer(0, self.subvoxel_state.sv_vertex_buffer.slice(..));
+            render_pass.set_index_buffer(self.subvoxel_state.sv_index_buffer.slice(..), wgpu::IndexFormat::Uint32);
             render_pass.draw_indexed(0..derivables::subvoxel_vertex::INDICES_CUBE_LEN, 0, 0..1);
 
         }
@@ -331,8 +322,6 @@ impl GPUManager {
 
     pub fn rotate_subvoxel_object(&mut self, id: usize) {
         self.subvoxel_state.rotate(id, Vector3{ x: Deg(1.0), y: Deg(0.0), z: Deg(0.0) });
-        self.subvoxel_state.apply_changes_to_sv_data(id);
-        self.vertex_gpu_data.write().unwrap().apply_changes_to_sv_vertices(id, &self.subvoxel_state.get_subvoxel_object(id), self.queue.clone());
     }
 }
 
