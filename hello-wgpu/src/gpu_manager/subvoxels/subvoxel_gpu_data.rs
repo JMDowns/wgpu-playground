@@ -3,10 +3,7 @@ use bytemuck::{Zeroable, Pod};
 #[repr(C)]
 #[derive(Clone, Copy, Zeroable, Pod)]
 pub struct SubvoxelGpuData {
-    pub rotation_matrix: [[f32; 4]; 3],
-    pub rotation_padding_1: u32,
-    pub rotation_padding_2: u32,
-    pub rotation_padding_3: u32,
+    pub rotation_matrix: [[f32; 3]; 3],
     pub size_x: f32,
     pub size_y: f32,
     pub size_z: f32,

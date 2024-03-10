@@ -58,13 +58,7 @@ impl SubvoxelObject {
     }
 
     pub fn to_gpu_data(&self, ao_offset: u32, ao_length: u32) -> SubvoxelGpuData {
-        let rotation_matrix_x = self.rotation_matrix.x.extend(0.0);
-        let rotation_matrix_y = self.rotation_matrix.y.extend(0.0);
-        let rotation_matrix_z = self.rotation_matrix.z.extend(0.0);
-        SubvoxelGpuData { 
-            rotation_padding_1: 0,
-            rotation_padding_2: 0,
-            rotation_padding_3: 0,
+        SubvoxelGpuData {
             size_x: self.size.x, 
             size_y: self.size.y, 
             size_z: self.size.z, 
@@ -75,9 +69,9 @@ impl SubvoxelObject {
             center_y: self.center.y,
             center_z: self.center.z,
             rotation_matrix: [
-                rotation_matrix_x.into(),
-                rotation_matrix_y.into(),
-                rotation_matrix_z.into()
+                self.rotation_matrix.x.into(),
+                self.rotation_matrix.y.into(),
+                self.rotation_matrix.z.into()
             ],
             ao_offset,
             ao_length

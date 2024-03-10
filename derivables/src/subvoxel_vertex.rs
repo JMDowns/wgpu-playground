@@ -110,7 +110,7 @@ pub fn generate_indices_for_index(index: u32) -> [u32; 36]{
      // Top Face
      23,21,20,
      23,20,22,
-    ].map(|i| i + 36*index)
+    ].map(|i| i + 24*index)
 }
 
 pub const INDICES_CUBE_LEN: u32 = 36;

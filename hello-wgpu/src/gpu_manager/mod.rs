@@ -98,12 +98,20 @@ impl GPUManager {
         let queue_rwlock = Arc::new(RwLock::new(queue));
 
         let mut subvoxel_state = SubvoxelState::new(&device, queue_rwlock.clone());
-        let sv_id = subvoxel_state.add_subvoxel_object(SubvoxelObjectSpecification {
+        subvoxel_state.add_subvoxel_object(SubvoxelObjectSpecification {
             size: Vector3 { x: 2.0, y: 2.0, z: 2.0 }, 
             subvoxel_size: Vector3 { x: 2, y: 2, z: 2 }, 
             center: Point3 { x: 0.0, y: 0.0, z: 0.0},
             initial_rotation: Vector3 {x: Deg(0.), y: Deg(0.), z: Deg(0.)},
             subvoxel_vec: vec![0, 2, 1, 0, 1, 0, 0, 1]
+        });
+
+        subvoxel_state.add_subvoxel_object(SubvoxelObjectSpecification {
+            size: Vector3 { x: 2.0, y: 2.0, z: 2.0 }, 
+            subvoxel_size: Vector3 { x: 2, y: 2, z: 2 }, 
+            center: Point3 { x: 5.0, y: 5.0, z: 5.0},
+            initial_rotation: Vector3 {x: Deg(0.), y: Deg(0.), z: Deg(0.)},
+            subvoxel_vec: vec![1, 0, 0, 1, 0, 1, 1, 0]
         });
 
         let render_state = RenderState::new(
@@ -263,7 +271,7 @@ impl GPUManager {
 
             render_pass.set_vertex_buffer(0, self.subvoxel_state.sv_vertex_buffer.slice(..));
             render_pass.set_index_buffer(self.subvoxel_state.sv_index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-            render_pass.draw_indexed(0..derivables::subvoxel_vertex::INDICES_CUBE_LEN, 0, 0..1);
+            render_pass.draw_indexed(0..derivables::subvoxel_vertex::INDICES_CUBE_LEN*2, 0, 0..1);
 
         }
 
@@ -322,6 +330,7 @@ impl GPUManager {
 
     pub fn rotate_subvoxel_object(&mut self, id: usize) {
         self.subvoxel_state.rotate(id, Vector3{ x: Deg(1.0), y: Deg(0.0), z: Deg(0.0) });
+        self.subvoxel_state.rotate(id+1, Vector3{ x: Deg(-1.0), y: Deg(0.0), z: Deg(0.0) });
     }
 }
 

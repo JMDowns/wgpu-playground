@@ -32,10 +32,9 @@ fn vs_main(
 }
 
 struct SubvoxelObject {
-    rotation_matrix: mat3x3<f32>,
-    padding_1: u32,
-    padding_2: u32,
-    padding_3: u32,
+    rx1: f32, rx2: f32, rx3: f32,
+    ry1: f32, ry2: f32, ry3: f32,
+    rz1: f32, rz2: f32, rz3: f32,
     size_x: f32,
     size_y: f32,
     size_z: f32,
@@ -50,13 +49,13 @@ struct SubvoxelObject {
 }
 
 @group(1) @binding(0)
-var<storage> sv_objects: array<SubvoxelObject, 1>;
+var<storage> sv_objects: array<SubvoxelObject, 2>;
 @group(1) @binding(1)
-var<storage> sv_voxels: array<u32, 2>;
+var<storage> sv_voxels: array<u32, 4>;
 @group(1) @binding(2)
 var<storage> sv_palette: array<vec4<f32>, 4>;
 @group(1) @binding(3)
-var<storage> ambient_occlusion_array: array<u32, 5>;
+var<storage> ambient_occlusion_array: array<u32, 10>;
 
 fn get_initial_subvoxel_block_grid_coordinates(step: vec3<f32>, position: vec3<f32>) -> vec3<i32> {
     return vec3<i32>(position / step);
@@ -220,10 +219,12 @@ fn ao_calc(subvoxel_step: vec3<f32>, current_position_fract: vec3<f32>, block_in
     return new_color;
 }
 
-fn get_subvoxel_at_index(index: u32) -> u32 {
+fn get_subvoxel_at_index(sv_index: u32, block_index: u32) -> u32 {
+    //HARDCODED
+    let offset_index_per_sv = 2u;
     let BITS_PER_SUBVOXEL = 8u;
-    let u32_offset = (index * BITS_PER_SUBVOXEL) / 32u;
-    let bit_offset = (index * BITS_PER_SUBVOXEL) % 32u;
+    let u32_offset = sv_index * offset_index_per_sv + (block_index * BITS_PER_SUBVOXEL) / 32u;
+    let bit_offset = (block_index * BITS_PER_SUBVOXEL) % 32u;
     let subvoxel_palette_value = (sv_voxels[u32_offset] >> bit_offset) & 255u;
     return subvoxel_palette_value;
 }
@@ -236,9 +237,15 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var dimension = vec3<u32>(sv_object.subvoxel_dimension_x, sv_object.subvoxel_dimension_y, sv_object.subvoxel_dimension_z);
     var subvoxel_step = vec3<f32>(dimension) / size;
 
-    var relative_position = (transpose(sv_object.rotation_matrix)*(in.world_position - center));
+    var rotation_matrix = mat3x3<f32>(
+        vec3<f32>(sv_object.rx1, sv_object.rx2, sv_object.rx3),
+        vec3<f32>(sv_object.ry1, sv_object.ry2, sv_object.ry3),
+        vec3<f32>(sv_object.rz1, sv_object.rz2, sv_object.rz3)
+    );
 
-    var camera_position_model = (transpose(sv_object.rotation_matrix)*(camera.position.xyz - center));
+    var relative_position = (transpose(rotation_matrix)*(in.world_position - center));
+
+    var camera_position_model = (transpose(rotation_matrix)*(camera.position.xyz - center));
     var direction_vector = normalize(relative_position - camera_position_model);
 
     var direction_vector_offset = .00001 * sign(direction_vector);
@@ -279,7 +286,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     }
 
     let block_index = get_subvoxel_block_index(dimension, vec3<u32>(model_grid_coordinates));
-    let subvoxel_palette = get_subvoxel_at_index(block_index);
+    let subvoxel_palette = get_subvoxel_at_index(in.sv_id, block_index);
+
     if (subvoxel_palette != 0u) {
         return sv_palette[subvoxel_palette];
     }
@@ -301,7 +309,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         }
 
         let block_index = get_subvoxel_block_index(dimension, vec3<u32>(model_grid_coordinates));
-        let subvoxel_palette = get_subvoxel_at_index(block_index);
+        let subvoxel_palette = get_subvoxel_at_index(in.sv_id, block_index);
         if (subvoxel_palette != 0u) {
             return ao_calc(subvoxel_step, fract(current_position / subvoxel_step), block_index, dot(step_axis, step_faces), sv_palette[subvoxel_palette], sv_object.ao_offset);
         }
