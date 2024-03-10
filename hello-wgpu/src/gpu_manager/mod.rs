@@ -99,13 +99,13 @@ impl GPUManager {
 
         let mut subvoxel_state = SubvoxelState::new(&device, queue_rwlock.clone());
 
-        for i in 0..10 {
-            for j in 0..10 {
+        for i in 0..100 {
+            for j in 0..100 {
                 let mut big_subvoxel_vec = vec![3, 0, 0, 1, 0, 1, 1, 0,3, 0, 0, 1, 0, 1, 1, 0,3, 0, 0, 1, 0, 1, 1, 0,3, 0, 0, 1, 0, 1, 1, 0,3, 0, 0, 1, 0, 1, 1, 0,3, 0, 0, 1, 0, 1, 1, 0,3, 0, 0, 1, 0, 1, 1, 0,3, 0, 0, 1, 0, 1, 1, 0];
                 subvoxel_state.add_subvoxel_object(SubvoxelObjectSpecification {
                     size: Vector3 { x: 2.0, y: 2.0, z: 2.0 }, 
                     subvoxel_size: Vector3 { x: 4, y: 4, z: 4 }, 
-                    center: Point3 { x: i as f32 * 2., y: 0.0, z: j as f32 * 2.},
+                    center: Point3 { x: i as f32 * 4., y: 0.0, z: j as f32 * 4.},
                     initial_rotation: Vector3 {x: Deg(i as f32), y: Deg(j as f32), z: Deg(0.)},
                     subvoxel_vec: big_subvoxel_vec
                 });

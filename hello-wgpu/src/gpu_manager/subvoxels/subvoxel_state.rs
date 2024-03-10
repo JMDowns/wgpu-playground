@@ -32,8 +32,8 @@ pub struct VoxelBufferSpace {
     pub length_in_u32s: u32
 }
 
-const MAX_SUBVOXEL_OBJECTS: u64 = 100;
-pub const MAX_SUBVOXELS: u64 = 6400;
+const MAX_SUBVOXEL_OBJECTS: u64 = 10000;
+pub const MAX_SUBVOXELS: u64 = 640000;
 const MAX_COLORS: u64 = 32;
 
 impl SubvoxelState {

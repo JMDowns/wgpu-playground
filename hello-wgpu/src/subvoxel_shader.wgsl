@@ -257,7 +257,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     
     var model_position = relative_position + size / 2. + direction_vector_offset;
 
-    var model_grid_coordinates = get_initial_subvoxel_block_grid_coordinates(subvoxel_step, model_position);
+    var model_position_subvoxel_f32 = model_position / subvoxel_step;
+    var model_grid_coordinates = vec3<i32>(model_position_subvoxel_f32);
     var grid_correction = vec3<i32>(model_grid_coordinates >= vec3<i32>(dimension));
     model_grid_coordinates -= grid_correction;
 
@@ -299,7 +300,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let MAX_STEP_SIZE = 16;
 
     var step_sizes = subvoxel_step / abs(direction_vector);
-    var next_distance = (step_directions * 0.5 + 0.5 - fract(model_position / subvoxel_step)) / direction_vector * subvoxel_step;
+    var next_distance = (step_directions * 0.5 + 0.5 - (model_position_subvoxel_f32-vec3<f32>(model_grid_coordinates))) / direction_vector * subvoxel_step;
 
     for(var i: i32 = 1; i <= MAX_STEP_SIZE; i++) {
         var closest_distance = min(min(next_distance.x, next_distance.y), next_distance.z);
