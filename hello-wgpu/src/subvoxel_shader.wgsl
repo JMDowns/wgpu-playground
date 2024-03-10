@@ -73,8 +73,6 @@ fn get_subvoxel_block_index(dimension: vec3<u32>, grid_coordinates: vec3<u32>) -
     return grid_coordinates.x + grid_coordinates.y * dimension.x + grid_coordinates.z * dimension.x * dimension.y;
 }
 
-let MAX_STEP_SIZE = 4;
-
 let FRONT = 0;
 let BACK = 1;
 let LEFT = 2;
@@ -240,7 +238,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var center = vec3<f32>(sv_object.center_x, sv_object.center_y, sv_object.center_z);
     var size = vec3<f32>(sv_object.size_x, sv_object.size_y, sv_object.size_z);
     var dimension = vec3<u32>(sv_object.subvoxel_dimension_x, sv_object.subvoxel_dimension_y, sv_object.subvoxel_dimension_z);
-    var subvoxel_step = vec3<f32>(dimension) / size;
+    var subvoxel_step = size / vec3<f32>(dimension);
 
     var rotation_matrix = mat3x3<f32>(
         vec3<f32>(sv_object.rx1, sv_object.rx2, sv_object.rx3),
@@ -261,11 +259,10 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var grid_correction = vec3<i32>(model_grid_coordinates >= vec3<i32>(dimension));
     model_grid_coordinates -= grid_correction;
 
-    var step_sizes = 1.0 / abs(direction_vector);
+    //return vec4<f32>(vec3<f32>(model_grid_coordinates) / 4., 0.);
+
     var step_directions = sign(direction_vector);
     var step_directions_i32 = vec3<i32>(step_directions);
-
-    var next_distance = (step_directions * 0.5 + 0.5 - fract(model_position)) / direction_vector;
 
     var current_position = model_position;
     var current_side = in.side;
@@ -297,6 +294,11 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         return sv_palette[subvoxel_palette];
     }
 
+    let MAX_STEP_SIZE = 16;
+
+    var step_sizes = 1. / abs(direction_vector);
+    var next_distance = (step_directions * 0.5 + 0.5 - fract(model_position / subvoxel_step)) / direction_vector;
+
     for(var i: i32 = 1; i <= MAX_STEP_SIZE; i++) {
         var closest_distance = min(min(next_distance.x, next_distance.y), next_distance.z);
         current_position = current_position + direction_vector * closest_distance;
@@ -320,5 +322,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         }
     }
     
-    discard;
+    return vec4<f32>(0.,0.,0.,0.);
+    //discard;
 }

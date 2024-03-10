@@ -114,12 +114,14 @@ impl GPUManager {
             subvoxel_vec: vec![3, 0, 0, 1, 0, 1, 1, 0]
         });
 
+        let mut big_subvoxel_vec = vec![1];
+        big_subvoxel_vec.append(&mut vec![0;63]);
         subvoxel_state.add_subvoxel_object(SubvoxelObjectSpecification {
             size: Vector3 { x: 2.0, y: 2.0, z: 2.0 }, 
-            subvoxel_size: Vector3 { x: 2, y: 2, z: 2 }, 
-            center: Point3 { x: 5.0, y: 5.0, z: 5.0},
+            subvoxel_size: Vector3 { x: 4, y: 4, z: 4 }, 
+            center: Point3 { x: 7.0, y: 7.0, z: 7.0},
             initial_rotation: Vector3 {x: Deg(0.), y: Deg(0.), z: Deg(0.)},
-            subvoxel_vec: vec![1, 0, 0, 1, 0, 1, 1, 0]
+            subvoxel_vec: big_subvoxel_vec
         });
 
         let render_state = RenderState::new(
