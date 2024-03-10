@@ -217,7 +217,7 @@ fn ao_calc(subvoxel_step: vec3<f32>, current_position_fract: vec3<f32>, block_in
     if (ao_coefficient_surrounded > 0.) {
         color_coefficient = ao_coefficient_sides + ao_coefficient_surrounded;
     } else if (ao_coefficient_sides < 0.01) {
-        color_coefficient = ao_coefficient_sides + ao_coefficient_corner;
+        color_coefficient = ao_coefficient_corner;
     } else {
         color_coefficient = ao_coefficient_sides;
     }
@@ -323,7 +323,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             return ao_calc(subvoxel_step, fract(current_position / subvoxel_step), block_index, dot(step_axis, step_faces), sv_palette[subvoxel_palette], sv_object.ao_offset);
         }
     }
-    
-    return vec4<f32>(0.,0.,0.,0.);
-    //discard;
+
+    discard;
 }
