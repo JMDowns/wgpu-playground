@@ -216,8 +216,10 @@ fn ao_calc(subvoxel_step: vec3<f32>, current_position_fract: vec3<f32>, block_in
 
     if (ao_coefficient_surrounded > 0.) {
         color_coefficient = ao_coefficient_sides + ao_coefficient_surrounded;
-    } else {
+    } else if (ao_coefficient_sides < 0.01) {
         color_coefficient = ao_coefficient_sides + ao_coefficient_corner;
+    } else {
+        color_coefficient = ao_coefficient_sides;
     }
 
     var new_color = mix(color, vec4<f32>(0.05, 0.05, 0.05, 0.0), .2 * color_coefficient);
