@@ -32,8 +32,8 @@ pub struct VoxelBufferSpace {
     pub length_in_u32s: u32
 }
 
-const MAX_SUBVOXEL_OBJECTS: u64 = 32;
-pub const MAX_SUBVOXELS: u64 = 4096;
+const MAX_SUBVOXEL_OBJECTS: u64 = 100;
+pub const MAX_SUBVOXELS: u64 = 6400;
 const MAX_COLORS: u64 = 32;
 
 impl SubvoxelState {
@@ -97,7 +97,7 @@ impl SubvoxelState {
         let available_voxel_buffer_space = vec![
             VoxelBufferSpace {
                 offset_in_u32s: 0,
-                length_in_u32s: (std::mem::size_of::<SUBVOXEL_PALETTE>() as u64 * MAX_SUBVOXELS).div_ceil(32) as u32
+                length_in_u32s: (std::mem::size_of::<SUBVOXEL_PALETTE>() as u64 * 8 * MAX_SUBVOXELS).div_ceil(32) as u32
             }
         ];
 
@@ -206,9 +206,9 @@ impl SubvoxelState {
             let space_length = space.length_in_u32s;
             let space_offset = space.offset_in_u32s;
             let total_length = (std::mem::size_of::<SUBVOXEL_PALETTE>() as u32 * 8 * sv_vec_length).div_ceil(32) as u32;
-            if space_length >= sv_vec_length {
+            if space_length >= total_length {
                 self.available_voxel_buffer_space.remove(i);
-                if space_length != sv_vec_length {
+                if space_length != total_length {
                     self.available_voxel_buffer_space.push( VoxelBufferSpace {
                         length_in_u32s: space_length - total_length,
                         offset_in_u32s: space_offset + total_length
@@ -218,7 +218,7 @@ impl SubvoxelState {
             }
         }
 
-        panic!("Unable to find space, figure something out");
+        panic!("Unable to find voxel space, figure something out");
     }
 
     pub fn rotate(&mut self, subvoxel_id: usize, rotation: Vector3<Deg<f32>>) {

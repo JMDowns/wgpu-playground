@@ -95,9 +95,9 @@ impl AmbientOcclusionState {
             let space_length = space.length_in_u32s;
             let space_offset = space.offset_in_u32s;
             let total_length_in_u32s = (sv_vec_length * 20).div_ceil(32);
-            if space_length >= sv_vec_length {
+            if space_length >= total_length_in_u32s {
                 self.available_ao_space.remove(i);
-                if space_length != sv_vec_length {
+                if space_length != total_length_in_u32s {
                     self.available_ao_space.push( AOSpace {
                         length_in_u32s: space_length - total_length_in_u32s,
                         offset_in_u32s: space_offset + total_length_in_u32s
@@ -107,7 +107,7 @@ impl AmbientOcclusionState {
             }
         }
 
-        panic!("Unable to find space, figure something out");
+        panic!("Unable to find ao space, figure something out");
     }
 }
 

@@ -98,30 +98,19 @@ impl GPUManager {
         let queue_rwlock = Arc::new(RwLock::new(queue));
 
         let mut subvoxel_state = SubvoxelState::new(&device, queue_rwlock.clone());
-        subvoxel_state.add_subvoxel_object(SubvoxelObjectSpecification {
-            size: Vector3 { x: 1.0, y: 1.0, z: 1.0 }, 
-            subvoxel_size: Vector3 { x: 2, y: 2, z: 2 }, 
-            center: Point3 { x: 0.0, y: 0.0, z: 0.0},
-            initial_rotation: Vector3 {x: Deg(0.), y: Deg(0.), z: Deg(0.)},
-            subvoxel_vec: vec![1, 1, 0, 0, 0, 0, 0, 1]
-        });
 
-        subvoxel_state.add_subvoxel_object(SubvoxelObjectSpecification {
-            size: Vector3 { x: 2.0, y: 2.0, z: 2.0 }, 
-            subvoxel_size: Vector3 { x: 2, y: 2, z: 2 }, 
-            center: Point3 { x: 2.5, y: 2.5, z: 2.5},
-            initial_rotation: Vector3 {x: Deg(0.), y: Deg(0.), z: Deg(0.)},
-            subvoxel_vec: vec![3, 0, 0, 1, 0, 1, 1, 0]
-        });
-
-        let mut big_subvoxel_vec = vec![3, 0, 0, 1, 0, 1, 1, 0,3, 0, 0, 1, 0, 1, 1, 0,3, 0, 0, 1, 0, 1, 1, 0,3, 0, 0, 1, 0, 1, 1, 0,3, 0, 0, 1, 0, 1, 1, 0,3, 0, 0, 1, 0, 1, 1, 0,3, 0, 0, 1, 0, 1, 1, 0,3, 0, 0, 1, 0, 1, 1, 0];
-        subvoxel_state.add_subvoxel_object(SubvoxelObjectSpecification {
-            size: Vector3 { x: 2.0, y: 2.0, z: 2.0 }, 
-            subvoxel_size: Vector3 { x: 4, y: 4, z: 4 }, 
-            center: Point3 { x: 7.0, y: 7.0, z: 7.0},
-            initial_rotation: Vector3 {x: Deg(25.), y: Deg(0.), z: Deg(0.)},
-            subvoxel_vec: big_subvoxel_vec
-        });
+        for i in 0..10 {
+            for j in 0..10 {
+                let mut big_subvoxel_vec = vec![3, 0, 0, 1, 0, 1, 1, 0,3, 0, 0, 1, 0, 1, 1, 0,3, 0, 0, 1, 0, 1, 1, 0,3, 0, 0, 1, 0, 1, 1, 0,3, 0, 0, 1, 0, 1, 1, 0,3, 0, 0, 1, 0, 1, 1, 0,3, 0, 0, 1, 0, 1, 1, 0,3, 0, 0, 1, 0, 1, 1, 0];
+                subvoxel_state.add_subvoxel_object(SubvoxelObjectSpecification {
+                    size: Vector3 { x: 2.0, y: 2.0, z: 2.0 }, 
+                    subvoxel_size: Vector3 { x: 4, y: 4, z: 4 }, 
+                    center: Point3 { x: i as f32 * 2., y: 0.0, z: j as f32 * 2.},
+                    initial_rotation: Vector3 {x: Deg(i as f32), y: Deg(j as f32), z: Deg(0.)},
+                    subvoxel_vec: big_subvoxel_vec
+                });
+            }
+        }
 
         let render_state = RenderState::new(
             &device, 
