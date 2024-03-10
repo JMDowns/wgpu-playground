@@ -115,9 +115,9 @@ fn ao_calc(subvoxel_step: vec3<f32>, current_position_fract: vec3<f32>, block_in
     var BACK_BOTTOM_LEFT = f32((ao_bits & 2u) >> 1u);
     var BACK_LEFT = f32((ao_bits & 1u) >> 0u);
 
-    var SMALLER_BOUNDS = .3 * subvoxel_step;
+    var SMALLER_BOUNDS = .3;
     var BOUND_MULTIPLICATION = 1. / SMALLER_BOUNDS;
-    var LARGER_BOUNDS = subvoxel_step - SMALLER_BOUNDS;
+    var LARGER_BOUNDS = 1. - SMALLER_BOUNDS;
 
     let SMALLER = max(vec3<f32>(0.), SMALLER_BOUNDS - current_position_fract) * BOUND_MULTIPLICATION;
 
@@ -298,8 +298,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     let MAX_STEP_SIZE = 16;
 
-    var step_sizes = 1. / abs(direction_vector);
-    var next_distance = (step_directions * 0.5 + 0.5 - fract(model_position / subvoxel_step)) / direction_vector;
+    var step_sizes = subvoxel_step / abs(direction_vector);
+    var next_distance = (step_directions * 0.5 + 0.5 - fract(model_position / subvoxel_step)) / direction_vector * subvoxel_step;
 
     for(var i: i32 = 1; i <= MAX_STEP_SIZE; i++) {
         var closest_distance = min(min(next_distance.x, next_distance.y), next_distance.z);
