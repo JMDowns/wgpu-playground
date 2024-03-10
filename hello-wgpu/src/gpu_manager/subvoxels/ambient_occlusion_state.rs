@@ -103,7 +103,6 @@ impl AmbientOcclusionState {
                         offset_in_u32s: space_offset + total_length_in_u32s
                     });
                 }
-                println!("{:?}", space_offset);
                 return space_offset;
             }
         }

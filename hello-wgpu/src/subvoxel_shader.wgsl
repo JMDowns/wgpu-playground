@@ -48,14 +48,19 @@ struct SubvoxelObject {
     ao_length_in_u32s: u32,
 }
 
+let MAX_SUBVOXEL_OBJECTS = 32;
+let MAX_SUBVOXEL_U32S = 1024;
+let MAX_COLORS = 32;
+let MAX_AMBIENT_OCCLUSION_U32S = 640;
+
 @group(1) @binding(0)
-var<storage> sv_objects: array<SubvoxelObject, 2>;
+var<storage> sv_objects: array<SubvoxelObject, MAX_SUBVOXEL_OBJECTS>;
 @group(1) @binding(1)
-var<storage> sv_voxels: array<u32, 4>;
+var<storage> sv_voxels: array<u32, MAX_SUBVOXEL_U32S>;
 @group(1) @binding(2)
-var<storage> sv_palette: array<vec4<f32>, 4>;
+var<storage> sv_palette: array<vec4<f32>, MAX_COLORS>;
 @group(1) @binding(3)
-var<storage> ambient_occlusion_array: array<u32, 10>;
+var<storage> ambient_occlusion_array: array<u32, MAX_AMBIENT_OCCLUSION_U32S>;
 
 fn get_initial_subvoxel_block_grid_coordinates(step: vec3<f32>, position: vec3<f32>) -> vec3<i32> {
     return vec3<i32>(position / step);

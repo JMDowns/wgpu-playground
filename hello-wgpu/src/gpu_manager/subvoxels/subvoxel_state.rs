@@ -214,7 +214,6 @@ impl SubvoxelState {
                         offset: space_offset + total_length
                     });
                 }
-                println!("{:?}", space_offset);
                 return space_offset;
             }
         }

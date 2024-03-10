@@ -109,6 +109,14 @@ impl GPUManager {
         subvoxel_state.add_subvoxel_object(SubvoxelObjectSpecification {
             size: Vector3 { x: 2.0, y: 2.0, z: 2.0 }, 
             subvoxel_size: Vector3 { x: 2, y: 2, z: 2 }, 
+            center: Point3 { x: 2.5, y: 2.5, z: 2.5},
+            initial_rotation: Vector3 {x: Deg(0.), y: Deg(0.), z: Deg(0.)},
+            subvoxel_vec: vec![3, 0, 0, 1, 0, 1, 1, 0]
+        });
+
+        subvoxel_state.add_subvoxel_object(SubvoxelObjectSpecification {
+            size: Vector3 { x: 2.0, y: 2.0, z: 2.0 }, 
+            subvoxel_size: Vector3 { x: 2, y: 2, z: 2 }, 
             center: Point3 { x: 5.0, y: 5.0, z: 5.0},
             initial_rotation: Vector3 {x: Deg(0.), y: Deg(0.), z: Deg(0.)},
             subvoxel_vec: vec![1, 0, 0, 1, 0, 1, 1, 0]
@@ -271,7 +279,7 @@ impl GPUManager {
 
             render_pass.set_vertex_buffer(0, self.subvoxel_state.sv_vertex_buffer.slice(..));
             render_pass.set_index_buffer(self.subvoxel_state.sv_index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-            render_pass.draw_indexed(0..derivables::subvoxel_vertex::INDICES_CUBE_LEN*2, 0, 0..1);
+            render_pass.draw_indexed(0..derivables::subvoxel_vertex::INDICES_CUBE_LEN*self.subvoxel_state.subvoxel_objects.len() as u32, 0, 0..1);
 
         }
 
