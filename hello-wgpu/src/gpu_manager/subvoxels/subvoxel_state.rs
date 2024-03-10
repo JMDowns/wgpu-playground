@@ -23,13 +23,13 @@ pub struct SubvoxelState {
     pub subvoxel_bind_group_layout: wgpu::BindGroupLayout,
     pub subvoxel_bind_group: wgpu::BindGroup,
     pub queue: Arc<RwLock<Queue>>,
-    pub sv_id_to_vec_offset: HashMap<u32, u64>,
+    pub sv_id_to_vec_offset: HashMap<u32, u32>,
     pub available_voxel_buffer_space: Vec<VoxelBufferSpace>
 }
 
 pub struct VoxelBufferSpace {
-    pub offset: u64,
-    pub length: u64
+    pub offset_in_u32s: u32,
+    pub length_in_u32s: u32
 }
 
 const MAX_SUBVOXEL_OBJECTS: u64 = 32;
@@ -96,8 +96,8 @@ impl SubvoxelState {
 
         let available_voxel_buffer_space = vec![
             VoxelBufferSpace {
-                offset: 0,
-                length: std::mem::size_of::<SUBVOXEL_PALETTE>() as u64 * MAX_SUBVOXELS
+                offset_in_u32s: 0,
+                length_in_u32s: (std::mem::size_of::<SUBVOXEL_PALETTE>() as u64 * MAX_SUBVOXELS).div_ceil(32) as u32
             }
         ];
 
@@ -191,27 +191,27 @@ impl SubvoxelState {
         let id = self.subvoxel_objects.len();
         let object = SubvoxelObject::new(id as u32, spec);
         self.ambient_occlusion_state.set_ambient_occlusion(&object, self.queue.clone());
-        let offset = self.fill_available_space_and_get_offset(object.subvoxel_vec.len() as u64);
-        self.sv_id_to_vec_offset.insert(id as u32, offset);
+        let offset_in_u32s = self.fill_available_space_and_get_offset(object.subvoxel_vec.len() as u32);
+        self.sv_id_to_vec_offset.insert(id as u32, offset_in_u32s);
         self.queue.read().unwrap().write_buffer(&self.sv_index_buffer, id as u64 * std::mem::size_of::<u32>() as u64 * 36, bytemuck::cast_slice(&generate_indices_for_index(id as u32)));
-        self.queue.read().unwrap().write_buffer(&self.sv_voxel_buffer, offset as u64, bytemuck::cast_slice(&object.subvoxel_vec));
+        self.queue.read().unwrap().write_buffer(&self.sv_voxel_buffer, offset_in_u32s as u64 * std::mem::size_of::<u32>() as u64, bytemuck::cast_slice(&object.subvoxel_vec));
         self.subvoxel_objects.push(object);
         self.apply_changes_to_sv_data(id);
         return id;
     }
 
-    fn fill_available_space_and_get_offset(&mut self, sv_vec_length: u64) -> u64 {
+    fn fill_available_space_and_get_offset(&mut self, sv_vec_length: u32) -> u32 {
         for i in 0..self.available_voxel_buffer_space.len() {
             let space = self.available_voxel_buffer_space.get(i).unwrap();
-            let space_length = space.length;
-            let space_offset = space.offset;
-            let total_length = std::mem::size_of::<SUBVOXEL_PALETTE>() as u64 * sv_vec_length;
+            let space_length = space.length_in_u32s;
+            let space_offset = space.offset_in_u32s;
+            let total_length = (std::mem::size_of::<SUBVOXEL_PALETTE>() as u32 * 8 * sv_vec_length).div_ceil(32) as u32;
             if space_length >= sv_vec_length {
                 self.available_voxel_buffer_space.remove(i);
                 if space_length != sv_vec_length {
                     self.available_voxel_buffer_space.push( VoxelBufferSpace {
-                        length: space_length - total_length,
-                        offset: space_offset + total_length
+                        length_in_u32s: space_length - total_length,
+                        offset_in_u32s: space_offset + total_length
                     });
                 }
                 return space_offset;
@@ -234,8 +234,10 @@ impl SubvoxelState {
         let sv_object = self.get_subvoxel_object(id);
         let ao_offset = self.ambient_occlusion_state.subvoxel_id_to_ao_offset.get(&(id as u32)).unwrap();
         let ao_length_in_u32s = (sv_object.subvoxel_vec.len() * 20).div_ceil(32);
+        let sv_offset = self.sv_id_to_vec_offset.get(&(id as u32)).unwrap();
+        let sv_length_in_u32s = (sv_object.subvoxel_vec.len() * std::mem::size_of::<SUBVOXEL_PALETTE>() * 8).div_ceil(32);
         let voxel_offset = self.sv_id_to_vec_offset.get(&(id as u32)).unwrap();
         self.queue.read().unwrap().write_buffer(&self.sv_vertex_buffer, id as u64 * std::mem::size_of::<SubvoxelVertex>() as u64 * 24, bytemuck::cast_slice(&sv_object.subvoxel_vertices));
-        self.queue.read().unwrap().write_buffer(&self.sv_data_buffer, id as u64 * std::mem::size_of::<SubvoxelGpuData>() as u64, bytemuck::cast_slice(&[sv_object.to_gpu_data(*ao_offset, ao_length_in_u32s as u32)]));
+        self.queue.read().unwrap().write_buffer(&self.sv_data_buffer, id as u64 * std::mem::size_of::<SubvoxelGpuData>() as u64, bytemuck::cast_slice(&[sv_object.to_gpu_data(*ao_offset, ao_length_in_u32s as u32, *sv_offset, sv_length_in_u32s as u32)]));
     }
 }

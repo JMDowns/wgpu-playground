@@ -46,12 +46,15 @@ struct SubvoxelObject {
     center_z: f32,
     ao_offset: u32,
     ao_length_in_u32s: u32,
+    sv_offset: u32,
+    sv_length_in_u32s: u32,
 }
 
 let MAX_SUBVOXEL_OBJECTS = 32;
 let MAX_SUBVOXEL_U32S = 1024;
 let MAX_COLORS = 32;
 let MAX_AMBIENT_OCCLUSION_U32S = 640;
+let BITS_PER_SUBVOXEL = 8u;
 
 @group(1) @binding(0)
 var<storage> sv_objects: array<SubvoxelObject, MAX_SUBVOXEL_OBJECTS>;
@@ -224,11 +227,8 @@ fn ao_calc(subvoxel_step: vec3<f32>, current_position_fract: vec3<f32>, block_in
     return new_color;
 }
 
-fn get_subvoxel_at_index(sv_index: u32, block_index: u32) -> u32 {
-    //HARDCODED
-    let offset_index_per_sv = 2u;
-    let BITS_PER_SUBVOXEL = 8u;
-    let u32_offset = sv_index * offset_index_per_sv + (block_index * BITS_PER_SUBVOXEL) / 32u;
+fn get_subvoxel_at_index(sv_offset_in_u32s: u32, block_index: u32) -> u32 {
+    let u32_offset = sv_offset_in_u32s + (block_index * BITS_PER_SUBVOXEL) / 32u;
     let bit_offset = (block_index * BITS_PER_SUBVOXEL) % 32u;
     let subvoxel_palette_value = (sv_voxels[u32_offset] >> bit_offset) & 255u;
     return subvoxel_palette_value;
@@ -291,7 +291,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     }
 
     let block_index = get_subvoxel_block_index(dimension, vec3<u32>(model_grid_coordinates));
-    let subvoxel_palette = get_subvoxel_at_index(in.sv_id, block_index);
+    let subvoxel_palette = get_subvoxel_at_index(sv_object.sv_offset, block_index);
 
     if (subvoxel_palette != 0u) {
         return sv_palette[subvoxel_palette];
@@ -314,7 +314,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         }
 
         let block_index = get_subvoxel_block_index(dimension, vec3<u32>(model_grid_coordinates));
-        let subvoxel_palette = get_subvoxel_at_index(in.sv_id, block_index);
+        let subvoxel_palette = get_subvoxel_at_index(sv_object.sv_offset, block_index);
         if (subvoxel_palette != 0u) {
             return ao_calc(subvoxel_step, fract(current_position / subvoxel_step), block_index, dot(step_axis, step_faces), sv_palette[subvoxel_palette], sv_object.ao_offset);
         }

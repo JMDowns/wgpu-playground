@@ -57,7 +57,7 @@ impl SubvoxelObject {
             .collect::<Vec<SubvoxelVertex>>().try_into().unwrap();
     }
 
-    pub fn to_gpu_data(&self, ao_offset: u32, ao_length: u32) -> SubvoxelGpuData {
+    pub fn to_gpu_data(&self, ao_offset: u32, ao_length: u32, sv_offset: u32, sv_length: u32) -> SubvoxelGpuData {
         SubvoxelGpuData {
             size_x: self.size.x, 
             size_y: self.size.y, 
@@ -74,7 +74,9 @@ impl SubvoxelObject {
                 self.rotation_matrix.z.into()
             ],
             ao_offset,
-            ao_length
+            ao_length,
+            sv_length,
+            sv_offset
         }
     }
 }
