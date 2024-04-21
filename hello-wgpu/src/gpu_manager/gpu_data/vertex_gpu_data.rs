@@ -5,7 +5,7 @@ use fundamentals::{world_position::WorldPosition, enums::block_side::BlockSide, 
 use lru::LruCache;
 use wgpu::{Device, util::DeviceExt, BufferUsages, Queue};
 
-use crate::{voxels::mesh::Mesh};
+use crate::{gpu_manager::chunk_index_state::{self, ChunkIndexState}, voxels::{chunk, mesh::Mesh}};
 
 pub const NUM_BUCKETS: usize = (fundamentals::consts::NUMBER_OF_CHUNKS_AROUND_PLAYER as usize) * fundamentals::consts::NUM_BUCKETS_PER_CHUNK;
 
@@ -37,11 +37,6 @@ pub struct MeshBucketData {
 }
 
 pub struct VertexGPUData {
-    pub chunk_index_array: Vec<WorldPosition>,
-    pub chunk_index_buffer: wgpu::Buffer,
-    pub chunk_index_bind_group_layout: wgpu::BindGroupLayout,
-    pub chunk_index_bind_group: wgpu::BindGroup,
-    pub pos_to_gpu_index: HashMap<WorldPosition, usize>,
     pub vertex_pool_buffers: Vec<wgpu::Buffer>,
     pub index_pool_buffers: Vec<wgpu::Buffer>,
     pub indirect_pool_buffers: Vec<wgpu::Buffer>,
@@ -59,49 +54,12 @@ pub struct VertexGPUData {
     pub frustum_bucket_data_to_update: Vec<(WorldPosition, BlockSide, u32, BucketPosition)>,
     pub frustum_bucket_data_to_clear: Vec<(WorldPosition, BlockSide, u32)>,
     pub vertex_buckets_used: usize,
-    pub vertex_buckets_total: usize
+    pub vertex_buckets_total: usize,
+    pub chunk_index_state: Arc<RwLock<ChunkIndexState>>
 }
 
 impl VertexGPUData {
-    pub fn new(camera_position: Point3<f32>, device: &Device) -> Self {
-        let chunk_index_array = fundamentals::consts::get_positions_around_player(WorldPosition::from(camera_position));
-        let mut pos_to_gpu_index = HashMap::new();
-        for (i, chunk_position) in chunk_index_array.iter().enumerate() {
-            pos_to_gpu_index.insert(*chunk_position, i);
-        }
-        let chunk_index_buffer = device.create_buffer_init(
-            &wgpu::util::BufferInitDescriptor {
-            label: Some("Chunk Index Buffer"),
-            contents: bytemuck::cast_slice(&chunk_index_array),
-            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
-        });
-        let chunk_index_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            entries: &[
-                wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX,
-                    ty: wgpu::BindingType::Buffer { 
-                        ty: wgpu::BufferBindingType::Storage { read_only: true }, 
-                        has_dynamic_offset: false, 
-                        min_binding_size: None 
-                    },
-                    count: None
-                }
-            ],
-            label: Some("chunk_offset_bind_group_layout")
-        });
-
-        let chunk_index_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &chunk_index_bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: chunk_index_buffer.as_entire_binding()
-                }
-            ],
-            label: Some("chunk_index_bind_group")
-        });
-
+    pub fn new(device: &Device, chunk_index_state: Arc<RwLock<ChunkIndexState>>) -> Self {
         let buffer_size_fn_return= fundamentals::buffer_size_function::return_bucket_buffer_size_and_amount_information(std::mem::size_of::<Vertex>());
 
         let mut vertex_pool_buffers = Vec::new();
@@ -250,11 +208,6 @@ impl VertexGPUData {
         });
 
         Self {
-            pos_to_gpu_index,
-            chunk_index_array,
-            chunk_index_buffer,
-            chunk_index_bind_group_layout,
-            chunk_index_bind_group,
             vertex_bucket_size: buffer_size_fn_return.vertex_bucket_size,
             index_bucket_size: buffer_size_fn_return.index_bucket_size,
             number_of_buckets_per_buffer: buffer_size_fn_return.number_of_buckets_per_buffer,
@@ -272,7 +225,8 @@ impl VertexGPUData {
             vertex_buckets_used: 0,
             vertex_buckets_total,
             occlusion_cube_vertex_buffer,
-            occlusion_cube_index_buffer
+            occlusion_cube_index_buffer,
+            chunk_index_state
         }
     }
 
@@ -404,7 +358,7 @@ impl VertexGPUData {
         let bottom_bucket_data_indices = self.add_index_vec_and_update_index_count_vec(&mesh.bottom.1, &queue, BlockSide::BOTTOM, mesh_position);
         self.pool_position_to_mesh_bucket_data.insert(*mesh_position, MeshBucketData { front_bucket_data_vertices, front_bucket_data_indices, back_bucket_data_vertices, back_bucket_data_indices, left_bucket_data_vertices, left_bucket_data_indices, right_bucket_data_vertices, right_bucket_data_indices, top_bucket_data_vertices, top_bucket_data_indices, bottom_bucket_data_vertices, bottom_bucket_data_indices });
 
-        let gpu_index = self.pos_to_gpu_index.get(mesh_position).unwrap();
+        let gpu_index = *self.chunk_index_state.read().unwrap().pos_to_gpu_index.get(mesh_position).unwrap();
         let occlusion_vertices = [
             occlusion_cube_mesh.front.0,
             occlusion_cube_mesh.back.0,
@@ -414,12 +368,12 @@ impl VertexGPUData {
             occlusion_cube_mesh.bottom.0,
         ].concat();
         let occlusion_indices = [
-            occlusion_cube_mesh.front.1.iter().map(|v| *v + 24*(*gpu_index as u32)).collect::<Vec<u32>>(),
-            occlusion_cube_mesh.back.1.iter().map(|v| *v + 24*(*gpu_index as u32)).collect(),
-            occlusion_cube_mesh.left.1.iter().map(|v| *v + 24*(*gpu_index as u32)).collect(),
-            occlusion_cube_mesh.right.1.iter().map(|v| *v + 24*(*gpu_index as u32)).collect(),
-            occlusion_cube_mesh.top.1.iter().map(|v| *v + 24*(*gpu_index as u32)).collect(),
-            occlusion_cube_mesh.bottom.1.iter().map(|v| *v + 24*(*gpu_index as u32)).collect(),
+            occlusion_cube_mesh.front.1.iter().map(|v| *v + 24*(gpu_index as u32)).collect::<Vec<u32>>(),
+            occlusion_cube_mesh.back.1.iter().map(|v| *v + 24*(gpu_index as u32)).collect(),
+            occlusion_cube_mesh.left.1.iter().map(|v| *v + 24*(gpu_index as u32)).collect(),
+            occlusion_cube_mesh.right.1.iter().map(|v| *v + 24*(gpu_index as u32)).collect(),
+            occlusion_cube_mesh.top.1.iter().map(|v| *v + 24*(gpu_index as u32)).collect(),
+            occlusion_cube_mesh.bottom.1.iter().map(|v| *v + 24*(gpu_index as u32)).collect(),
         ].concat();
         queue.read().unwrap().write_buffer(&self.occlusion_cube_vertex_buffer, (gpu_index * std::mem::size_of::<Vertex>()*24 as usize) as u64, bytemuck::cast_slice(occlusion_vertices.as_slice()));
         queue.read().unwrap().write_buffer(&self.occlusion_cube_index_buffer, (gpu_index * std::mem::size_of::<u32>()*36 as usize) as u64, bytemuck::cast_slice(occlusion_indices.as_slice()));

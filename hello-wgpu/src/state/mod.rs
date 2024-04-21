@@ -40,7 +40,7 @@ impl State {
         let world = Arc::new(RwLock::new(World::new()));
 
         let mut task_manager = TaskManager::new();
-        for pos in gpu_manager.vertex_gpu_data.read().unwrap().chunk_index_array.iter().rev() {
+        for pos in gpu_manager.chunk_index_state.read().unwrap().chunk_index_array.iter().rev() {
             task_manager.push_task(Task::GenerateChunk { chunk_position: *pos, world: world.clone() });
         }
 

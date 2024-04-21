@@ -1,6 +1,6 @@
 use std::default;
 
-use derivables::vertex::Vertex;
+use derivables::{grid_aligned_subvoxel_vertex::GridAlignedSubvoxelVertex, vertex::Vertex};
 use derivables::subvoxel_vertex::SubvoxelVertex;
 use wgpu::{SurfaceConfiguration, BindGroupLayout};
 
@@ -11,10 +11,11 @@ pub struct RenderState {
     pub render_pipeline_wireframe: wgpu::RenderPipeline,
     pub occlusion_cube_render_pipeline: wgpu::RenderPipeline,
     pub subvoxel_render_pipeline: wgpu::RenderPipeline,
+    pub grid_aligned_subvoxel_render_pipeline: wgpu::RenderPipeline
 }
 
 impl RenderState {
-    pub fn new(device: &wgpu::Device, config: &SurfaceConfiguration, camera_bind_group_layout: &BindGroupLayout, diffuse_bind_group_layout: &BindGroupLayout, chunk_index_bind_group_layout: &BindGroupLayout, visibility_bind_group_layout: &BindGroupLayout, subvoxel_bind_group_layout: &BindGroupLayout) -> Self {
+    pub fn new(device: &wgpu::Device, config: &SurfaceConfiguration, camera_bind_group_layout: &BindGroupLayout, diffuse_bind_group_layout: &BindGroupLayout, chunk_index_bind_group_layout: &BindGroupLayout, visibility_bind_group_layout: &BindGroupLayout, subvoxel_bind_group_layout: &BindGroupLayout, grid_aligned_subvoxel_bind_group_layout: &BindGroupLayout) -> Self {
         let render_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Render Shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("../shader.wgsl").into()),
@@ -191,6 +192,70 @@ impl RenderState {
                 multiview: None,
             });
 
+        let grid_aligned_subvoxel_render_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("Grid-Aligned Subvoxel Render Shader"),
+            source: wgpu::ShaderSource::Wgsl(include_str!("../grid_aligned_subvoxel_shader.wgsl").into()),
+        });
+
+        let grid_aligned_subvoxel_render_pipeline_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Grid-Aligned Subvoxel Render Pipeline Layout"),
+                bind_group_layouts: &[
+                    camera_bind_group_layout,
+                    grid_aligned_subvoxel_bind_group_layout,
+                    chunk_index_bind_group_layout
+                ],
+                push_constant_ranges: &[],
+            });
+
+        let grid_aligned_subvoxel_render_pipeline = 
+        device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("Grid-Aligned Subvoxel Render Pipeline"),
+            layout: Some(&grid_aligned_subvoxel_render_pipeline_layout),
+            vertex: wgpu::VertexState {
+                module: &grid_aligned_subvoxel_render_shader,
+                entry_point: "vs_main",
+                buffers: &[
+                    GridAlignedSubvoxelVertex::desc(),
+                ],
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &grid_aligned_subvoxel_render_shader,
+                entry_point: "fs_main",
+                targets: &[Some(wgpu::ColorTargetState {
+                    format: config.format,
+                    blend: Some(wgpu::BlendState::REPLACE),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+            }),
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                strip_index_format: None,
+                front_face: wgpu::FrontFace::Ccw,
+                cull_mode: Some(wgpu::Face::Back),
+                // Setting this to anything other than Fill requires Features::NON_FILL_POLYGON_MODE
+                polygon_mode: wgpu::PolygonMode::Fill,
+                // Requires Features::DEPTH_CLIP_CONTROL
+                unclipped_depth: false,
+                // Requires Features::CONSERVATIVE_RASTERIZATION
+                conservative: false,
+            },
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: texture::Texture::DEPTH_FORMAT,
+                depth_write_enabled: true,
+                depth_compare: wgpu::CompareFunction::Less,
+                stencil: wgpu::StencilState::default(),
+                bias: wgpu::DepthBiasState::default(),
+            }
+            ),
+            multisample: wgpu::MultisampleState {
+                count: 1,
+                mask: !0,
+                alpha_to_coverage_enabled: false,
+            },
+            multiview: None,
+        });
+
         let subvoxel_render_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Subvoxel Render Shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("../subvoxel_shader.wgsl").into()),
@@ -258,7 +323,8 @@ impl RenderState {
             render_pipeline_regular,
             render_pipeline_wireframe,
             occlusion_cube_render_pipeline,
-            subvoxel_render_pipeline
+            subvoxel_render_pipeline,
+            grid_aligned_subvoxel_render_pipeline
         }
     }
 }

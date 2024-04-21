@@ -1,14 +1,14 @@
 use core::time;
 use std::sync::{Arc, RwLock};
 
-use crate::{voxels::{mesh::Mesh, chunk::Chunk}, tasks::{TaskResult, Task, TaskError}, gpu_manager::gpu_data::vertex_gpu_data::VertexGPUData};
+use crate::{gpu_manager::{chunk_index_state::ChunkIndexState, gpu_data::vertex_gpu_data::VertexGPUData}, tasks::{Task, TaskError, TaskResult}, voxels::{chunk::Chunk, mesh::Mesh}};
 use fundamentals::{world_position::WorldPosition, enums::block_side::BlockSide, consts::MESH_METHOD};
 
 pub struct GenerateChunkMeshProcessor {}
 
 impl GenerateChunkMeshProcessor {
-    pub fn process_task(chunk_position: &WorldPosition, chunk: Arc<RwLock<Chunk>>, vertex_gpu_data: Arc<RwLock<VertexGPUData>>, queue: Arc<RwLock<wgpu::Queue>>) -> TaskResult {
-        let chunk_index = *vertex_gpu_data.read().unwrap().pos_to_gpu_index.get(chunk_position).unwrap() as u32;
+    pub fn process_task(chunk_position: &WorldPosition, chunk: Arc<RwLock<Chunk>>, vertex_gpu_data: Arc<RwLock<VertexGPUData>>, queue: Arc<RwLock<wgpu::Queue>>, chunk_index_state: Arc<RwLock<ChunkIndexState>>) -> TaskResult {
+        let chunk_index = *chunk_index_state.read().unwrap().pos_to_gpu_index.get(chunk_position).unwrap() as u32;
         
         let mut mesh = Mesh::new();
 
@@ -28,7 +28,7 @@ impl GenerateChunkMeshProcessor {
                 if times_out_of_memory == 5 {
                     let memory_info = vertex_gpu_data.read().unwrap().get_memory_info();
                     return TaskResult::Requeue { 
-                        task: Task::GenerateChunkMesh { chunk_position: *chunk_position, chunk, vertex_gpu_data, queue }, 
+                        task: Task::GenerateChunkMesh { chunk_position: *chunk_position, chunk, vertex_gpu_data, queue, chunk_index_state }, 
                         error: Some(TaskError::OutOfMemory { memory_info }) 
                     }
                 }
@@ -45,9 +45,9 @@ impl GenerateChunkMeshProcessor {
 pub struct GenerateChunkSideMeshesProcessor {}
 
 impl GenerateChunkSideMeshesProcessor {
-    pub fn process_task(chunk_position: WorldPosition, chunk: Arc<RwLock<Chunk>>, vertex_gpu_data: Arc<RwLock<VertexGPUData>>, queue: Arc<RwLock<wgpu::Queue>>, sides: Vec<BlockSide>) -> TaskResult {
+    pub fn process_task(chunk_position: WorldPosition, chunk: Arc<RwLock<Chunk>>, vertex_gpu_data: Arc<RwLock<VertexGPUData>>, queue: Arc<RwLock<wgpu::Queue>>, sides: Vec<BlockSide>, chunk_index_state: Arc<RwLock<ChunkIndexState>>) -> TaskResult {
         if vertex_gpu_data.read().unwrap().has_meshed_position(&chunk_position) {
-            let chunk_index = *vertex_gpu_data.read().unwrap().pos_to_gpu_index.get(&chunk_position).unwrap() as u32;
+            let chunk_index = *chunk_index_state.read().unwrap().pos_to_gpu_index.get(&chunk_position).unwrap() as u32;
 
             let mut mesh = Mesh::new();
 
@@ -65,7 +65,7 @@ impl GenerateChunkSideMeshesProcessor {
                 if times_out_of_memory == 5 {
                     let memory_info = vertex_gpu_data.read().unwrap().get_memory_info();
                     return TaskResult::Requeue { 
-                        task: Task::GenerateChunkSideMeshes { chunk_position, chunk, vertex_gpu_data, queue, sides }, 
+                        task: Task::GenerateChunkSideMeshes { chunk_position, chunk, vertex_gpu_data, queue, sides, chunk_index_state }, 
                         error: Some(TaskError::OutOfMemory { memory_info }) 
                     }
                 }
@@ -77,7 +77,7 @@ impl GenerateChunkSideMeshesProcessor {
 
             TaskResult::UpdateChunkSideMesh {  }
         } else {
-            TaskResult::Requeue { task: Task::GenerateChunkSideMeshes { chunk_position, chunk, vertex_gpu_data, queue, sides }, error: None }
+            TaskResult::Requeue { task: Task::GenerateChunkSideMeshes { chunk_position, chunk, vertex_gpu_data, queue, sides,chunk_index_state }, error: None }
         }
     }
 }
