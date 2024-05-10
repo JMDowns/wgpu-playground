@@ -7,14 +7,8 @@ pub struct SubvoxelGpuData {
     pub size_x: f32,
     pub size_y: f32,
     pub size_z: f32,
-    pub subvoxel_size_x: u32,
-    pub subvoxel_size_y: u32,
-    pub subvoxel_size_z: u32,
     pub center_x: f32,
     pub center_y: f32,
     pub center_z: f32,
-    pub ao_offset: u32,
-    pub ao_length: u32,
-    pub sv_offset: u32,
-    pub sv_length: u32
+    pub model_offset: u32
 }

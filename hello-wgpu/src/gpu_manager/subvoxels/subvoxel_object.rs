@@ -8,11 +8,10 @@ pub type SUBVOXEL_PALETTE = u8;
 pub struct SubvoxelObject {
     pub id: u32,
     pub size: Vector3<f32>,
-    pub subvoxel_size: Vector3<u32>,
     pub center: Point3<f32>,
     pub rotation: Vector3<Deg<f32>>,
     pub rotation_matrix: Matrix3<f32>,
-    pub subvoxel_vec: Vec<SUBVOXEL_PALETTE>,
+    pub model_name: String,
     pub subvoxel_vertices: [SubvoxelVertex; 24]
 }
 
@@ -32,11 +31,10 @@ impl SubvoxelObject {
         Self {
             id,
             size: spec.size,
-            subvoxel_size: spec.subvoxel_size,
             center: spec.center,
             rotation: spec.initial_rotation,
             rotation_matrix,
-            subvoxel_vec: spec.subvoxel_vec,
+            model_name: spec.model_name,
             subvoxel_vertices
         }
     }
@@ -57,14 +55,11 @@ impl SubvoxelObject {
             .collect::<Vec<SubvoxelVertex>>().try_into().unwrap();
     }
 
-    pub fn to_gpu_data(&self, ao_offset: u32, ao_length: u32, sv_offset: u32, sv_length: u32) -> SubvoxelGpuData {
+    pub fn to_gpu_data(&self, model_offset: u32) -> SubvoxelGpuData {
         SubvoxelGpuData {
             size_x: self.size.x, 
             size_y: self.size.y, 
-            size_z: self.size.z, 
-            subvoxel_size_x: self.subvoxel_size.x, 
-            subvoxel_size_y: self.subvoxel_size.y, 
-            subvoxel_size_z: self.subvoxel_size.z,
+            size_z: self.size.z,
             center_x: self.center.x,
             center_y: self.center.y,
             center_z: self.center.z,
@@ -73,10 +68,7 @@ impl SubvoxelObject {
                 self.rotation_matrix.y.into(),
                 self.rotation_matrix.z.into()
             ],
-            ao_offset,
-            ao_length,
-            sv_length,
-            sv_offset
+            model_offset,
         }
     }
 }

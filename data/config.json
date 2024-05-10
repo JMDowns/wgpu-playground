@@ -16,7 +16,7 @@
     },
     "movement_speed": 2.0,
     "mesh_method": "greedy",
-    "chunk_generation_method": "perlin",
+    "chunk_generation_method": "empty",
     "chunk_generation_options": {
         "perlin_positive_threshold": 0.2,
         "perlin_negative_threshold": -0.2,

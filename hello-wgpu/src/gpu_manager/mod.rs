@@ -27,7 +27,10 @@ use winit::window::Window;
 
 use crate::{camera::CameraController, tasks::Task, texture, voxels::chunk::{self, Chunk}};
 
-use self::{chunk_index_state::ChunkIndexState, subvoxels::{subvoxel_object_specification::SubvoxelObjectSpecification, subvoxel_state::SubvoxelState}};
+use self::{chunk_index_state::ChunkIndexState, subvoxels::{grid_aligned_subvoxel_object_specification::GridAlignedSubvoxelObjectSpecification, subvoxel_object_specification::SubvoxelObjectSpecification, subvoxel_state::SubvoxelState}};
+
+use crate::gpu_manager::subvoxels::model_manager::SubvoxelModel;
+use crate::gpu_manager::subvoxels::grid_aligned_subvoxel_object::ROTATION;
 
 pub struct GPUManager {
     pub device: Arc<RwLock<wgpu::Device>>,
@@ -103,21 +106,31 @@ impl GPUManager {
 
         let mut subvoxel_state = SubvoxelState::new(&device, queue_rwlock.clone(), chunk_index_state.clone());
 
-        // for i in 0..100 {
-        //     for j in 0..100 {
-        //         let mut big_subvoxel_vec = vec![3, 0, 0, 1, 0, 1, 1, 0,3, 0, 0, 1, 0, 1, 1, 0,3, 0, 0, 1, 0, 1, 1, 0,3, 0, 0, 1, 0, 1, 1, 0,3, 0, 0, 1, 0, 1, 1, 0,3, 0, 0, 1, 0, 1, 1, 0,3, 0, 0, 1, 0, 1, 1, 0,3, 0, 0, 1, 0, 1, 1, 0];
-        //         subvoxel_state.add_subvoxel_object(SubvoxelObjectSpecification {
-        //             size: Vector3 { x: 2.0, y: 2.0, z: 2.0 }, 
-        //             subvoxel_size: Vector3 { x: 4, y: 4, z: 4 }, 
-        //             center: Point3 { x: i as f32 * 4., y: 0.0, z: j as f32 * 4.},
-        //             initial_rotation: Vector3 {x: Deg(i as f32), y: Deg(j as f32), z: Deg(0.)},
-        //             subvoxel_vec: big_subvoxel_vec
-        //         });
-        //     }
-        // }
+        let model = SubvoxelModel { model_name: String::from("Not Grid"), subvoxel_size: Vector3 { x: 2, y: 2, z: 2 }, subvoxel_vec: vec![1, 0, 1, 2, 0, 3, 0, 0] };
+        subvoxel_state.register_model(model);
 
-        let chunk_position = WorldPosition::new(0, 0, 0);
-        subvoxel_state.add_grid_aligned_subvoxel_object(chunk_position, WorldPosition::new(0,2,10), WorldPosition::new(9,3,0));
+        let grid_model = SubvoxelModel { model_name: String::from("Grid"), subvoxel_size: Vector3 { x: 2, y: 2, z: 2 }, subvoxel_vec: vec![1, 0, 1, 0, 0, 1, 0, 0] };
+        subvoxel_state.register_model(grid_model);
+
+        subvoxel_state.add_grid_aligned_subvoxel_object(GridAlignedSubvoxelObjectSpecification { 
+            size: Vector3 { x: 1, y: 1, z: 1 }, 
+            maximal_chunk: WorldPosition::new(0, 0, 0), 
+            maximal_block_in_chunk: WorldPosition::new(0,2,10), 
+            maximal_subvoxel_in_chunk: WorldPosition::new(9,3,0), 
+            rotation: ROTATION::RIGHT, 
+            model_name: String::from("Grid") 
+        });
+
+        for i in 0..100 {
+            for j in 0..100 {
+                subvoxel_state.add_subvoxel_object(SubvoxelObjectSpecification {
+                    size: Vector3 { x: 2.0, y: 2.0, z: 2.0 },
+                    center: Point3 { x: i as f32 * 4., y: 0.0, z: j as f32 * 4.},
+                    initial_rotation: Vector3 {x: Deg(i as f32), y: Deg(j as f32), z: Deg(0.)},
+                    model_name: String::from("Not Grid")
+                });
+            }
+        }
 
         let render_state = RenderState::new(
             &device, 

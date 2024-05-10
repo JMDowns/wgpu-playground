@@ -3,7 +3,7 @@ use cgmath::{Vector3, Point3};
 use bytemuck::{Zeroable, Pod};
 use fundamentals::world_position::WorldPosition;
 
-use super::subvoxel_object::SUBVOXEL_PALETTE;
+use super::{grid_aligned_subvoxel_object_specification::GridAlignedSubvoxelObjectSpecification, subvoxel_object::SUBVOXEL_PALETTE};
 
 #[derive(Clone, Copy)]
 pub enum ROTATION {
@@ -26,15 +26,15 @@ pub struct GridAlignedSubvoxelObject {
 }
 
 impl GridAlignedSubvoxelObject {
-    pub fn new(id: u32, size: Vector3<u32>, maximal_chunk: WorldPosition, maximal_block_in_chunk: WorldPosition, maximal_subvoxel_in_chunk: WorldPosition, model_name: &str, rotation: ROTATION) -> Self {
+    pub fn new(id: u32, spec: GridAlignedSubvoxelObjectSpecification) -> GridAlignedSubvoxelObject {
         GridAlignedSubvoxelObject {
-            id,
-            size,
-            maximal_chunk,
-            maximal_block_in_chunk,
-            maximal_subvoxel_in_chunk,
-            rotation,
-            model_name: String::from(model_name)
+            id, 
+            size: spec.size,
+            maximal_chunk: spec.maximal_chunk,
+            maximal_block_in_chunk: spec.maximal_block_in_chunk,
+            maximal_subvoxel_in_chunk: spec.maximal_subvoxel_in_chunk,
+            model_name: spec.model_name, 
+            rotation: spec.rotation
         }
     }
 

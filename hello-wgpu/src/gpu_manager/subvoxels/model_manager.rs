@@ -1,5 +1,5 @@
 use std::{collections::HashMap, sync::{Arc, RwLock}};
-use cgmath::Vector3;
+use cgmath::{Vector3, Vector4};
 
 use super::ambient_occlusion_state::AmbientOcclusionState;
 
@@ -73,7 +73,7 @@ impl SubvoxelModelManager {
             let space = self.available_model_space.get(i).unwrap();
             let space_length = space.length_in_u32s;
             let space_offset = space.offset_in_u32s;
-            let total_length = (std::mem::size_of::<SUBVOXEL_PALETTE>() as u32 * 8 * sv_vec_length).div_ceil(32) as u32 + (std::mem::size_of::<Vector3<u32>>() as u32 * 8).div_ceil(32);
+            let total_length = (std::mem::size_of::<SUBVOXEL_PALETTE>() as u32 * 8 * sv_vec_length + std::mem::size_of::<Vector4<u32>>() as u32 * 8).div_ceil(32);
             if space_length >= total_length {
                 self.available_model_space.remove(i);
                 if space_length != total_length {
@@ -82,6 +82,7 @@ impl SubvoxelModelManager {
                         offset_in_u32s: space_offset + total_length
                     });
                 }
+                println!("{:?}", space_offset);
                 return space_offset;
             }
         }

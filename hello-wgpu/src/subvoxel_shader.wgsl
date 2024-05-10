@@ -38,16 +38,10 @@ struct SubvoxelObject {
     size_x: f32,
     size_y: f32,
     size_z: f32,
-    subvoxel_dimension_x: u32,
-    subvoxel_dimension_y: u32,
-    subvoxel_dimension_z: u32,
     center_x: f32,
     center_y: f32,
     center_z: f32,
-    ao_offset: u32,
-    ao_length_in_u32s: u32,
-    sv_offset: u32,
-    sv_length_in_u32s: u32,
+    model_offset: u32
 }
 
 let MAX_SUBVOXEL_OBJECTS = 32;
@@ -239,8 +233,11 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var sv_object = sv_objects[in.sv_id];
     var center = vec3<f32>(sv_object.center_x, sv_object.center_y, sv_object.center_z);
     var size = vec3<f32>(sv_object.size_x, sv_object.size_y, sv_object.size_z);
-    var dimension = vec3<u32>(sv_object.subvoxel_dimension_x, sv_object.subvoxel_dimension_y, sv_object.subvoxel_dimension_z);
+    var dimension = vec3<u32>(sv_voxels[sv_object.model_offset], sv_voxels[sv_object.model_offset+1u], sv_voxels[sv_object.model_offset+2u]);
     var subvoxel_step = size / vec3<f32>(dimension);
+
+    var model_offset = sv_object.model_offset;
+    let ao_offset = sv_voxels[model_offset+3u];
 
     var rotation_matrix = mat3x3<f32>(
         vec3<f32>(sv_object.rx1, sv_object.rx2, sv_object.rx3),
@@ -291,7 +288,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     }
 
     let block_index = get_subvoxel_block_index(dimension, vec3<u32>(model_grid_coordinates));
-    let subvoxel_palette = get_subvoxel_at_index(sv_object.sv_offset, block_index);
+    let subvoxel_palette = get_subvoxel_at_index(model_offset+4u, block_index);
 
     if (subvoxel_palette != 0u) {
         return sv_palette[subvoxel_palette];
@@ -319,11 +316,12 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         }
 
         let block_index = get_subvoxel_block_index(dimension, vec3<u32>(model_grid_coordinates));
-        let subvoxel_palette = get_subvoxel_at_index(sv_object.sv_offset, block_index);
+        let subvoxel_palette = get_subvoxel_at_index(model_offset+4u, block_index);
         if (subvoxel_palette != 0u) {
-            return ao_calc(subvoxel_step, fract(current_position / subvoxel_step), block_index, dot(step_axis, step_faces), sv_palette[subvoxel_palette], sv_object.ao_offset);
+            return ao_calc(subvoxel_step, fract(current_position / subvoxel_step), block_index, dot(step_axis, step_faces), sv_palette[subvoxel_palette], ao_offset);
         }
     }
 
-    discard;
+    // discard;
+    return vec4<f32>(0.0, 0., 0., 0.);
 }

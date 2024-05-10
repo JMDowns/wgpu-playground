@@ -15,17 +15,16 @@ use crate::voxels::chunk::Chunk;
 use super::ambient_occlusion_state::AmbientOcclusionState;
 
 use super::grid_aligned_subvoxel_object::{GridAlignedSubvoxelGpuData, GridAlignedSubvoxelObject, ROTATION};
+use super::grid_aligned_subvoxel_object_specification::GridAlignedSubvoxelObjectSpecification;
 use super::model_manager::{self, SubvoxelModelManager, SubvoxelModel};
 use super::subvoxel_object::{SubvoxelObject, SUBVOXEL_PALETTE};
 use super::subvoxel_object_specification::SubvoxelObjectSpecification;
 use super::subvoxel_gpu_data::SubvoxelGpuData;
 
 pub struct SubvoxelState {
-    pub ambient_occlusion_state: AmbientOcclusionState,
     pub subvoxel_objects: Vec<SubvoxelObject>,
     pub grid_aligned_subvoxel_objects: Vec<GridAlignedSubvoxelObject>,
     pub sv_data_buffer: wgpu::Buffer,
-    pub sv_voxel_buffer: wgpu::Buffer,
     pub sv_palette_buffer: wgpu::Buffer,
     pub sv_vertex_buffer: wgpu::Buffer,
     pub sv_index_buffer: wgpu::Buffer,
@@ -38,7 +37,6 @@ pub struct SubvoxelState {
     pub subvoxel_bind_group: wgpu::BindGroup,
     pub queue: Arc<RwLock<Queue>>,
     pub sv_id_to_vec_offset: HashMap<u32, u32>,
-    pub available_voxel_buffer_space: Vec<VoxelBufferSpace>,
     pub chunk_position_to_buckets: HashMap<WorldPosition, Vec<GridAlignedSubvoxelVertexBucket>>,
     pub model_manager: SubvoxelModelManager,
     pub chunk_index_state: Arc<RwLock<ChunkIndexState>>
@@ -165,22 +163,6 @@ impl SubvoxelState {
             }
         );
 
-        let available_voxel_buffer_space = vec![
-            VoxelBufferSpace {
-                offset_in_u32s: 0,
-                length_in_u32s: (std::mem::size_of::<SUBVOXEL_PALETTE>() as u64 * 8 * MAX_SUBVOXELS).div_ceil(32) as u32
-            }
-        ];
-
-        let sv_voxel_buffer = device.create_buffer(
-            &wgpu::BufferDescriptor {
-                label: Some("Subvoxel Voxel Buffer"),
-                size: std::mem::size_of::<SUBVOXEL_PALETTE>() as u64 * MAX_SUBVOXELS,
-                mapped_at_creation: false,
-                usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
-            }
-        );
-
         let sv_palette_buffer = device.create_buffer(
             &wgpu::BufferDescriptor {
                 label: Some("Subvoxel Palette Buffer"),
@@ -246,8 +228,6 @@ impl SubvoxelState {
 
         let model_manager = SubvoxelModelManager::new(device, queue.clone());
 
-        let ambient_occlusion_state = AmbientOcclusionState::new(device, queue.clone());
-
         let subvoxel_bind_group = device.create_bind_group( &wgpu::BindGroupDescriptor {
             label: Some("Subvoxel Bind Group"),
             layout: &subvoxel_bind_group_layout,
@@ -258,7 +238,7 @@ impl SubvoxelState {
                 },
                 wgpu::BindGroupEntry {
                     binding: 1,
-                    resource: sv_voxel_buffer.as_entire_binding(),
+                    resource: model_manager.sv_model_buffer.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
                     binding: 2,
@@ -266,7 +246,7 @@ impl SubvoxelState {
                 },
                 wgpu::BindGroupEntry {
                     binding: 3,
-                    resource: ambient_occlusion_state.ao_buffer.as_entire_binding()
+                    resource: model_manager.ao_state.ao_buffer.as_entire_binding()
                 }
             ]
         });
@@ -295,12 +275,10 @@ impl SubvoxelState {
         });
 
         Self {
-            ambient_occlusion_state,
             subvoxel_objects: Vec::new(),
             grid_aligned_subvoxel_objects: Vec::new(),
             sv_id_to_vec_offset: HashMap::new(),
             sv_data_buffer,
-            sv_voxel_buffer,
             sv_palette_buffer,
             sv_vertex_buffer,
             sv_index_buffer,
@@ -312,57 +290,31 @@ impl SubvoxelState {
             subvoxel_bind_group_layout,
             subvoxel_bind_group,
             queue,
-            available_voxel_buffer_space,
             chunk_position_to_buckets: HashMap::new(),
             model_manager,
             chunk_index_state
         }
     }
 
-    pub fn add_grid_aligned_subvoxel_object(&mut self, chunk_position: WorldPosition, block_in_chunk: WorldPosition, subvoxel_in_block: WorldPosition) {
-        let model = SubvoxelModel { model_name: String::from("Grid"), subvoxel_size: Vector3 { x: 2, y: 2, z: 2 }, subvoxel_vec: vec![1, 0, 1, 0, 0, 0, 0, 0] };
+    pub fn add_grid_aligned_subvoxel_object(&mut self, spec: GridAlignedSubvoxelObjectSpecification) {
         let object_id = self.grid_aligned_subvoxel_objects.len() as u32;
-        let object = GridAlignedSubvoxelObject::new(object_id, Vector3 { x: 2, y: 2, z: 2 }, chunk_position, block_in_chunk, subvoxel_in_block, &model.model_name.clone(), ROTATION::RIGHT);
-        self.model_manager.add_model(model);
-        let model_offset = self.model_manager.get_model_offset("Grid");
-        let maximal_chunk_index = *(self.chunk_index_state.read().unwrap().pos_to_gpu_index.get(&chunk_position).unwrap());
+        let model_offset = self.model_manager.get_model_offset(&spec.model_name);
+        let maximal_chunk_index = *(self.chunk_index_state.read().unwrap().pos_to_gpu_index.get(&spec.maximal_chunk).unwrap());
+        
+        let object = GridAlignedSubvoxelObject::new(object_id, spec);
         self.queue.read().unwrap().write_buffer(&self.sv_grid_aligned_vertex_buffer, object_id as u64 * std::mem::size_of::<GridAlignedSubvoxelVertex> as u64 * 8, bytemuck::cast_slice(&generate_ga_subvoxel_cube_vertices(object_id)));
         self.queue.read().unwrap().write_buffer(&self.sv_grid_aligned_index_buffer, object_id as u64 * std::mem::size_of::<u32>() as u64 * 36, bytemuck::cast_slice(&generate_ga_subvoxel_cube_indices(object_id as u32)));
         self.queue.read().unwrap().write_buffer(&self.sv_grid_aligned_object_buffer, object_id as u64 * std::mem::size_of::<GridAlignedSubvoxelGpuData>() as u64, bytemuck::cast_slice(&[object.into_gpu_data(maximal_chunk_index as u32, model_offset)]));
     }
 
     pub fn add_subvoxel_object(&mut self, spec: SubvoxelObjectSpecification) -> usize {
+        let model = SubvoxelModel { model_name: spec.model_name.clone(), subvoxel_size: Vector3 { x: 2, y: 2, z: 2 }, subvoxel_vec: vec![1, 0, 1, 0, 0, 0, 0, 0] };
         let id = self.subvoxel_objects.len();
         let object = SubvoxelObject::new(id as u32, spec);
-        self.ambient_occlusion_state.set_ambient_occlusion(&object, self.queue.clone());
-        let offset_in_u32s = self.fill_available_space_and_get_offset(object.subvoxel_vec.len() as u32);
-        self.sv_id_to_vec_offset.insert(id as u32, offset_in_u32s);
         self.queue.read().unwrap().write_buffer(&self.sv_index_buffer, id as u64 * std::mem::size_of::<u32>() as u64 * 36, bytemuck::cast_slice(&generate_indices_for_index(id as u32)));
-        self.queue.read().unwrap().write_buffer(&self.sv_voxel_buffer, offset_in_u32s as u64 * std::mem::size_of::<u32>() as u64, bytemuck::cast_slice(&object.subvoxel_vec));
         self.subvoxel_objects.push(object);
         self.apply_changes_to_sv_data(id);
         return id;
-    }
-
-    fn fill_available_space_and_get_offset(&mut self, sv_vec_length: u32) -> u32 {
-        for i in 0..self.available_voxel_buffer_space.len() {
-            let space = self.available_voxel_buffer_space.get(i).unwrap();
-            let space_length = space.length_in_u32s;
-            let space_offset = space.offset_in_u32s;
-            let total_length = (std::mem::size_of::<SUBVOXEL_PALETTE>() as u32 * 8 * sv_vec_length).div_ceil(32) as u32;
-            if space_length >= total_length {
-                self.available_voxel_buffer_space.remove(i);
-                if space_length != total_length {
-                    self.available_voxel_buffer_space.push( VoxelBufferSpace {
-                        length_in_u32s: space_length - total_length,
-                        offset_in_u32s: space_offset + total_length
-                    });
-                }
-                return space_offset;
-            }
-        }
-
-        panic!("Unable to find voxel space, figure something out");
     }
 
     pub fn rotate(&mut self, subvoxel_id: usize, rotation: Vector3<Deg<f32>>) {
@@ -376,12 +328,12 @@ impl SubvoxelState {
 
     fn apply_changes_to_sv_data(&self, id: usize) {
         let sv_object = self.get_subvoxel_object(id);
-        let ao_offset = self.ambient_occlusion_state.subvoxel_id_to_ao_offset.get(&(id as u32)).unwrap();
-        let ao_length_in_u32s = (sv_object.subvoxel_vec.len() * 20).div_ceil(32);
-        let sv_offset = self.sv_id_to_vec_offset.get(&(id as u32)).unwrap();
-        let sv_length_in_u32s = (sv_object.subvoxel_vec.len() * std::mem::size_of::<SUBVOXEL_PALETTE>() * 8).div_ceil(32);
-        let voxel_offset = self.sv_id_to_vec_offset.get(&(id as u32)).unwrap();
+        let model_offset = self.model_manager.get_model_offset(&sv_object.model_name);
         self.queue.read().unwrap().write_buffer(&self.sv_vertex_buffer, id as u64 * std::mem::size_of::<SubvoxelVertex>() as u64 * 24, bytemuck::cast_slice(&sv_object.subvoxel_vertices));
-        self.queue.read().unwrap().write_buffer(&self.sv_data_buffer, id as u64 * std::mem::size_of::<SubvoxelGpuData>() as u64, bytemuck::cast_slice(&[sv_object.to_gpu_data(*ao_offset, ao_length_in_u32s as u32, *sv_offset, sv_length_in_u32s as u32)]));
+        self.queue.read().unwrap().write_buffer(&self.sv_data_buffer, id as u64 * std::mem::size_of::<SubvoxelGpuData>() as u64, bytemuck::cast_slice(&[sv_object.to_gpu_data(model_offset)]));
+    }
+
+    pub fn register_model(&mut self, model: SubvoxelModel) {
+        self.model_manager.add_model(model);
     }
 }
