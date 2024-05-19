@@ -62,7 +62,7 @@ pub fn generate_ga_subvoxel_cube_indices(gas_id: u32) -> [u32; 36] {
         
         2,6,7,
         2,7,3,
-    ]
+    ].map(|index| index + gas_id * 8)
 }
 
 pub const INDICES_CUBE_LEN: u32 = 36;

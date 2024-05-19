@@ -112,6 +112,10 @@ impl GPUManager {
         let grid_model = SubvoxelModel { model_name: String::from("Grid"), subvoxel_size: Vector3 { x: 2, y: 2, z: 2 }, subvoxel_vec: vec![1, 0, 1, 0, 0, 1, 0, 0] };
         subvoxel_state.register_model(grid_model);
 
+        let mut empty_model = SubvoxelModel { model_name: String::from("Empty"), subvoxel_size: Vector3 { x: 10, y: 10, z: 10 }, subvoxel_vec: vec![0; 1000] };
+        empty_model.subvoxel_vec[0] = 1;
+        subvoxel_state.register_model(empty_model);
+
         subvoxel_state.add_grid_aligned_subvoxel_object(GridAlignedSubvoxelObjectSpecification { 
             size: Vector3 { x: 1, y: 1, z: 1 }, 
             maximal_chunk: WorldPosition::new(0, 0, 0), 
@@ -119,6 +123,15 @@ impl GPUManager {
             maximal_subvoxel_in_chunk: WorldPosition::new(9,3,0), 
             rotation: ROTATION::RIGHT, 
             model_name: String::from("Grid") 
+        });
+
+        subvoxel_state.add_grid_aligned_subvoxel_object(GridAlignedSubvoxelObjectSpecification { 
+            size: Vector3 { x: 1, y: 1, z: 1 }, 
+            maximal_chunk: WorldPosition::new(0, 0, 0), 
+            maximal_block_in_chunk: WorldPosition::new(2,4,10), 
+            maximal_subvoxel_in_chunk: WorldPosition::new(11,3,0), 
+            rotation: ROTATION::RIGHT, 
+            model_name: String::from("Empty") 
         });
 
         for i in 0..100 {
@@ -303,8 +316,7 @@ impl GPUManager {
 
             render_pass.set_vertex_buffer(0, self.subvoxel_state.sv_grid_aligned_vertex_buffer.slice(..));
             render_pass.set_index_buffer(self.subvoxel_state.sv_grid_aligned_index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-            // render_pass.draw_indexed(0..derivables::grid_aligned_subvoxel_vertex::INDICES_CUBE_LEN * self.subvoxel_state.grid_aligned_subvoxel_objects.len() as u32, 0, 0..1);
-            render_pass.draw_indexed(0..derivables::grid_aligned_subvoxel_vertex::INDICES_CUBE_LEN * 1 as u32, 0, 0..1);
+            render_pass.draw_indexed(0..derivables::grid_aligned_subvoxel_vertex::INDICES_CUBE_LEN * self.subvoxel_state.grid_aligned_subvoxel_objects.len() as u32, 0, 0..1);
 
         }
 

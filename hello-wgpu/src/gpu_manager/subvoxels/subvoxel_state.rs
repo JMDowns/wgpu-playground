@@ -302,9 +302,11 @@ impl SubvoxelState {
         let maximal_chunk_index = *(self.chunk_index_state.read().unwrap().pos_to_gpu_index.get(&spec.maximal_chunk).unwrap());
         
         let object = GridAlignedSubvoxelObject::new(object_id, spec);
-        self.queue.read().unwrap().write_buffer(&self.sv_grid_aligned_vertex_buffer, object_id as u64 * std::mem::size_of::<GridAlignedSubvoxelVertex> as u64 * 8, bytemuck::cast_slice(&generate_ga_subvoxel_cube_vertices(object_id)));
+        self.queue.read().unwrap().write_buffer(&self.sv_grid_aligned_vertex_buffer, object_id as u64 * std::mem::size_of::<GridAlignedSubvoxelVertex>() as u64 * 8, bytemuck::cast_slice(&generate_ga_subvoxel_cube_vertices(object_id)));
         self.queue.read().unwrap().write_buffer(&self.sv_grid_aligned_index_buffer, object_id as u64 * std::mem::size_of::<u32>() as u64 * 36, bytemuck::cast_slice(&generate_ga_subvoxel_cube_indices(object_id as u32)));
         self.queue.read().unwrap().write_buffer(&self.sv_grid_aligned_object_buffer, object_id as u64 * std::mem::size_of::<GridAlignedSubvoxelGpuData>() as u64, bytemuck::cast_slice(&[object.into_gpu_data(maximal_chunk_index as u32, model_offset)]));
+        
+        self.grid_aligned_subvoxel_objects.push(object);
     }
 
     pub fn add_subvoxel_object(&mut self, spec: SubvoxelObjectSpecification) -> usize {

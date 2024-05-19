@@ -294,8 +294,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         return sv_palette[subvoxel_palette];
     }
 
-    let MAX_STEP_SIZE = 16;
-
+    let MAX_STEP_SIZE = i32(dimension.x << 1u) + i32(dimension.y << 1u) + i32(dimension.z << 1u);
+    
     var step_sizes = subvoxel_step / abs(direction_vector);
     var next_distance = (step_directions * 0.5 + 0.5 - (model_position_subvoxel_f32-vec3<f32>(model_grid_coordinates))) / direction_vector * subvoxel_step;
 

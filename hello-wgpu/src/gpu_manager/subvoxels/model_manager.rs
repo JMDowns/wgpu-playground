@@ -82,7 +82,6 @@ impl SubvoxelModelManager {
                         offset_in_u32s: space_offset + total_length
                     });
                 }
-                println!("{:?}", space_offset);
                 return space_offset;
             }
         }
