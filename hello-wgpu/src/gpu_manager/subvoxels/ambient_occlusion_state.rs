@@ -1,8 +1,9 @@
 use std::{collections::HashMap, hash::Hash, num, sync::{Arc, RwLock}};
 
+use fundamentals::consts::{self, MAX_SUBVOXELS_IN_MODELS, SUBVOXEL_PALETTE};
 use wgpu::{BufferUsages, Queue};
 
-use super::{model_manager::{SubvoxelModel, SUBVOXEL_PALETTE}, subvoxel_object::SubvoxelObject, subvoxel_state::MAX_SUBVOXELS};
+use super::{model_manager::{SubvoxelModel}, subvoxel_object::SubvoxelObject};
 
 use cgmath::Vector3;
 
@@ -22,11 +23,10 @@ pub struct AOSpace {
 impl AmbientOcclusionState {
     pub fn new(device: &wgpu::Device, queue: Arc<RwLock<Queue>>) -> Self {
 
-        let num_u32s_in_ao_buffer = (MAX_SUBVOXELS * 20).div_ceil(32);
-        let ao_buffer_length = std::mem::size_of::<u32>() as u64 * num_u32s_in_ao_buffer;
+        let ao_buffer_length = std::mem::size_of::<u32>() as u64 * consts::MAX_AMBIENT_OCCLUSION_U32S;
         let available_ao_space = vec![
             AOSpace {
-                length_in_u32s: num_u32s_in_ao_buffer as u32,
+                length_in_u32s: consts::MAX_AMBIENT_OCCLUSION_U32S as u32,
                 offset_in_u32s: 0
             }
         ];

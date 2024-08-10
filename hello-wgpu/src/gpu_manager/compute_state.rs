@@ -59,7 +59,7 @@ impl ComputeState {
 
         let compute_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Compute Shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("../frustum_compute.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(include_str!("../gpu_manager/shaders/frustum_compute.wgsl").into()),
         });
 
         let compute_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {

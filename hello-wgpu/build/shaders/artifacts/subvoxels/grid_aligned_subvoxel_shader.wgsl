@@ -1,20 +1,14 @@
+let MAX_SUBVOXEL_U32S : i32 = 160000;
+let MAX_AMBIENT_OCCLUSION_U32S : i32 = 400000;
+let NUM_GRID_ALIGNED_SUBVOXEL_OBJECTS : i32 = 1024;
+let MAX_COLORS : i32 = 32;
+let NUM_CHUNK_I32S : i32 = 1833;
+let CHUNK_DIMENSION : u32 = 32u;
+let SUBVOXEL_DIMENSION : u32 = 16u;
 struct CameraUniform {
     view_proj: mat4x4<f32>,
     view_proj_inverse: mat4x4<f32>,
     position: vec4<f32>,
-};
-@group(0) @binding(0)
-var<uniform> camera: CameraUniform;
-
-struct VertexOutput {
-    @builtin(position) clip_position:vec4<f32>,
-    @location(0) world_position: vec3<f32>,
-    @location(1) gas_id: u32,
-    @location(2) rotation: u32
-};
-
-struct VertexInput {
-    @location(0) data0: u32
 };
 
 struct GridAlignedSubvoxelGpuData {
@@ -32,86 +26,35 @@ struct GridAlignedSubvoxelGpuData {
     rotation: u32
 }
 
-@group(1) @binding(2)
-var<storage> GASARRAY: array<GridAlignedSubvoxelGpuData, 10000>;
-
-let CHUNK_DIMENSION = 32u;
-let SUBVOXEL_DIMENSION = 16u;
-let NUM_CHUNK_I32s = 21;
-
-struct ChunkPositions {
-    chunk_positions: array<i32,NUM_CHUNK_I32s>
+struct VertexInput {
+            	@location(0) data0: u32,
+        };
+struct VertexOutput {
+    @builtin(position) clip_position:vec4<f32>,
+    @location(0) world_position: vec3<f32>,
+    @location(1) gas_id: u32,
+    @location(2) rotation: u32
 };
+
+@group(0) @binding(0)
+var<uniform> camera: CameraUniform;
+@group(1) @binding(0)
+var<storage> SV_VOXELS: array<u32, MAX_SUBVOXEL_U32S>;
+@group(1) @binding(1)
+var<storage> AMBIENT_OCCLUSION_ARRAY: array<u32, MAX_AMBIENT_OCCLUSION_U32S>;
+@group(1) @binding(2)
+var<storage> GAS_ARRAY: array<GridAlignedSubvoxelGpuData, NUM_GRID_ALIGNED_SUBVOXEL_OBJECTS>;
+@group(1) @binding(3)
+var<storage> SV_PALETTE: array<vec4<f32>, MAX_COLORS>;
 @group(2) @binding(0)
-var<storage> chunkPositions: ChunkPositions;
-
-@vertex
-fn vs_main(
-    model: VertexInput,
-) -> VertexOutput {
-    var out: VertexOutput;
-    var gas_id = (model.data0 & 1023u);
-    out.gas_id = gas_id;
-
-    var grid_aligned_subvoxel_object = GASARRAY[gas_id];
-    var vertex_corner = (model.data0 & 7168u) >> 10u;
-    var chunk_position = vec3<i32>(chunkPositions.chunk_positions[3u*grid_aligned_subvoxel_object.maximal_chunk_index], chunkPositions.chunk_positions[3u*grid_aligned_subvoxel_object.maximal_chunk_index+1u], chunkPositions.chunk_positions[3u*grid_aligned_subvoxel_object.maximal_chunk_index+2u]);
-    out.world_position = vec3<f32>(chunk_position) * f32(CHUNK_DIMENSION) 
-        + vec3<f32>(f32(grid_aligned_subvoxel_object.maximal_block_x), f32(grid_aligned_subvoxel_object.maximal_block_y), f32(grid_aligned_subvoxel_object.maximal_block_z))
-        + (1. / f32(SUBVOXEL_DIMENSION)) * vec3<f32>(f32(grid_aligned_subvoxel_object.maximal_subvoxel_x), f32(grid_aligned_subvoxel_object.maximal_subvoxel_y), f32(grid_aligned_subvoxel_object.maximal_subvoxel_z));
-    switch vertex_corner {
-        case 0u: {
-            out.world_position -= vec3<f32>(0.0, 0.0, 0.0);
-        }
-        case 1u: {
-            out.world_position -= vec3<f32>(f32(grid_aligned_subvoxel_object.size_x), 0.0, 0.0);
-        }
-        case 2u: {
-            out.world_position -= vec3<f32>(f32(grid_aligned_subvoxel_object.size_x), f32(grid_aligned_subvoxel_object.size_y), 0.0);
-        }
-        case 3u: {
-            out.world_position -= vec3<f32>(0., f32(grid_aligned_subvoxel_object.size_y), 0.0);
-        }
-        case 4u: {
-            out.world_position -= vec3<f32>(0., 0., f32(grid_aligned_subvoxel_object.size_z));
-        }
-        case 5u: {
-            out.world_position -= vec3<f32>(f32(grid_aligned_subvoxel_object.size_x), 0., f32(grid_aligned_subvoxel_object.size_z));
-        }
-        case 6u: {
-            out.world_position -= vec3<f32>(f32(grid_aligned_subvoxel_object.size_x), f32(grid_aligned_subvoxel_object.size_y), f32(grid_aligned_subvoxel_object.size_z));
-        }
-        case 7u: {
-            out.world_position -= vec3<f32>(0.0, f32(grid_aligned_subvoxel_object.size_y), f32(grid_aligned_subvoxel_object.size_z));
-        }
-        default: {
-            out.world_position = vec3<f32>(0.0, 0.0, 0.0);
-        }
-    }
-    
-    out.clip_position = camera.view_proj * vec4<f32>(out.world_position.x, out.world_position.y, out.world_position.z, 1.0);
-
-    out.rotation = grid_aligned_subvoxel_object.rotation;
-    return out;
-}
-
-let MAX_SUBVOXEL_U32S = 1000u;
-let BITS_PER_SUBVOXEL = 8u;
-let MAX_COLORS = 32;
-let MAX_AMBIENT_OCCLUSION_U32S = 640;
+var<storage> CHUNK_POSITIONS: array<i32,NUM_CHUNK_I32S>;
+let BITS_PER_SUBVOXEL_PALETTE : u32 = 8u;
 let FRONT = 0;
 let BACK = 1;
 let LEFT = 2;
 let RIGHT = 3;
 let TOP = 4;
 let BOTTOM = 5;
-@group(1) @binding(0)
-var<storage> sv_voxels: array<u32, MAX_SUBVOXEL_U32S>;
-@group(1) @binding(1)
-var<storage> ambient_occlusion_array: array<u32, MAX_AMBIENT_OCCLUSION_U32S>;
-@group(1) @binding(3)
-var<storage> sv_palette: array<vec4<f32>, MAX_COLORS>;
-
 
 fn ao_calc(subvoxel_step: vec3<f32>, current_position_fract: vec3<f32>, block_index: u32, current_side: i32, color: vec4<f32>, ao_offset: u32) -> vec4<f32> {
     let block_index_bits_start = block_index * 20u;
@@ -120,11 +63,11 @@ fn ao_calc(subvoxel_step: vec3<f32>, current_position_fract: vec3<f32>, block_in
     let ambient_occlusion_voxel_end_bits_index = block_index_bits_end / 32u;
     var ao_bits = 0u;
     if (ambient_occlusion_voxel_start_bits_index != ambient_occlusion_voxel_end_bits_index) {
-        let start_bits = ambient_occlusion_array[ambient_occlusion_voxel_start_bits_index + ao_offset] << (block_index_bits_start % 32u);
-        let end_bits = ambient_occlusion_array[ambient_occlusion_voxel_end_bits_index + ao_offset] >> (32u - (block_index_bits_start % 32u));
+        let start_bits = AMBIENT_OCCLUSION_ARRAY[ambient_occlusion_voxel_start_bits_index + ao_offset] << (block_index_bits_start % 32u);
+        let end_bits = AMBIENT_OCCLUSION_ARRAY[ambient_occlusion_voxel_end_bits_index + ao_offset] >> (32u - (block_index_bits_start % 32u));
         ao_bits = (start_bits | end_bits) >> 12u;
     } else {
-        ao_bits = ambient_occlusion_array[ambient_occlusion_voxel_start_bits_index + ao_offset] >> (32u - (block_index_bits_end % 32u));
+        ao_bits = AMBIENT_OCCLUSION_ARRAY[ambient_occlusion_voxel_start_bits_index + ao_offset] >> (32u - (block_index_bits_end % 32u));
     }
 
     var FRONT_TOP_LEFT = f32((ao_bits & 524288u) >> 19u);
@@ -259,46 +202,198 @@ fn ao_calc(subvoxel_step: vec3<f32>, current_position_fract: vec3<f32>, block_in
 
     return new_color;
 }
-
-fn get_initial_subvoxel_block_grid_coordinates(step: vec3<f32>, position: vec3<f32>) -> vec3<i32> {
-    return vec3<i32>(position / step);
-}
-
 fn get_subvoxel_block_index(dimension: vec3<u32>, grid_coordinates: vec3<u32>) -> u32 {
     return grid_coordinates.x + grid_coordinates.y * dimension.x + grid_coordinates.z * dimension.x * dimension.y;
 }
-
 fn get_subvoxel_at_index(sv_offset_in_u32s: u32, block_index: u32) -> u32 {
-    let u32_offset = sv_offset_in_u32s + (block_index * BITS_PER_SUBVOXEL) / 32u;
-    let bit_offset = (block_index * BITS_PER_SUBVOXEL) % 32u;
-    let subvoxel_palette_value = (sv_voxels[u32_offset] >> bit_offset) & 255u;
+    let u32_offset = sv_offset_in_u32s + (block_index * BITS_PER_SUBVOXEL_PALETTE) / 32u;
+    let bit_offset = (block_index * BITS_PER_SUBVOXEL_PALETTE) % 32u;
+    let subvoxel_palette_value = (SV_VOXELS[u32_offset] >> bit_offset) & 255u;
     return subvoxel_palette_value;
 }
-
-@fragment
-fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-
-    var gas_object = GASARRAY[in.gas_id];
-    var model_offset = gas_object.model_offset;
-
-    var size = vec3<f32>(f32(gas_object.size_x), f32(gas_object.size_y), f32(gas_object.size_z));
-    var chunk_position = vec3<i32>(chunkPositions.chunk_positions[3u*gas_object.maximal_chunk_index], chunkPositions.chunk_positions[3u*gas_object.maximal_chunk_index+1u], chunkPositions.chunk_positions[3u*gas_object.maximal_chunk_index+2u]);
-    var maximal_point = vec3<f32>(chunk_position) * f32(CHUNK_DIMENSION) 
-        + vec3<f32>(f32(gas_object.maximal_block_x), f32(gas_object.maximal_block_y), f32(gas_object.maximal_block_z))
-        + (1. / f32(SUBVOXEL_DIMENSION)) * vec3<f32>(f32(gas_object.maximal_subvoxel_x), f32(gas_object.maximal_subvoxel_y), f32(gas_object.maximal_subvoxel_z));
-    var center = maximal_point - size / 2.;
-    var dimension = vec3<u32>(sv_voxels[model_offset], sv_voxels[model_offset+1u], sv_voxels[model_offset+2u]);
+fn raycast(world_position: vec3<f32>, model_offset: u32, rotation_matrix: mat3x3<f32>, center: vec3<f32>, size: vec3<f32>, dimension: vec3<u32>) -> vec4<f32> {
     var subvoxel_step = size / vec3<f32>(dimension);
+    var relative_position = (transpose(rotation_matrix)*(world_position - center));
 
-    let ao_offset = sv_voxels[model_offset+3u];
+    var camera_position_model = (transpose(rotation_matrix)*(camera.position.xyz - center));
+    var direction_vector = normalize(relative_position - camera_position_model);
 
+    var direction_vector_offset = .00001 * sign(direction_vector);
+    
+    var model_position = relative_position + size / 2. + direction_vector_offset;
+
+    var model_position_subvoxel_f32 = model_position / subvoxel_step;
+    var model_grid_coordinates = vec3<i32>(model_position_subvoxel_f32);
+    var grid_correction = vec3<i32>(model_grid_coordinates >= vec3<i32>(dimension));
+    model_grid_coordinates -= grid_correction;
+
+    var step_directions = sign(direction_vector);
+    var step_directions_i32 = vec3<i32>(step_directions);
+
+    var current_position = model_position;
+
+    var step_faces = vec3<i32>(0, 0, 0);
+    var step_axis = vec3<i32>(0);
+    if (step_directions.x < 0.) {
+        step_faces.x = BACK;
+    } else if (step_directions.x > 0.) {
+        step_faces.x = FRONT;
+    }
+
+    if (step_directions.y < 0.) {
+        step_faces.y = TOP;
+    } else if (step_directions.y > 0.) {
+        step_faces.y = BOTTOM;
+    }
+
+    if (step_directions.z < 0.) {
+        step_faces.z = RIGHT;
+    } else if (step_directions.z > 0.) {
+        step_faces.z = LEFT;
+    }
+
+    let block_index = get_subvoxel_block_index(dimension, vec3<u32>(model_grid_coordinates));
+    let subvoxel_palette = get_subvoxel_at_index(model_offset+4u, block_index);
+
+    if (subvoxel_palette != 0u) {
+        return SV_PALETTE[subvoxel_palette];
+    }
+
+    let max_step_size = i32(dimension.x << 1u) + i32(dimension.y << 1u) + i32(dimension.z << 1u);
+
+    var step_sizes = subvoxel_step / abs(direction_vector);
+    var next_distance = (step_directions * 0.5 + 0.5 - (model_position_subvoxel_f32-vec3<f32>(model_grid_coordinates))) / direction_vector * subvoxel_step;
+
+    for(var i: i32 = 1; i <= max_step_size; i++) {
+        var closest_distance = min(min(next_distance.x, next_distance.y), next_distance.z);
+        current_position = current_position + direction_vector * closest_distance;
+        step_axis = vec3<i32>(next_distance <= vec3<f32>(closest_distance));
+        model_grid_coordinates = model_grid_coordinates + step_axis * step_directions_i32;
+        next_distance = next_distance - closest_distance;
+        next_distance = next_distance + step_sizes * vec3<f32>(step_axis);
+
+        if (any(model_grid_coordinates < vec3<i32>(0))) {
+            break;
+        }
+
+        if (any(vec3<u32>(model_grid_coordinates) >= dimension)) {
+            break;
+        }
+
+        let block_index = get_subvoxel_block_index(dimension, vec3<u32>(model_grid_coordinates));
+        let subvoxel_palette = get_subvoxel_at_index(model_offset+4u, block_index);
+        if (subvoxel_palette != 0u) {
+            let ao_offset = SV_VOXELS[model_offset+3u];
+            return ao_calc(subvoxel_step, fract(current_position / subvoxel_step), block_index, dot(step_axis, step_faces), SV_PALETTE[subvoxel_palette], ao_offset);
+        }
+    }
+
+    discard;
+    //return vec4<f32>(0.0, 0., 0., 0.);
+}
+
+
+
+//region BUFFER DECLARATIONS
+
+
+
+
+
+
+
+
+
+
+//endregion
+
+//region CONST_DECLARATIONS
+
+
+
+//endregion
+
+fn get_initial_world_position(grid_aligned_subvoxel_object: GridAlignedSubvoxelGpuData) -> vec3<f32> {
+    let chunk_index = grid_aligned_subvoxel_object.maximal_chunk_index;
+    
+    var chunk_position = vec3<i32>(CHUNK_POSITIONS[3u*chunk_index], CHUNK_POSITIONS[3u*chunk_index+1u], CHUNK_POSITIONS[3u*chunk_index+2u]);
+    let chunk_offset = vec3<f32>(chunk_position) * f32(CHUNK_DIMENSION);
+    
+    let block_offset = vec3<f32>(f32(grid_aligned_subvoxel_object.maximal_block_x), f32(grid_aligned_subvoxel_object.maximal_block_y), f32(grid_aligned_subvoxel_object.maximal_block_z));
+
+    let subvoxel_offset_multiplier = (1. / f32(SUBVOXEL_DIMENSION));
+    let subvoxel_offset = subvoxel_offset_multiplier * vec3<f32>(f32(grid_aligned_subvoxel_object.maximal_subvoxel_x), f32(grid_aligned_subvoxel_object.maximal_subvoxel_y), f32(grid_aligned_subvoxel_object.maximal_subvoxel_z));
+    
+    var world_position = chunk_offset + block_offset + subvoxel_offset;
+    return world_position;
+}
+
+fn get_vertex_world_position(grid_aligned_subvoxel_object: GridAlignedSubvoxelGpuData, vertex_corner: u32) -> vec3<f32> {
+    var world_position = get_initial_world_position(grid_aligned_subvoxel_object);
+    switch vertex_corner {
+        case 0u: {
+            world_position -= vec3<f32>(0.0, 0.0, 0.0);
+        }
+        case 1u: {
+            world_position -= vec3<f32>(f32(grid_aligned_subvoxel_object.size_x), 0.0, 0.0);
+        }
+        case 2u: {
+            world_position -= vec3<f32>(f32(grid_aligned_subvoxel_object.size_x), f32(grid_aligned_subvoxel_object.size_y), 0.0);
+        }
+        case 3u: {
+            world_position -= vec3<f32>(0., f32(grid_aligned_subvoxel_object.size_y), 0.0);
+        }
+        case 4u: {
+            world_position -= vec3<f32>(0., 0., f32(grid_aligned_subvoxel_object.size_z));
+        }
+        case 5u: {
+            world_position -= vec3<f32>(f32(grid_aligned_subvoxel_object.size_x), 0., f32(grid_aligned_subvoxel_object.size_z));
+        }
+        case 6u: {
+            world_position -= vec3<f32>(f32(grid_aligned_subvoxel_object.size_x), f32(grid_aligned_subvoxel_object.size_y), f32(grid_aligned_subvoxel_object.size_z));
+        }
+        case 7u: {
+            world_position -= vec3<f32>(0.0, f32(grid_aligned_subvoxel_object.size_y), f32(grid_aligned_subvoxel_object.size_z));
+        }
+        default: {
+            world_position = vec3<f32>(0.0, 0.0, 0.0);
+        }
+    }
+
+    return world_position;
+}
+
+
+
+
+
+@vertex
+fn vs_main( model: VertexInput ) -> VertexOutput {
+
+var gas_id: u32 = ((model.data0 >> 0u) & 0x3FFu);
+var vertex_corner: u32 = ((model.data0 >> 10u) & 0x7u);
+
+
+    var grid_aligned_subvoxel_object = GAS_ARRAY[gas_id];
+    
+    var out: VertexOutput;
+    out.gas_id = gas_id;
+    out.world_position = get_vertex_world_position(grid_aligned_subvoxel_object, vertex_corner);
+    out.clip_position = camera.view_proj * vec4<f32>(out.world_position.x, out.world_position.y, out.world_position.z, 1.0);
+    out.rotation = grid_aligned_subvoxel_object.rotation;
+    return out;
+}
+
+
+
+fn get_rotation_matrix(rotation: u32) -> mat3x3<f32> {
     var rotation_matrix = mat3x3<f32>(
             vec3<f32>(1., 0., 0.),
             vec3<f32>(0., 1., 0.),
             vec3<f32>(0., 0., 1.)
         );
 
-    switch in.rotation {
+    switch rotation {
         //FRONT
         case 0u: {
             rotation_matrix = mat3x3<f32>(
@@ -356,81 +451,25 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         }
     }
     
-
-    var relative_position = (transpose(rotation_matrix)*(in.world_position - center));
-
-    var camera_position_model = (transpose(rotation_matrix)*(camera.position.xyz - center));
-    var direction_vector = normalize(relative_position - camera_position_model);
-
-    var direction_vector_offset = .00001 * sign(direction_vector);
-    
-    var model_position = relative_position + size / 2. + direction_vector_offset;
-
-    var model_position_subvoxel_f32 = model_position / subvoxel_step;
-    var model_grid_coordinates = vec3<i32>(model_position_subvoxel_f32);
-    var grid_correction = vec3<i32>(model_grid_coordinates >= vec3<i32>(dimension));
-    model_grid_coordinates -= grid_correction;
-
-    var step_directions = sign(direction_vector);
-    var step_directions_i32 = vec3<i32>(step_directions);
-
-    var current_position = model_position;
-
-    var step_faces = vec3<i32>(0, 0, 0);
-    var step_axis = vec3<i32>(0);
-    if (step_directions.x < 0.) {
-        step_faces.x = BACK;
-    } else if (step_directions.x > 0.) {
-        step_faces.x = FRONT;
-    }
-
-    if (step_directions.y < 0.) {
-        step_faces.y = TOP;
-    } else if (step_directions.y > 0.) {
-        step_faces.y = BOTTOM;
-    }
-
-    if (step_directions.z < 0.) {
-        step_faces.z = RIGHT;
-    } else if (step_directions.z > 0.) {
-        step_faces.z = LEFT;
-    }
-
-    let block_index = get_subvoxel_block_index(dimension, vec3<u32>(model_grid_coordinates));
-    let subvoxel_palette = get_subvoxel_at_index(model_offset+4u, block_index);
-
-    if (subvoxel_palette != 0u) {
-        return sv_palette[subvoxel_palette];
-    }
-
-    let MAX_STEP_SIZE = i32(dimension.x << 1u) + i32(dimension.y << 1u) + i32(dimension.z << 1u);
-
-    var step_sizes = subvoxel_step / abs(direction_vector);
-    var next_distance = (step_directions * 0.5 + 0.5 - (model_position_subvoxel_f32-vec3<f32>(model_grid_coordinates))) / direction_vector * subvoxel_step;
-
-    for(var i: i32 = 1; i <= MAX_STEP_SIZE; i++) {
-        var closest_distance = min(min(next_distance.x, next_distance.y), next_distance.z);
-        current_position = current_position + direction_vector * closest_distance;
-        step_axis = vec3<i32>(next_distance <= vec3<f32>(closest_distance));
-        model_grid_coordinates = model_grid_coordinates + step_axis * step_directions_i32;
-        next_distance = next_distance - closest_distance;
-        next_distance = next_distance + step_sizes * vec3<f32>(step_axis);
-
-        if (any(model_grid_coordinates < vec3<i32>(0))) {
-            break;
-        }
-
-        if (any(vec3<u32>(model_grid_coordinates) >= dimension)) {
-            break;
-        }
-
-        let block_index = get_subvoxel_block_index(dimension, vec3<u32>(model_grid_coordinates));
-        let subvoxel_palette = get_subvoxel_at_index(model_offset+4u, block_index);
-        if (subvoxel_palette != 0u) {
-            return ao_calc(subvoxel_step, fract(current_position / subvoxel_step), block_index, dot(step_axis, step_faces), sv_palette[subvoxel_palette], ao_offset);
-        }
-    }
-
-    //discard;
-    return vec4<f32>(0.0, 0., 0., 0.);
+    return rotation_matrix;
 }
+
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+    var gas_object = GAS_ARRAY[in.gas_id];
+    var model_offset = gas_object.model_offset;
+
+    var size = vec3<f32>(f32(gas_object.size_x), f32(gas_object.size_y), f32(gas_object.size_z));
+    let chunk_index = 3u*gas_object.maximal_chunk_index;
+    var chunk_position = vec3<i32>(CHUNK_POSITIONS[chunk_index], CHUNK_POSITIONS[chunk_index+1u], CHUNK_POSITIONS[chunk_index+2u]);
+    var maximal_point = vec3<f32>(chunk_position) * f32(CHUNK_DIMENSION) 
+        + vec3<f32>(f32(gas_object.maximal_block_x), f32(gas_object.maximal_block_y), f32(gas_object.maximal_block_z))
+        + (1. / f32(SUBVOXEL_DIMENSION)) * vec3<f32>(f32(gas_object.maximal_subvoxel_x), f32(gas_object.maximal_subvoxel_y), f32(gas_object.maximal_subvoxel_z));
+    var center = maximal_point - size / 2.;
+    var dimension = vec3<u32>(SV_VOXELS[model_offset], SV_VOXELS[model_offset+1u], SV_VOXELS[model_offset+2u]);
+
+    var rotation_matrix = get_rotation_matrix(in.rotation);
+    
+    return raycast(in.world_position, model_offset, rotation_matrix, center, size, dimension);
+}
+

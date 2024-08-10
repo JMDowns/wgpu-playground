@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use derivables::grid_aligned_subvoxel_vertex::{generate_ga_subvoxel_cube_indices, generate_ga_subvoxel_cube_vertices, GridAlignedSubvoxelVertex};
+use fundamentals::consts::{MAX_GRID_ALIGNED_SUBVOXEL_OBJECTS, MAX_SUBVOXEL_COLORS, MAX_SUBVOXEL_OBJECTS};
 use fundamentals::world_position::WorldPosition;
 use num_traits::Zero;
 use wgpu::{Device, util::DeviceExt, Queue, BufferUsages};
@@ -17,7 +18,7 @@ use super::ambient_occlusion_state::AmbientOcclusionState;
 use super::grid_aligned_subvoxel_object::{GridAlignedSubvoxelGpuData, GridAlignedSubvoxelObject, ROTATION};
 use super::grid_aligned_subvoxel_object_specification::GridAlignedSubvoxelObjectSpecification;
 use super::model_manager::{self, SubvoxelModelManager, SubvoxelModel};
-use super::subvoxel_object::{SubvoxelObject, SUBVOXEL_PALETTE};
+use super::subvoxel_object::{SubvoxelObject};
 use super::subvoxel_object_specification::SubvoxelObjectSpecification;
 use super::subvoxel_gpu_data::SubvoxelGpuData;
 
@@ -51,12 +52,6 @@ pub struct VoxelBufferSpace {
     pub offset_in_u32s: u32,
     pub length_in_u32s: u32
 }
-
-const MAX_SUBVOXEL_OBJECTS: u64 = 10000;
-pub const MAX_SUBVOXELS: u64 = 640000;
-const MAX_COLORS: u64 = 32;
-const MAX_GRID_ALIGNED_SUBVOXEL_OBJECTS: u64 = 10000;
-const GRID_ALIGNED_SUBVOXEL_OBJECTS_PER_BUCKET: u64 = 100;
 
 impl SubvoxelState {
     pub fn new(device: &Device, queue: Arc<RwLock<Queue>>, chunk_index_state: Arc<RwLock<ChunkIndexState>>) -> Self {
@@ -166,7 +161,7 @@ impl SubvoxelState {
         let sv_palette_buffer = device.create_buffer(
             &wgpu::BufferDescriptor {
                 label: Some("Subvoxel Palette Buffer"),
-                size: (std::mem::size_of::<f32>() * 4) as u64 * MAX_COLORS,
+                size: (std::mem::size_of::<f32>() * 4) as u64 * MAX_SUBVOXEL_COLORS,
                 mapped_at_creation: false,
                 usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
             }

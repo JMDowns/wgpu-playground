@@ -1,4 +1,3 @@
-use super::subvoxel_object::SUBVOXEL_PALETTE;
 use cgmath::{Matrix3, Deg, Vector3, Point3, EuclideanSpace};
 
 pub struct SubvoxelObjectSpecification {

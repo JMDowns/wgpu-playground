@@ -3,8 +3,6 @@ use derivables::subvoxel_vertex::{SubvoxelVertex, generate_cube_at_center};
 use cgmath::{Matrix3, Deg, Vector3, Point3, EuclideanSpace};
 use super::subvoxel_object_specification::SubvoxelObjectSpecification;
 
-pub type SUBVOXEL_PALETTE = u8;
-
 pub struct SubvoxelObject {
     pub id: u32,
     pub size: Vector3<f32>,

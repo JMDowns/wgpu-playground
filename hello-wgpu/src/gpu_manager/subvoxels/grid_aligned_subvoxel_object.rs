@@ -3,7 +3,7 @@ use cgmath::{Vector3, Point3};
 use bytemuck::{Zeroable, Pod};
 use fundamentals::world_position::WorldPosition;
 
-use super::{grid_aligned_subvoxel_object_specification::GridAlignedSubvoxelObjectSpecification, subvoxel_object::SUBVOXEL_PALETTE};
+use super::{grid_aligned_subvoxel_object_specification::GridAlignedSubvoxelObjectSpecification};
 
 #[derive(Clone, Copy)]
 pub enum ROTATION {

@@ -2,6 +2,7 @@
 name = "hello-wgpu"
 version = "0.1.0"
 edition = "2021"
+build = "build/main.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -41,6 +42,12 @@ log = "0.4.17"
 log4rs = "1.2.0"
 strum = "0.24.1"
 strum_macros = "0.24.1"
+
+[build-dependencies]
+fundamentals = { path = "../fundamentals" }
+derivables = { path = "../derivables" }
+regex = "1.10.5"
+indexmap = "2.2.6"
 
 [features]
 no_logging = ["fundamentals/no_logging"]

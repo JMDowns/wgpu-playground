@@ -1,5 +1,6 @@
 use std::{collections::HashMap, sync::{Arc, RwLock}};
 use cgmath::{Vector3, Vector4};
+use fundamentals::consts::SUBVOXEL_PALETTE;
 
 use super::ambient_occlusion_state::AmbientOcclusionState;
 
@@ -17,16 +18,18 @@ pub struct ModelBufferSpace {
     offset_in_u32s: u32,
 }
 
-pub type SUBVOXEL_PALETTE = u8;
-const NUM_U32S_IN_BUFFER: u64 = 1000;
-const SIZE_OF_MODEL_BUFFER: u64 = std::mem::size_of::<u32>() as u64 * NUM_U32S_IN_BUFFER;
+pub struct SubvoxelModel {
+    pub model_name: String,
+    pub subvoxel_size: Vector3<u32>,
+    pub subvoxel_vec: Vec<SUBVOXEL_PALETTE>,
+}
 
 impl SubvoxelModelManager {
     pub fn new(device: &wgpu::Device, queue: Arc<RwLock<wgpu::Queue>>) -> Self {
         let sv_model_buffer = device.create_buffer(
             &wgpu::BufferDescriptor {
                 label: Some("Subvoxel Model Buffer"),
-                size: SIZE_OF_MODEL_BUFFER,
+                size: std::mem::size_of::<u32>() as u64 * fundamentals::consts::NUM_SUBVOXEL_U32s,
                 mapped_at_creation: false,
                 usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
             }
@@ -39,7 +42,7 @@ impl SubvoxelModelManager {
             sv_model_name_to_buffer_offset_in_u32s: HashMap::new(),
             sv_model_buffer,
             subvoxel_models: HashMap::new(),
-            available_model_space: vec![ModelBufferSpace { length_in_u32s: NUM_U32S_IN_BUFFER as u32, offset_in_u32s: 0}],
+            available_model_space: vec![ModelBufferSpace { length_in_u32s: fundamentals::consts::NUM_SUBVOXEL_U32s as u32, offset_in_u32s: 0}],
             ao_state
         }
     }
@@ -88,10 +91,4 @@ impl SubvoxelModelManager {
 
         panic!("Unable to find voxel model space, figure something out");
     }
-}
-
-pub struct SubvoxelModel {
-    pub model_name: String,
-    pub subvoxel_size: Vector3<u32>,
-    pub subvoxel_vec: Vec<SUBVOXEL_PALETTE>,
 }

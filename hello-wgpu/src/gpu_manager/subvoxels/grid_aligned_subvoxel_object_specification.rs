@@ -1,4 +1,3 @@
-use super::subvoxel_object::SUBVOXEL_PALETTE;
 use cgmath::{Matrix3, Deg, Vector3, Point3, EuclideanSpace};
 use crate::gpu_manager::subvoxels::grid_aligned_subvoxel_object::ROTATION;
 use fundamentals::world_position::WorldPosition;

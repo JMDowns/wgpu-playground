@@ -18,7 +18,7 @@ impl RenderState {
     pub fn new(device: &wgpu::Device, config: &SurfaceConfiguration, camera_bind_group_layout: &BindGroupLayout, diffuse_bind_group_layout: &BindGroupLayout, chunk_index_bind_group_layout: &BindGroupLayout, visibility_bind_group_layout: &BindGroupLayout, subvoxel_bind_group_layout: &BindGroupLayout, grid_aligned_subvoxel_bind_group_layout: &BindGroupLayout) -> Self {
         let render_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Render Shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("../shader.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(include_str!("../gpu_manager/shaders/shader.wgsl").into()),
         });
 
         let render_pipeline_layout =
@@ -131,7 +131,7 @@ impl RenderState {
 
         let occlusion_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Occlusion Cube Shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("../occlusion_cube.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(include_str!("../gpu_manager/shaders/occlusion_cube.wgsl").into()),
         });
 
         let occlusion_cube_render_pipeline_layout =
@@ -194,7 +194,7 @@ impl RenderState {
 
         let grid_aligned_subvoxel_render_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Grid-Aligned Subvoxel Render Shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("../grid_aligned_subvoxel_shader.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(include_str!("../gpu_manager/shaders/subvoxels/grid_aligned_subvoxel_shader.wgsl").into()),
         });
 
         let grid_aligned_subvoxel_render_pipeline_layout =
@@ -258,7 +258,7 @@ impl RenderState {
 
         let subvoxel_render_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Subvoxel Render Shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("../subvoxel_shader.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(include_str!("../gpu_manager/shaders/subvoxel_shader.wgsl").into()),
         });
 
         let subvoxel_render_pipeline_layout =

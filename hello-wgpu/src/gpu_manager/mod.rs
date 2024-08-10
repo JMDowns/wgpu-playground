@@ -106,7 +106,7 @@ impl GPUManager {
 
         let mut subvoxel_state = SubvoxelState::new(&device, queue_rwlock.clone(), chunk_index_state.clone());
 
-        let model = SubvoxelModel { model_name: String::from("Not Grid"), subvoxel_size: Vector3 { x: 2, y: 2, z: 2 }, subvoxel_vec: vec![1, 0, 1, 2, 0, 3, 0, 0] };
+        let model = SubvoxelModel { model_name: String::from("Not Grid"), subvoxel_size: Vector3 { x: 2, y: 2, z: 2 }, subvoxel_vec: vec![1, 0, 1, 1, 0, 1, 0, 0] };
         subvoxel_state.register_model(model);
 
         let grid_model = SubvoxelModel { model_name: String::from("Grid"), subvoxel_size: Vector3 { x: 2, y: 2, z: 2 }, subvoxel_vec: vec![1, 0, 1, 0, 0, 1, 0, 0] };
