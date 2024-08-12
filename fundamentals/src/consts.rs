@@ -23,12 +23,12 @@ pub const NUMBER_OF_CHUNKS_AROUND_PLAYER: u32 = 7;
 pub const NUMBER_OF_CHUNKS_TO_RENDER: u32 = 1;
 pub const BITS_PER_CHUNK_INDEX: u32 = 3;
 pub const WORKGROUP_SIZE: u16 = 255;
-pub const NUM_VERTICES_IN_BUCKET: u32 = 4096;
+pub const NUM_VERTICES_IN_BUCKET: u32 = 1024;
 pub const NUM_BUCKETS_PER_CHUNK: usize = 64;
 pub const NUM_BUCKETS_PER_SIDE: u32 = 10;
 pub const NUM_BUCKETS: usize = 448;
 pub const MESH_METHOD: &str = "greedy";
-pub const CHUNK_GENERATION_METHOD: &str = "perlin";
+pub const CHUNK_GENERATION_METHOD: &str = "empty";
 pub const PERLIN_POSITIVE_THRESHOLD: f64 = 0.2;
 pub const PERLIN_NEGATIVE_THRESHOLD: f64 = -0.2;
 pub const PERLIN_SCALE_FACTOR: f64 = 0.02;
@@ -53,7 +53,7 @@ pub const UPDATE_CHUNK_PADDING_Z_PRIORITY: u32 = 2;
 pub const GENERATE_MESH_PRIORITY: u32 = 4;
 pub const GENERATE_MESH_SIDE_PRIORITY: u32 = 3;
 
-pub const MOVEMENT_SPEED: f32 = 10.0;
+pub const MOVEMENT_SPEED: f32 = 2.0;
 pub const MIN_MEMORY_USAGE_MB: u32 = 512;
 pub const MAX_MEMORY_USAGE_MB: u32 = 10240;
 pub fn get_positions_around_player(pos: WorldPosition) -> Vec<WorldPosition> {

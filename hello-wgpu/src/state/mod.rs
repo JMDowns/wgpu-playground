@@ -40,7 +40,7 @@ impl State {
         let world = Arc::new(RwLock::new(World::new()));
 
         let mut task_manager = TaskManager::new();
-        for pos in gpu_manager.vertex_gpu_data.read().unwrap().chunk_index_array.iter().rev() {
+        for pos in gpu_manager.chunk_index_state.read().unwrap().chunk_index_array.iter().rev() {
             task_manager.push_task(Task::GenerateChunk { chunk_position: *pos, world: world.clone() });
         }
 
@@ -62,9 +62,12 @@ impl State {
     }
 
     pub fn input(&mut self, event: &WindowEvent) -> bool {
-        let (has_taken_input, should_switch_wireframe) = self.input_manager.input(event);
+        let (has_taken_input, should_switch_wireframe, should_rotate_subvoxel) = self.input_manager.input(event);
         if should_switch_wireframe {
             self.flag_state.should_render_wireframe = !self.flag_state.should_render_wireframe;
+        }
+        if (should_rotate_subvoxel) {
+            self.gpu_manager.rotate_subvoxel_object(0);
         }
         has_taken_input
     }
@@ -80,7 +83,9 @@ impl State {
     }
 
     pub fn update(&mut self, dt: instant::Duration) {
-        self.gpu_manager.update_camera_and_reset_conroller(&mut self.camera_controller, dt);
+        if (self.camera_controller.has_updates()) {
+            self.gpu_manager.update_camera_and_reset_conroller(&mut self.camera_controller, dt);
+        }
     }
 
     pub fn process_tasks(&mut self) {

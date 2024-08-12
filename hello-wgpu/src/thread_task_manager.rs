@@ -42,8 +42,8 @@ impl ThreadTaskManager {
                                         Err(_) => should_run = false
                                     }
                                 },
-                                Task::GenerateChunkMesh { chunk_position, chunk, vertex_gpu_data, queue} => {
-                                    match s_task_result.send(GenerateChunkMeshProcessor::process_task(&chunk_position, chunk, vertex_gpu_data, queue)) {
+                                Task::GenerateChunkMesh { chunk_position, chunk, vertex_gpu_data, queue, chunk_index_state} => {
+                                    match s_task_result.send(GenerateChunkMeshProcessor::process_task(&chunk_position, chunk, vertex_gpu_data, queue, chunk_index_state)) {
                                         Ok(_) => {}
                                         Err(_) => should_run = false
                                     }
@@ -66,8 +66,8 @@ impl ThreadTaskManager {
                                         Err(_) => should_run = false
                                     }
                                 }
-                                Task::GenerateChunkSideMeshes { chunk_position, chunk, vertex_gpu_data, queue, sides } => {
-                                    match s_task_result.send(GenerateChunkSideMeshesProcessor::process_task(chunk_position, chunk, vertex_gpu_data, queue, sides)) {
+                                Task::GenerateChunkSideMeshes { chunk_position, chunk, vertex_gpu_data, queue, sides, chunk_index_state } => {
+                                    match s_task_result.send(GenerateChunkSideMeshesProcessor::process_task(chunk_position, chunk, vertex_gpu_data, queue, sides, chunk_index_state)) {
                                         Ok(_) => {}
                                         Err(_) => should_run = false
                                     }

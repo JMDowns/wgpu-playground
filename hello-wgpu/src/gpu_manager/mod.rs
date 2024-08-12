@@ -8,9 +8,13 @@ mod render_state;
 mod surface_state;
 mod texture_state;
 pub mod gpu_data;
+mod subvoxels;
+pub mod chunk_index_state;
 
 use camera_state::CameraState;
+use cgmath::{Deg, Point3, Rad, SquareMatrix, Vector3};
 use compute_state::ComputeState;
+use derivables::subvoxel_vertex::generate_cube_at_center;
 use flag_state::FlagState;
 use instant::Instant;
 use render_state::RenderState;
@@ -21,7 +25,12 @@ use gpu_data::vertex_gpu_data::VertexGPUData;
 use fundamentals::{world_position::WorldPosition, enums::block_side::BlockSide, logi, consts::{self, NUMBER_OF_CHUNKS_AROUND_PLAYER}};
 use winit::window::Window;
 
-use crate::{texture, camera::CameraController, tasks::Task, voxels::chunk::Chunk};
+use crate::{camera::CameraController, tasks::Task, texture, voxels::chunk::{self, Chunk}};
+
+use self::{chunk_index_state::ChunkIndexState, subvoxels::{grid_aligned_subvoxel_object_specification::GridAlignedSubvoxelObjectSpecification, subvoxel_object_specification::SubvoxelObjectSpecification, subvoxel_state::SubvoxelState}};
+
+use crate::gpu_manager::subvoxels::model_manager::SubvoxelModel;
+use crate::gpu_manager::subvoxels::grid_aligned_subvoxel_object::ROTATION;
 
 pub struct GPUManager {
     pub device: Arc<RwLock<wgpu::Device>>,
@@ -32,7 +41,9 @@ pub struct GPUManager {
     pub texture_state: TextureState,
     pub camera_state: CameraState,
     pub flag_state: FlagState,
+    pub subvoxel_state: SubvoxelState,
     pub vertex_gpu_data: Arc<RwLock<VertexGPUData>>,
+    pub chunk_index_state: Arc<RwLock<ChunkIndexState>>
 }
 
 impl GPUManager {
@@ -71,7 +82,7 @@ impl GPUManager {
             height: size.height,
             present_mode: wgpu::PresentMode::Fifo,
         };
-
+        
         surface.configure(&device, &config);
 
         let screen_color = wgpu::Color {
@@ -85,22 +96,69 @@ impl GPUManager {
 
         let texture_state = TextureState::new(&device, &queue, &config);        
 
-        let vertex_gpu_data = Arc::new(RwLock::new(VertexGPUData::new(camera_state.camera.position, &device)));
+        let chunk_index_state = Arc::new(RwLock::new(ChunkIndexState::new(camera_state.camera.position, &device)));
+
+        let vertex_gpu_data = Arc::new(RwLock::new(VertexGPUData::new(&device, chunk_index_state.clone())));
 
         let compute_state = ComputeState::new(camera_state.camera.position, &device, &camera_state.camera_buffer, &vertex_gpu_data.read().unwrap().indirect_pool_buffers, &vertex_gpu_data.read().unwrap().visibility_buffer);
+
+        let queue_rwlock = Arc::new(RwLock::new(queue));
+
+        let mut subvoxel_state = SubvoxelState::new(&device, queue_rwlock.clone(), chunk_index_state.clone());
+
+        let model = SubvoxelModel { model_name: String::from("Not Grid"), subvoxel_size: Vector3 { x: 2, y: 2, z: 2 }, subvoxel_vec: vec![1, 0, 1, 1, 0, 1, 0, 0] };
+        subvoxel_state.register_model(model);
+
+        let grid_model = SubvoxelModel { model_name: String::from("Grid"), subvoxel_size: Vector3 { x: 2, y: 2, z: 2 }, subvoxel_vec: vec![1, 0, 1, 0, 0, 1, 0, 0] };
+        subvoxel_state.register_model(grid_model);
+
+        let mut empty_model = SubvoxelModel { model_name: String::from("Empty"), subvoxel_size: Vector3 { x: 10, y: 10, z: 10 }, subvoxel_vec: vec![0; 1000] };
+        empty_model.subvoxel_vec[0] = 1;
+        subvoxel_state.register_model(empty_model);
+
+        subvoxel_state.add_grid_aligned_subvoxel_object(GridAlignedSubvoxelObjectSpecification { 
+            size: Vector3 { x: 1, y: 1, z: 1 }, 
+            maximal_chunk: WorldPosition::new(0, 0, 0), 
+            maximal_block_in_chunk: WorldPosition::new(0,2,10), 
+            maximal_subvoxel_in_chunk: WorldPosition::new(9,3,0), 
+            rotation: ROTATION::RIGHT, 
+            model_name: String::from("Grid") 
+        });
+
+        subvoxel_state.add_grid_aligned_subvoxel_object(GridAlignedSubvoxelObjectSpecification { 
+            size: Vector3 { x: 1, y: 1, z: 1 }, 
+            maximal_chunk: WorldPosition::new(0, 0, 0), 
+            maximal_block_in_chunk: WorldPosition::new(2,4,10), 
+            maximal_subvoxel_in_chunk: WorldPosition::new(11,3,0), 
+            rotation: ROTATION::RIGHT, 
+            model_name: String::from("Empty") 
+        });
+
+        for i in 0..100 {
+            for j in 0..100 {
+                subvoxel_state.add_subvoxel_object(SubvoxelObjectSpecification {
+                    size: Vector3 { x: 2.0, y: 2.0, z: 2.0 },
+                    center: Point3 { x: i as f32 * 4., y: 0.0, z: j as f32 * 4.},
+                    initial_rotation: Vector3 {x: Deg(i as f32), y: Deg(j as f32), z: Deg(0.)},
+                    model_name: String::from("Not Grid")
+                });
+            }
+        }
 
         let render_state = RenderState::new(
             &device, 
             &config, 
             &camera_state.camera_bind_group_layout, 
             &texture_state.diffuse_bind_group_layout, 
-            &vertex_gpu_data.read().unwrap().chunk_index_bind_group_layout,
-            &vertex_gpu_data.read().unwrap().visibility_bind_group_layout
+            &chunk_index_state.read().unwrap().chunk_index_bind_group_layout,
+            &vertex_gpu_data.read().unwrap().visibility_bind_group_layout,
+            &subvoxel_state.subvoxel_bind_group_layout,
+            &subvoxel_state.sv_grid_aligned_bind_group_layout
         );
 
         GPUManager {
             device: Arc::new(RwLock::new(device)),
-            queue: Arc::new(RwLock::new(queue)),
+            queue: queue_rwlock.clone(),
             compute_state,
             texture_state,
             camera_state,
@@ -115,7 +173,9 @@ impl GPUManager {
                 should_calculate_frustum: false,
                 render_wireframe: false,
             },
+            subvoxel_state,
             vertex_gpu_data,
+            chunk_index_state
         }
     }
 
@@ -137,7 +197,7 @@ impl GPUManager {
 
     pub fn update_camera_and_reset_conroller(&mut self, controller: &mut CameraController, dt: instant::Duration) {
         self.camera_state.camera.get_controller_updates_and_reset_controller(controller, dt);
-        self.camera_state.camera_uniform.update_view_proj(&self.camera_state.camera, &self.camera_state.projection);
+        self.camera_state.camera_uniform.update_view_proj_and_pos(&self.camera_state.camera, &self.camera_state.projection);
         self.queue.read().unwrap().write_buffer(&self.camera_state.camera_buffer, 0, bytemuck::cast_slice(&[self.camera_state.camera_uniform]));
     }
 
@@ -166,6 +226,7 @@ impl GPUManager {
         }
 
         let vertex_gpu_data = self.vertex_gpu_data.read().unwrap();
+        let chunk_index_state = self.chunk_index_state.read().unwrap();
 
         if self.flag_state.should_calculate_frustum {
             let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
@@ -210,9 +271,11 @@ impl GPUManager {
                 render_pass.set_pipeline(&self.render_state.render_pipeline_regular);
             }
 
+            //Grid-Aligned Vertices
+
             render_pass.set_bind_group(0, &self.camera_state.camera_bind_group, &[]);
             render_pass.set_bind_group(1, &self.texture_state.diffuse_bind_group, &[]);
-            render_pass.set_bind_group(2, &vertex_gpu_data.chunk_index_bind_group, &[]);
+            render_pass.set_bind_group(2, &chunk_index_state.chunk_index_bind_group, &[]);
             render_pass.set_bind_group(3, &vertex_gpu_data.visibility_bind_group, &[]);
 
             for i in 0..vertex_gpu_data.vertex_pool_buffers.len() {
@@ -221,20 +284,45 @@ impl GPUManager {
                 render_pass.multi_draw_indexed_indirect(&vertex_gpu_data.indirect_pool_buffers[i], 0, vertex_gpu_data.number_of_buckets_per_buffer as u32);
             }
 
+            //Occlusion
+
             render_pass.set_pipeline(&self.render_state.occlusion_cube_render_pipeline);
 
             render_pass.set_bind_group(0, &self.camera_state.camera_bind_group, &[]);
-            render_pass.set_bind_group(1, &vertex_gpu_data.chunk_index_bind_group, &[]);
+            render_pass.set_bind_group(1, &chunk_index_state.chunk_index_bind_group, &[]);
             render_pass.set_bind_group(2, &vertex_gpu_data.visibility_bind_group, &[]);
 
             render_pass.set_vertex_buffer(0, vertex_gpu_data.occlusion_cube_vertex_buffer.slice(..));
             render_pass.set_index_buffer(vertex_gpu_data.occlusion_cube_index_buffer.slice(..), wgpu::IndexFormat::Uint32);
             render_pass.draw_indexed(0..36*consts::NUMBER_OF_CHUNKS_AROUND_PLAYER, 0, 0..1);
+
+            //Subvoxel
+
+            render_pass.set_pipeline(&self.render_state.subvoxel_render_pipeline);
+
+            render_pass.set_bind_group(0, &self.camera_state.camera_bind_group, &[]);
+            render_pass.set_bind_group(1, &self.subvoxel_state.subvoxel_bind_group, &[]);
+
+            render_pass.set_vertex_buffer(0, self.subvoxel_state.sv_vertex_buffer.slice(..));
+            render_pass.set_index_buffer(self.subvoxel_state.sv_index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+            render_pass.draw_indexed(0..derivables::subvoxel_vertex::INDICES_CUBE_LEN*self.subvoxel_state.subvoxel_objects.len() as u32, 0, 0..1);
+
+            //Grid-Aligned Subvoxel
+            render_pass.set_pipeline(&self.render_state.grid_aligned_subvoxel_render_pipeline);
+
+            render_pass.set_bind_group(0, &self.camera_state.camera_bind_group, &[]);
+            render_pass.set_bind_group(1, &self.subvoxel_state.sv_grid_aligned_bind_group, &[]);
+            render_pass.set_bind_group(2, &chunk_index_state.chunk_index_bind_group, &[]);
+
+            render_pass.set_vertex_buffer(0, self.subvoxel_state.sv_grid_aligned_vertex_buffer.slice(..));
+            render_pass.set_index_buffer(self.subvoxel_state.sv_grid_aligned_index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+            render_pass.draw_indexed(0..derivables::grid_aligned_subvoxel_vertex::INDICES_CUBE_LEN * self.subvoxel_state.grid_aligned_subvoxel_objects.len() as u32, 0, 0..1);
+
         }
 
         let current_chunk = self.camera_state.camera.get_chunk_coordinates();
 
-        match vertex_gpu_data.pos_to_gpu_index.get(&current_chunk) {
+        match chunk_index_state.pos_to_gpu_index.get(&current_chunk) {
             Some(index) => {
                 queue.write_buffer(&vertex_gpu_data.visibility_buffer, ((*index) as u64) * std::mem::size_of::<i32>() as u64, bytemuck::cast_slice(&[1]));
             }
@@ -254,7 +342,8 @@ impl GPUManager {
             chunk_position, 
             chunk, 
             vertex_gpu_data: self.vertex_gpu_data.clone(),
-            queue: self.queue.clone()
+            queue: self.queue.clone(),
+            chunk_index_state: self.chunk_index_state.clone()
         }
     }
 
@@ -264,7 +353,8 @@ impl GPUManager {
             chunk, 
             vertex_gpu_data: self.vertex_gpu_data.clone(),
             queue: self.queue.clone(),
-            sides: vec![side]
+            sides: vec![side],
+            chunk_index_state: self.chunk_index_state.clone()
         }
     }
 
@@ -283,6 +373,11 @@ impl GPUManager {
 
     pub fn allocate_new_buffer(&mut self) { 
         self.vertex_gpu_data.write().unwrap().allocate_new_buffer(self.device.clone());
+    }
+
+    pub fn rotate_subvoxel_object(&mut self, id: usize) {
+        self.subvoxel_state.rotate(id, Vector3{ x: Deg(1.0), y: Deg(0.0), z: Deg(0.0) });
+        self.subvoxel_state.rotate(id+1, Vector3{ x: Deg(-1.0), y: Deg(0.0), z: Deg(0.0) });
     }
 }
 

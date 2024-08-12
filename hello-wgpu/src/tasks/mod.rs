@@ -1,6 +1,7 @@
 use std::sync::{Arc, RwLock};
 use std::hash::{Hash, Hasher};
 
+use crate::gpu_manager::chunk_index_state::ChunkIndexState;
 use crate::gpu_manager::gpu_data::vertex_gpu_data::{VertexGPUData, MemoryInfo};
 use crate::voxels::chunk::Chunk;
 use crate::voxels::world::World;
@@ -13,12 +14,12 @@ pub mod tasks_processors;
 
 pub enum Task {
     StopThread,
-    GenerateChunkMesh { chunk_position: WorldPosition, chunk: Arc<RwLock<Chunk>>, vertex_gpu_data: Arc<RwLock<VertexGPUData>>, queue: Arc<RwLock<Queue>> },
+    GenerateChunkMesh { chunk_position: WorldPosition, chunk: Arc<RwLock<Chunk>>, vertex_gpu_data: Arc<RwLock<VertexGPUData>>, queue: Arc<RwLock<Queue>>, chunk_index_state: Arc<RwLock<ChunkIndexState>> },
     GenerateChunk { chunk_position: WorldPosition, world: Arc<RwLock<World>>},
     UpdateYAxisChunkPadding { chunk_below: Arc<RwLock<Chunk>>, chunk_above: Arc<RwLock<Chunk>>, additional_data_to_identify_and_hash: ChunkUpdateTaskIdentifyingInfo},
     UpdateXAxisChunkPadding { chunk_front: Arc<RwLock<Chunk>>, chunk_back: Arc<RwLock<Chunk>>, additional_data_to_identify_and_hash: ChunkUpdateTaskIdentifyingInfo},
     UpdateZAxisChunkPadding { chunk_left: Arc<RwLock<Chunk>>, chunk_right: Arc<RwLock<Chunk>>, additional_data_to_identify_and_hash: ChunkUpdateTaskIdentifyingInfo},
-    GenerateChunkSideMeshes { chunk_position: WorldPosition, chunk: Arc<RwLock<Chunk>>, vertex_gpu_data: Arc<RwLock<VertexGPUData>>, queue: Arc<RwLock<Queue>>, sides: Vec<BlockSide> }
+    GenerateChunkSideMeshes { chunk_position: WorldPosition, chunk: Arc<RwLock<Chunk>>, vertex_gpu_data: Arc<RwLock<VertexGPUData>>, queue: Arc<RwLock<Queue>>, sides: Vec<BlockSide>, chunk_index_state: Arc<RwLock<ChunkIndexState>> }
 }
 
 pub struct ChunkUpdateTaskIdentifyingInfo {
