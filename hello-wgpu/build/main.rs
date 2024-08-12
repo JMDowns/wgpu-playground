@@ -26,35 +26,6 @@ use shaders::new_parser::{self, Command, FunctionImportRequirements, InlineModel
 use shaders::translate_artifact;
 use translate_artifact::translate_template_filepath_to_artifact_filepath;
 
-fn read_file_to_string(file_path: &str) -> io::Result<String> {
-    // Open the file
-    let mut file = File::open(file_path)?;
-
-    // Create a String buffer to hold the file contents
-    let mut contents = String::new();
-
-    // Read the file contents into the String buffer
-    file.read_to_string(&mut contents)?;
-
-    // Return the contents
-    Ok(contents)
-}
-
-fn write_file_with_content(file_name: &str, content: &str) -> io::Result<()> {
-    // Check if the file exists
-    let path = Path::new(file_name);
-    if path.exists() {
-        // Delete the file if it exists
-        fs::remove_file(path)?;
-    }
-
-    // Create and write to the file
-    let mut file = File::create(path)?;
-    file.write_all(content.as_bytes())?;
-
-    Ok(())
-}
-
 #[derive(Debug)]
 enum DataValue {
     u32(u32),

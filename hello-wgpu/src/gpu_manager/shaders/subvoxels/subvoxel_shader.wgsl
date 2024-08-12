@@ -1,10 +1,12 @@
+let MAX_SUBVOXEL_OBJECTS : i32 = 10000;
+let MAX_SUBVOXEL_U32S : i32 = 160000;
+let MAX_COLORS : i32 = 32;
+let MAX_AMBIENT_OCCLUSION_U32S : i32 = 400000;
 struct CameraUniform {
     view_proj: mat4x4<f32>,
     view_proj_inverse: mat4x4<f32>,
     position: vec4<f32>,
 };
-@group(0) @binding(0)
-var<uniform> camera: CameraUniform;
 
 struct VertexOutput {
     @builtin(position) clip_position:vec4<f32>,
@@ -19,18 +21,6 @@ struct VertexInput {
     @location(2) sv_id: u32,
 };
 
-@vertex
-fn vs_main(
-    model: VertexInput,
-) -> VertexOutput {
-    var out: VertexOutput;
-    out.clip_position = camera.view_proj * vec4<f32>(model.position.x, model.position.y, model.position.z, 1.0);
-    out.world_position = model.position;
-    out.side = model.side;
-    out.sv_id = model.sv_id;
-    return out;
-}
-
 struct SubvoxelObject {
     rx1: f32, rx2: f32, rx3: f32,
     ry1: f32, ry2: f32, ry3: f32,
@@ -44,25 +34,17 @@ struct SubvoxelObject {
     model_offset: u32
 }
 
-let MAX_SUBVOXEL_OBJECTS = 32;
-let MAX_SUBVOXEL_U32S = 1024;
-let MAX_COLORS = 32;
-let MAX_AMBIENT_OCCLUSION_U32S = 640;
-let BITS_PER_SUBVOXEL = 8u;
-
+@group(0) @binding(0)
+var<uniform> camera: CameraUniform;
 @group(1) @binding(0)
-var<storage> sv_objects: array<SubvoxelObject, MAX_SUBVOXEL_OBJECTS>;
+var<storage> SV_OBJECTS: array<SubvoxelObject, MAX_SUBVOXEL_OBJECTS>;
 @group(1) @binding(1)
-var<storage> sv_voxels: array<u32, MAX_SUBVOXEL_U32S>;
+var<storage> SV_VOXELS: array<u32, MAX_SUBVOXEL_U32S>;
 @group(1) @binding(2)
-var<storage> sv_palette: array<vec4<f32>, MAX_COLORS>;
+var<storage> SV_PALETTE: array<vec4<f32>, MAX_COLORS>;
 @group(1) @binding(3)
-var<storage> ambient_occlusion_array: array<u32, MAX_AMBIENT_OCCLUSION_U32S>;
-
-fn get_subvoxel_block_index(dimension: vec3<u32>, grid_coordinates: vec3<u32>) -> u32 {
-    return grid_coordinates.x + grid_coordinates.y * dimension.x + grid_coordinates.z * dimension.x * dimension.y;
-}
-
+var<storage> AMBIENT_OCCLUSION_ARRAY: array<u32, MAX_AMBIENT_OCCLUSION_U32S>;
+let BITS_PER_SUBVOXEL_PALETTE : u32 = 8u;
 let FRONT = 0;
 let BACK = 1;
 let LEFT = 2;
@@ -77,11 +59,11 @@ fn ao_calc(subvoxel_step: vec3<f32>, current_position_fract: vec3<f32>, block_in
     let ambient_occlusion_voxel_end_bits_index = block_index_bits_end / 32u;
     var ao_bits = 0u;
     if (ambient_occlusion_voxel_start_bits_index != ambient_occlusion_voxel_end_bits_index) {
-        let start_bits = ambient_occlusion_array[ambient_occlusion_voxel_start_bits_index + ao_offset] << (block_index_bits_start % 32u);
-        let end_bits = ambient_occlusion_array[ambient_occlusion_voxel_end_bits_index + ao_offset] >> (32u - (block_index_bits_start % 32u));
+        let start_bits = AMBIENT_OCCLUSION_ARRAY[ambient_occlusion_voxel_start_bits_index + ao_offset] << (block_index_bits_start % 32u);
+        let end_bits = AMBIENT_OCCLUSION_ARRAY[ambient_occlusion_voxel_end_bits_index + ao_offset] >> (32u - (block_index_bits_start % 32u));
         ao_bits = (start_bits | end_bits) >> 12u;
     } else {
-        ao_bits = ambient_occlusion_array[ambient_occlusion_voxel_start_bits_index + ao_offset] >> (32u - (block_index_bits_end % 32u));
+        ao_bits = AMBIENT_OCCLUSION_ARRAY[ambient_occlusion_voxel_start_bits_index + ao_offset] >> (32u - (block_index_bits_end % 32u));
     }
 
     var FRONT_TOP_LEFT = f32((ao_bits & 524288u) >> 19u);
@@ -216,33 +198,18 @@ fn ao_calc(subvoxel_step: vec3<f32>, current_position_fract: vec3<f32>, block_in
 
     return new_color;
 }
-
+fn get_subvoxel_block_index(dimension: vec3<u32>, grid_coordinates: vec3<u32>) -> u32 {
+    return grid_coordinates.x + grid_coordinates.y * dimension.x + grid_coordinates.z * dimension.x * dimension.y;
+}
 fn get_subvoxel_at_index(sv_offset_in_u32s: u32, block_index: u32) -> u32 {
-    let u32_offset = sv_offset_in_u32s + (block_index * BITS_PER_SUBVOXEL) / 32u;
-    let bit_offset = (block_index * BITS_PER_SUBVOXEL) % 32u;
-    let subvoxel_palette_value = (sv_voxels[u32_offset] >> bit_offset) & 255u;
+    let u32_offset = sv_offset_in_u32s + (block_index * BITS_PER_SUBVOXEL_PALETTE) / 32u;
+    let bit_offset = (block_index * BITS_PER_SUBVOXEL_PALETTE) % 32u;
+    let subvoxel_palette_value = (SV_VOXELS[u32_offset] >> bit_offset) & 255u;
     return subvoxel_palette_value;
 }
-
-@fragment
-fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    var sv_object = sv_objects[in.sv_id];
-    var model_offset = sv_object.model_offset;
-
-    var size = vec3<f32>(sv_object.size_x, sv_object.size_y, sv_object.size_z);
-    var center = vec3<f32>(sv_object.center_x, sv_object.center_y, sv_object.center_z);
-    var dimension = vec3<u32>(sv_voxels[model_offset], sv_voxels[model_offset+1u], sv_voxels[model_offset+2u]);
+fn raycast(world_position: vec3<f32>, model_offset: u32, rotation_matrix: mat3x3<f32>, center: vec3<f32>, size: vec3<f32>, dimension: vec3<u32>) -> vec4<f32> {
     var subvoxel_step = size / vec3<f32>(dimension);
-
-    let ao_offset = sv_voxels[model_offset+3u];
-
-    var rotation_matrix = mat3x3<f32>(
-        vec3<f32>(sv_object.rx1, sv_object.rx2, sv_object.rx3),
-        vec3<f32>(sv_object.ry1, sv_object.ry2, sv_object.ry3),
-        vec3<f32>(sv_object.rz1, sv_object.rz2, sv_object.rz3)
-    );
-
-    var relative_position = (transpose(rotation_matrix)*(in.world_position - center));
+    var relative_position = (transpose(rotation_matrix)*(world_position - center));
 
     var camera_position_model = (transpose(rotation_matrix)*(camera.position.xyz - center));
     var direction_vector = normalize(relative_position - camera_position_model);
@@ -285,15 +252,15 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let subvoxel_palette = get_subvoxel_at_index(model_offset+4u, block_index);
 
     if (subvoxel_palette != 0u) {
-        return sv_palette[subvoxel_palette];
+        return SV_PALETTE[subvoxel_palette];
     }
 
-    let MAX_STEP_SIZE = i32(dimension.x << 1u) + i32(dimension.y << 1u) + i32(dimension.z << 1u);
-    
+    let max_step_size = i32(dimension.x << 1u) + i32(dimension.y << 1u) + i32(dimension.z << 1u);
+
     var step_sizes = subvoxel_step / abs(direction_vector);
     var next_distance = (step_directions * 0.5 + 0.5 - (model_position_subvoxel_f32-vec3<f32>(model_grid_coordinates))) / direction_vector * subvoxel_step;
 
-    for(var i: i32 = 1; i <= MAX_STEP_SIZE; i++) {
+    for(var i: i32 = 1; i <= max_step_size; i++) {
         var closest_distance = min(min(next_distance.x, next_distance.y), next_distance.z);
         current_position = current_position + direction_vector * closest_distance;
         step_axis = vec3<i32>(next_distance <= vec3<f32>(closest_distance));
@@ -312,10 +279,49 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         let block_index = get_subvoxel_block_index(dimension, vec3<u32>(model_grid_coordinates));
         let subvoxel_palette = get_subvoxel_at_index(model_offset+4u, block_index);
         if (subvoxel_palette != 0u) {
-            return ao_calc(subvoxel_step, fract(current_position / subvoxel_step), block_index, dot(step_axis, step_faces), sv_palette[subvoxel_palette], ao_offset);
+            let ao_offset = SV_VOXELS[model_offset+3u];
+            return ao_calc(subvoxel_step, fract(current_position / subvoxel_step), block_index, dot(step_axis, step_faces), SV_PALETTE[subvoxel_palette], ao_offset);
         }
     }
 
-    // discard;
-    return vec4<f32>(0.0, 0., 0., 0.);
+    discard;
+    //return vec4<f32>(0.0, 0., 0., 0.);
 }
+
+
+
+
+
+@vertex
+fn vs_main(model: VertexInput) -> VertexOutput {
+    var out: VertexOutput;
+    out.clip_position = camera.view_proj * vec4<f32>(model.position.x, model.position.y, model.position.z, 1.0);
+    out.world_position = model.position;
+    out.side = model.side;
+    out.sv_id = model.sv_id;
+    return out;
+}
+
+
+
+
+
+
+
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+    var sv_object = SV_OBJECTS[in.sv_id];
+    var model_offset = sv_object.model_offset;
+
+    var size = vec3<f32>(sv_object.size_x, sv_object.size_y, sv_object.size_z);
+    var center = vec3<f32>(sv_object.center_x, sv_object.center_y, sv_object.center_z);
+    var dimension = vec3<u32>(SV_VOXELS[model_offset], SV_VOXELS[model_offset+1u], SV_VOXELS[model_offset+2u]);
+    var rotation_matrix = mat3x3<f32>(
+        vec3<f32>(sv_object.rx1, sv_object.rx2, sv_object.rx3),
+        vec3<f32>(sv_object.ry1, sv_object.ry2, sv_object.ry3),
+        vec3<f32>(sv_object.rz1, sv_object.rz2, sv_object.rz3)
+    );
+
+    return raycast(in.world_position, model_offset, rotation_matrix, center, size, dimension);
+}
+
