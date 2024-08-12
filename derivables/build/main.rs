@@ -12,6 +12,7 @@ mod frustum_compute_builder;
 mod block_builder;
 mod compute_state_helper_builder;
 mod occlusion_shader_builder;
+mod subvoxel_vertex_builder;
 
 fn main() {
     let block_type_to_texture_coordinates_path = Path::new("src/dictionaries/").join("block_type_to_texture_coordinates.rs");
@@ -34,6 +35,7 @@ fn main() {
     occlusion_shader_builder::build_occlusion_shader_file();
 
     block_builder::build_block_file();
+    subvoxel_vertex_builder::write_specs();
 }
 
 fn get_imports() -> String {

@@ -1,7 +1,7 @@
 {
     "num_additional_threads_specified": 1,
     "use_all_system_threads": true,
-    "render_radius": 1,
+    "render_radius": 5,
     "max_amount_of_blocktypes": 65536,
     "texture_dimension": 16,
     "chunk_dimension": 32,
@@ -23,5 +23,10 @@
         "perlin_scale_factor": 0.02
     },
     "min_memory_mb": 512,
-    "max_memory_mb": 10240
+    "max_memory_mb": 10240,
+    "max_subvoxel_objects": 10000,
+    "max_subvoxels_in_models": 640000,
+    "max_subvoxel_colors": 32,
+    "max_grid_aligned_subvoxel_objects": 1024,
+    "grid_aligned_subvoxel_placement_dimension": 16
 }
