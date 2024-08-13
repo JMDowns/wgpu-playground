@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::Path;
-use formats::formats::config_format::ConfigFormat;
+use formats::formats::config_format::{self, ConfigFormat};
 use formats::formats::controls_format::ControlsFormat;
 
 pub fn generate_consts(config_format: &ConfigFormat, consts_model: &ConstsModel, controls_format: &ControlsFormat) {
@@ -20,6 +20,8 @@ pub fn generate_consts(config_format: &ConfigFormat, consts_model: &ConstsModel,
     if config_format.chunk_dimension % 2 != 0 {
         panic!("Chunk dimension must be a multiple of 2, as index buffer writes must be a multiple of 4.")
     }
+
+    let bits_per_subvoxel_palette = get_palette_type_size(config_format.max_subvoxel_colors);
     writeln!(
         &mut consts_file,
         "{}",
@@ -81,9 +83,31 @@ pub fn generate_consts(config_format: &ConfigFormat, consts_model: &ConstsModel,
             format!("pub const MOVEMENT_SPEED: f32 = {:.1};", config_format.movement_speed),
             format!("pub const MIN_MEMORY_USAGE_MB: u32 = {};", config_format.min_memory_mb),
             format!("pub const MAX_MEMORY_USAGE_MB: u32 = {};", config_format.max_memory_mb),
+            format!("pub const MAX_SUBVOXEL_OBJECTS: u64 = {};", config_format.max_subvoxel_objects),
+            format!("pub const MAX_SUBVOXELS_IN_MODELS: u64 = {};", config_format.max_subvoxels_in_models),
+            format!("pub const MAX_SUBVOXEL_COLORS: u64 = {};", config_format.max_subvoxel_colors),
+            format!("pub const MAX_GRID_ALIGNED_SUBVOXEL_OBJECTS: u64 = {};", config_format.max_grid_aligned_subvoxel_objects),
+            format!("pub type SUBVOXEL_PALETTE = u{};", bits_per_subvoxel_palette),
+            format!("pub const BITS_PER_SUBVOXEL_PALETTE: u64 = {};", bits_per_subvoxel_palette),
+            format!("pub const NUM_SUBVOXEL_U32s: u64 = {};", (bits_per_subvoxel_palette as u32 * config_format.max_subvoxels_in_models).div_ceil(32)),
+            format!("pub const MAX_AMBIENT_OCCLUSION_U32S: u64 = {};", (20 * config_format.max_subvoxels_in_models).div_ceil(32)),
+            format!("pub const GRID_ALIGNED_SUBVOXEL_PLACEMENT_DIMENSION: u32 = {};", config_format.grid_aligned_subvoxel_placement_dimension),
             generate_string_from_position_offsets(position_offset_vec),
         ].join("\n")
     ).unwrap();
+}
+
+fn get_palette_type_size(num_colors: usize) -> u8 {
+    if num_colors < 256 {
+        return 8;
+    } else if (num_colors as u32) < 65536 {
+        return 16;
+    } else if (num_colors as u64) < 4294967296 {
+        return 32;
+    } else if (num_colors as u128) < 18446744073709551616 {
+        return 64;
+    }
+    return 128;
 }
 
 fn generate_texture_length_with_mipmap_level(mip_level: u32, texture_dimension: u32) -> usize {

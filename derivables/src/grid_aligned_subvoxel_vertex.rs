@@ -5,8 +5,7 @@ pub struct GridAlignedSubvoxelVertex {
 data0: u32,
 }
 
-const NUM_UNIQUE_GRID_ALIGNED_SUBVOXELS: u32 = 1024;
-const BITS_FOR_SUBVOXEL_ID: u32 = 10;
+const BITS_FOR_SUBVOXEL_ID: u32 = (MAX_GRID_ALIGNED_SUBVOXEL_OBJECTS).ilog2();
 
 impl GridAlignedSubvoxelVertex {
         pub fn new(gas_id: u32, vertex_orientation: u32) -> Self {

@@ -258,7 +258,7 @@ impl RenderState {
 
         let subvoxel_render_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Subvoxel Render Shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("../gpu_manager/shaders/subvoxel_shader.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(include_str!("../gpu_manager/shaders/subvoxels/subvoxel_shader.wgsl").into()),
         });
 
         let subvoxel_render_pipeline_layout =

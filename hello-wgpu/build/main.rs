@@ -71,13 +71,15 @@ fn main() {
     value_provider.insert("NUM_CHUNK_I32S".to_string(), DataValue::i32(consts::NUMBER_OF_CHUNKS_AROUND_PLAYER as i32 * 3));
     value_provider.insert("CHUNK_DIMENSION".to_string(), DataValue::u32(consts::CHUNK_DIMENSION as u32));
     value_provider.insert("SUBVOXEL_DIMENSION".to_string(), DataValue::u32(consts::GRID_ALIGNED_SUBVOXEL_PLACEMENT_DIMENSION as u32));
+    value_provider.insert("MAX_SUBVOXEL_OBJECTS".to_string(), DataValue::i32(consts::MAX_SUBVOXEL_OBJECTS as i32));
 
 
     let template_filepaths = vec![
         "build/shaders/subvoxels/raycast.template.wgsl",
         "build/shaders/subvoxels/ao_calc.template.wgsl",
         "build/shaders/subvoxels/sides.template.wgsl",
-        "build/shaders/subvoxels/grid_aligned_subvoxel_shader.template.wgsl"
+        "build/shaders/subvoxels/grid_aligned_subvoxel_shader.template.wgsl",
+        "build/shaders/subvoxels/subvoxel_shader.template.wgsl",
         ];
 
     for filepath in template_filepaths.iter() {
@@ -207,7 +209,8 @@ fn main() {
 
     let publish_dir = "src/gpu_manager/shaders";
     let files_to_publish = vec![
-        "subvoxels/grid_aligned_subvoxel_shader.wgsl"
+        "subvoxels/grid_aligned_subvoxel_shader.wgsl",
+        "subvoxels/subvoxel_shader.wgsl",
     ];
 
     for file in files_to_publish {

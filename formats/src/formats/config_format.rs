@@ -15,7 +15,12 @@ pub struct ConfigFormat {
     pub chunk_generation_method: String,
     pub chunk_generation_options: ChunkGenerationOptions,
     pub min_memory_mb: u32,
-    pub max_memory_mb: u32
+    pub max_memory_mb: u32,
+    pub max_subvoxel_objects: u32,
+    pub max_subvoxels_in_models: u32,
+    pub max_subvoxel_colors: usize,
+    pub max_grid_aligned_subvoxel_objects: u32,
+    pub grid_aligned_subvoxel_placement_dimension: u32
 }
 
 #[derive(Serialize, Deserialize)]
