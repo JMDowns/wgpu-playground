@@ -283,9 +283,8 @@ fn raycast(world_position: vec3<f32>, model_offset: u32, rotation_matrix: mat3x3
             return ao_calc(subvoxel_step, fract(current_position / subvoxel_step), block_index, dot(step_axis, step_faces), SV_PALETTE[subvoxel_palette], ao_offset);
         }
     }
-
-    //discard;
-    return vec4<f32>(0.0, 0., 0., 0.);
+    
+    discard;
 }
 
 
