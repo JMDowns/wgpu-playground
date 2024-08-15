@@ -4,6 +4,12 @@ mod task_manager;
 
 use fundamentals::consts::MOUSE_SENSITIVITY;
 use flag_state::FlagState;
+use fundamentals::loge;
+use winit::application::ApplicationHandler;
+use winit::event_loop::ActiveEventLoop;
+use winit::keyboard::KeyCode;
+use winit::keyboard::PhysicalKey;
+use winit::window::WindowId;
 use crate::gpu_manager::GPUManager;
 
 use crate::camera;
@@ -30,6 +36,7 @@ pub struct State<'a> {
     camera_controller: camera::CameraController,
     pub world: Arc<RwLock<World>>,
     pub window: &'a Window,
+    pub last_render_time: instant::Instant
 }
 
 impl<'a> State<'a> {
@@ -55,7 +62,8 @@ impl<'a> State<'a> {
             task_manager,
             world, 
             camera_controller,
-            window
+            window,
+            last_render_time: instant::Instant::now()
         }
     }
 
@@ -96,6 +104,64 @@ impl<'a> State<'a> {
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
         self.gpu_manager.render()
+    }
+}
+
+impl<'a> ApplicationHandler for State<'a> {
+    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        // Your application got resumed.
+    }
+
+    fn window_event(&mut self, event_loop: &ActiveEventLoop, window_id: WindowId, event: WindowEvent) {
+        if window_id == self.window.id() && !self.input(&event) {
+            match event {
+                WindowEvent::CloseRequested
+                | WindowEvent::KeyboardInput {
+                    event:
+                        KeyEvent {
+                            state: ElementState::Pressed,
+                            physical_key: PhysicalKey::Code(KeyCode::Escape),
+                            ..
+                        },
+                    ..
+                } => event_loop.exit(),
+                WindowEvent::Resized(physical_size) => {
+                    self.resize(physical_size);
+                }
+                WindowEvent::RedrawRequested => {
+                    let now = instant::Instant::now();
+                    let dt = now - self.last_render_time;
+                    if dt.as_millis() > 0 {
+                        self.last_render_time = now;
+                        self.process_input();
+                        self.update(dt);
+                        match self.render() {
+                            Ok(_) => {}
+                            //Reconfigure if surface is lost
+                            Err(wgpu::SurfaceError::Lost) => self.resize(self.gpu_manager.surface_state.size),
+                            //System is out of memory, so we should probably quit
+                            Err(wgpu::SurfaceError::OutOfMemory) => event_loop.exit(),
+                            Err(_e) => {
+                                loge!("{:?}", _e)
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn device_event(&mut self, event_loop: &ActiveEventLoop, device_id: DeviceId, event: DeviceEvent) {
+        match event {
+            DeviceEvent::MouseMotion{ delta, } => self.handle_mouse_motion(delta),
+            _ => {}
+        }
+    }
+
+    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        self.process_tasks();
+        self.window.request_redraw();
     }
 }
 

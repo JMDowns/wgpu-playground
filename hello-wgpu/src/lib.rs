@@ -8,12 +8,16 @@ mod gpu_manager;
 
 use fundamentals::loge;
 use winit::{
-    event::*, event_loop::{ControlFlow, EventLoop}, keyboard::{KeyCode, PhysicalKey}, window::Window
+    event::*, event_loop::{ControlFlow, EventLoop, EventLoopBuilder}, 
+    keyboard::{KeyCode, PhysicalKey}, 
+    window::Window
 };
 use state::State;
 
 #[cfg(target_arch="wasm32")]
 use wasm_bindgen::prelude::*;
+
+
 
 #[cfg_attr(target_arch="wasm32", wasm_bindgen(start))]
 pub async fn run() {
@@ -32,7 +36,7 @@ pub async fn run() {
     }    
     
 
-    let event_loop = EventLoop::new().unwrap();
+    let event_loop = EventLoopBuilder::new().build().unwrap();
     let window = event_loop.create_window(Window::default_attributes()).unwrap();
 
     #[cfg(target_arch = "wasm32")]
@@ -56,62 +60,6 @@ pub async fn run() {
 
 
     let mut state = State::new(&window).await;
-    let mut last_render_time = instant::Instant::now();
 
-    event_loop.run(move |event, control_flow| match event {
-        Event::DeviceEvent {
-            event: DeviceEvent::MouseMotion{ delta, },
-            .. // We're not using device_id currently
-        } => state.handle_mouse_motion(delta),
-
-        Event::WindowEvent {
-            ref event,
-            window_id,
-        } if window_id == state.window.id() => {
-            if !state.input(event) {
-                match event {
-                    WindowEvent::CloseRequested
-                    | WindowEvent::KeyboardInput {
-                        event:
-                            KeyEvent {
-                                state: ElementState::Pressed,
-                                physical_key: PhysicalKey::Code(KeyCode::Escape),
-                                ..
-                            },
-                        ..
-                    } => control_flow.exit(),
-                    WindowEvent::Resized(physical_size) => {
-                        state.resize(*physical_size);
-                    }
-                    WindowEvent::RedrawRequested => {
-                        let now = instant::Instant::now();
-                        let dt = now - last_render_time;
-                        if dt.as_millis() > 0 {
-                            last_render_time = now;
-                            state.process_input();
-                            state.update(dt);
-                            match state.render() {
-                                Ok(_) => {}
-                                //Reconfigure if surface is lost
-                                Err(wgpu::SurfaceError::Lost) => state.resize(state.gpu_manager.surface_state.size),
-                                //System is out of memory, so we should probably quit
-                                Err(wgpu::SurfaceError::OutOfMemory) => control_flow.exit(),
-                                Err(_e) => {
-                                    loge!("{:?}", _e)
-                                }
-                            }
-                        }
-                    }
-                    _ => {}
-                }
-            }
-        }
-
-        Event::AboutToWait => {
-            // RedrawRequested will only trigger once, unless we manually request it.
-            state.process_tasks();
-            state.window.request_redraw();
-        }
-        _ => {}
-    });
+    let _ = event_loop.run_app(&mut state);
 }
