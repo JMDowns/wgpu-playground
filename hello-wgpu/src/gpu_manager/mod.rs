@@ -32,12 +32,12 @@ use self::{chunk_index_state::ChunkIndexState, subvoxels::{grid_aligned_subvoxel
 use crate::gpu_manager::subvoxels::model_manager::SubvoxelModel;
 use crate::gpu_manager::subvoxels::grid_aligned_subvoxel_object::ROTATION;
 
-pub struct GPUManager {
+pub struct GPUManager<'a> {
     pub device: Arc<RwLock<wgpu::Device>>,
     pub queue: Arc<RwLock<wgpu::Queue>>,
     pub compute_state: ComputeState,
     pub render_state: RenderState,
-    pub surface_state: SurfaceState,
+    pub surface_state: SurfaceState<'a>,
     pub texture_state: TextureState,
     pub camera_state: CameraState,
     pub flag_state: FlagState,
@@ -46,14 +46,21 @@ pub struct GPUManager {
     pub chunk_index_state: Arc<RwLock<ChunkIndexState>>
 }
 
-impl GPUManager {
-    pub async fn new(window: &Window) -> Self {
+impl<'a> GPUManager<'a> {
+    pub async fn new(window: &'a Window) -> Self {
         let size = window.inner_size();
 
         // The instance is a handle to our GPU
         // Backends::all => Vulkan + Metal + DX12 + Browser WebGPU
-        let instance = wgpu::Instance::new(wgpu::Backends::all());
-        let surface = unsafe { instance.create_surface(window) };
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+            #[cfg(not(target_arch="wasm32"))]
+            backends: wgpu::Backends::PRIMARY,
+            #[cfg(target_arch="wasm32")]
+            backends: wgpu::Backends::GL,
+            ..Default::default()
+        });
+        let surface = instance.create_surface(window).unwrap();
+
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::default(),
@@ -66,21 +73,45 @@ impl GPUManager {
         let (device, queue) = adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
-                    features: wgpu::Features::POLYGON_MODE_LINE | wgpu::Features::MULTI_DRAW_INDIRECT | wgpu::Features::SAMPLED_TEXTURE_AND_STORAGE_BUFFER_ARRAY_NON_UNIFORM_INDEXING | wgpu::Features::TEXTURE_BINDING_ARRAY | wgpu::Features::VERTEX_WRITABLE_STORAGE,
-                    limits: wgpu::Limits::default(),
+                    required_features: if cfg!(target_arch = "wasm32") {
+                        wgpu::Features::empty()
+                    } else {
+                        wgpu::Features::POLYGON_MODE_LINE 
+                        | wgpu::Features::MULTI_DRAW_INDIRECT 
+                        | wgpu::Features::SAMPLED_TEXTURE_AND_STORAGE_BUFFER_ARRAY_NON_UNIFORM_INDEXING 
+                        | wgpu::Features::TEXTURE_BINDING_ARRAY 
+                        | wgpu::Features::VERTEX_WRITABLE_STORAGE
+                    },
+                    required_limits: if cfg!(target_arch = "wasm32") {
+                        wgpu::Limits::downlevel_webgl2_defaults()
+                    } else {
+                        wgpu::Limits::default()
+                    },
                     label: None,
+                    memory_hints: wgpu::MemoryHints::Performance,
                 },
                 None,
             )
             .await
             .unwrap();
 
+        let surface_caps = surface.get_capabilities(&adapter);
+            // Shader code in this tutorial assumes an sRGB surface texture. Using a different
+            // one will result in all the colors coming out darker. If you want to support non
+            // sRGB surfaces, you'll need to account for that when drawing to the frame.
+        let surface_format = surface_caps.formats.iter()
+            .find(|f| f.is_srgb())
+            .copied()
+            .unwrap_or(surface_caps.formats[0]);
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: *surface.get_supported_formats(&adapter).first().unwrap(),
+            format: surface_format,
             width: size.width,
             height: size.height,
-            present_mode: wgpu::PresentMode::Fifo,
+            present_mode: surface_caps.present_modes[0],
+            alpha_mode: surface_caps.alpha_modes[0],
+            view_formats: vec![],
+            desired_maximum_frame_latency: 2,
         };
         
         surface.configure(&device, &config);
@@ -231,6 +262,7 @@ impl GPUManager {
         if self.flag_state.should_calculate_frustum {
             let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
                 label: Some("Compute Pass"),
+                timestamp_writes: None,
             });
 
             compute_pass.set_pipeline(&self.compute_state.compute_pipeline);
@@ -252,17 +284,19 @@ impl GPUManager {
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(self.surface_state.screen_color),
-                        store: true,
+                        store: wgpu::StoreOp::Store,
                     },
                 })],
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                     view: &self.texture_state.depth_texture.view,
                     depth_ops: Some(wgpu::Operations {
                         load: wgpu::LoadOp::Clear(1.0),
-                        store: true,
+                        store: wgpu::StoreOp::Store,
                     }),
                     stencil_ops: None,
                 }),
+                timestamp_writes: None,
+                occlusion_query_set: None
             });
 
             if self.flag_state.render_wireframe {

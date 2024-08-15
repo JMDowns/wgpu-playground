@@ -22,18 +22,19 @@ use winit::{
 use self::input_manager::InputManager;
 use self::task_manager::TaskManager;
 
-pub struct State {
-    pub gpu_manager: GPUManager,
+pub struct State<'a> {
+    pub gpu_manager: GPUManager<'a>,
     flag_state: FlagState,
     input_manager: InputManager,
     task_manager: TaskManager,
     camera_controller: camera::CameraController,
     pub world: Arc<RwLock<World>>,
+    pub window: &'a Window,
 }
 
-impl State {
+impl<'a> State<'a> {
     // Creating some of the wgpu types requires async code
-    pub async fn new(window: &Window) -> Self {
+    pub async fn new(window: &'a Window) -> Self {
         let gpu_manager = pollster::block_on(GPUManager::new(window));
 
         let camera_controller = camera::CameraController::new(MOVEMENT_SPEED, MOUSE_SENSITIVITY);
@@ -54,6 +55,7 @@ impl State {
             task_manager,
             world, 
             camera_controller,
+            window
         }
     }
 

@@ -1,10 +1,7 @@
-let CONST_TEST = 1u;
-let BITS_PER_SUBVOXEL_PALETTE : u32 = 8u;
+const BITS_PER_SUBVOXEL_PALETTE : u32 = 8u;
 fn get_subvoxel_block_index(dimension: vec3<u32>, grid_coordinates: vec3<u32>) -> u32 {
     return grid_coordinates.x + grid_coordinates.y * dimension.x + grid_coordinates.z * dimension.x * dimension.y;
 }
-
-
 
 
 fn get_subvoxel_at_index(sv_offset_in_u32s: u32, block_index: u32) -> u32 {
@@ -92,7 +89,7 @@ fn raycast(world_position: vec3<f32>, model_offset: u32, rotation_matrix: mat3x3
         }
     }
 
-    //discard;
-    return vec4<f32>(0.0, 0., 0., 0.);
+    discard;
+    //return vec4<f32>(0.0, 0., 0., 0.);
 }
 

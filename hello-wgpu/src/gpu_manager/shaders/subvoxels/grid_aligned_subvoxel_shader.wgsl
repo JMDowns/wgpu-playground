@@ -1,10 +1,10 @@
-let MAX_SUBVOXEL_U32S : i32 = 160000;
-let MAX_AMBIENT_OCCLUSION_U32S : i32 = 400000;
-let NUM_GRID_ALIGNED_SUBVOXEL_OBJECTS : i32 = 1024;
-let MAX_COLORS : i32 = 32;
-let NUM_CHUNK_I32S : i32 = 1833;
-let CHUNK_DIMENSION : u32 = 32u;
-let SUBVOXEL_DIMENSION : u32 = 16u;
+const MAX_SUBVOXEL_U32S : i32 = 160000;
+const MAX_AMBIENT_OCCLUSION_U32S : i32 = 400000;
+const NUM_GRID_ALIGNED_SUBVOXEL_OBJECTS : i32 = 1024;
+const MAX_COLORS : i32 = 32;
+const NUM_CHUNK_I32S : i32 = 1833;
+const CHUNK_DIMENSION : u32 = 32u;
+const SUBVOXEL_DIMENSION : u32 = 16u;
 struct CameraUniform {
     view_proj: mat4x4<f32>,
     view_proj_inverse: mat4x4<f32>,
@@ -48,13 +48,13 @@ var<storage> GAS_ARRAY: array<GridAlignedSubvoxelGpuData, NUM_GRID_ALIGNED_SUBVO
 var<storage> SV_PALETTE: array<vec4<f32>, MAX_COLORS>;
 @group(2) @binding(0)
 var<storage> CHUNK_POSITIONS: array<i32,NUM_CHUNK_I32S>;
-let BITS_PER_SUBVOXEL_PALETTE : u32 = 8u;
-let FRONT = 0;
-let BACK = 1;
-let LEFT = 2;
-let RIGHT = 3;
-let TOP = 4;
-let BOTTOM = 5;
+const BITS_PER_SUBVOXEL_PALETTE : u32 = 8u;
+const FRONT = 0;
+const BACK = 1;
+const LEFT = 2;
+const RIGHT = 3;
+const TOP = 4;
+const BOTTOM = 5;
 
 fn ao_calc(subvoxel_step: vec3<f32>, current_position_fract: vec3<f32>, block_index: u32, current_side: i32, color: vec4<f32>, ao_offset: u32) -> vec4<f32> {
     let block_index_bits_start = block_index * 20u;
@@ -288,8 +288,8 @@ fn raycast(world_position: vec3<f32>, model_offset: u32, rotation_matrix: mat3x3
         }
     }
 
-    //discard;
-    return vec4<f32>(0.0, 0., 0., 0.);
+    discard;
+    //return vec4<f32>(0.0, 0., 0., 0.);
 }
 
 

@@ -2,10 +2,8 @@ fn get_subvoxel_block_index(dimension: vec3<u32>, grid_coordinates: vec3<u32>) -
     return grid_coordinates.x + grid_coordinates.y * dimension.x + grid_coordinates.z * dimension.x * dimension.y;
 }
 
-let CONST_TEST = 1u;
-
 //INLINE CONST u32 BITS_PER_SUBVOXEL_PALETTE
-let BITS_PER_SUBVOXEL_PALETTE = 8u;
+const BITS_PER_SUBVOXEL_PALETTE = 8u;
 //END INLINE CONST
 //FUNCTION IMPORT REQ get_subvoxel_at_index START
 

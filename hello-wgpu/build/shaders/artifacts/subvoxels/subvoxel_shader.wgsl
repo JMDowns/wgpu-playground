@@ -1,7 +1,7 @@
-let MAX_SUBVOXEL_OBJECTS : i32 = 10000;
-let MAX_SUBVOXEL_U32S : i32 = 160000;
-let MAX_COLORS : i32 = 32;
-let MAX_AMBIENT_OCCLUSION_U32S : i32 = 400000;
+const MAX_SUBVOXEL_OBJECTS : i32 = 10000;
+const MAX_SUBVOXEL_U32S : i32 = 160000;
+const MAX_COLORS : i32 = 32;
+const MAX_AMBIENT_OCCLUSION_U32S : i32 = 400000;
 struct CameraUniform {
     view_proj: mat4x4<f32>,
     view_proj_inverse: mat4x4<f32>,
@@ -44,13 +44,13 @@ var<storage> SV_VOXELS: array<u32, MAX_SUBVOXEL_U32S>;
 var<storage> SV_PALETTE: array<vec4<f32>, MAX_COLORS>;
 @group(1) @binding(3)
 var<storage> AMBIENT_OCCLUSION_ARRAY: array<u32, MAX_AMBIENT_OCCLUSION_U32S>;
-let BITS_PER_SUBVOXEL_PALETTE : u32 = 8u;
-let FRONT = 0;
-let BACK = 1;
-let LEFT = 2;
-let RIGHT = 3;
-let TOP = 4;
-let BOTTOM = 5;
+const BITS_PER_SUBVOXEL_PALETTE : u32 = 8u;
+const FRONT = 0;
+const BACK = 1;
+const LEFT = 2;
+const RIGHT = 3;
+const TOP = 4;
+const BOTTOM = 5;
 
 fn ao_calc(subvoxel_step: vec3<f32>, current_position_fract: vec3<f32>, block_index: u32, current_side: i32, color: vec4<f32>, ao_offset: u32) -> vec4<f32> {
     let block_index_bits_start = block_index * 20u;
@@ -283,8 +283,9 @@ fn raycast(world_position: vec3<f32>, model_offset: u32, rotation_matrix: mat3x3
             return ao_calc(subvoxel_step, fract(current_position / subvoxel_step), block_index, dot(step_axis, step_faces), SV_PALETTE[subvoxel_palette], ao_offset);
         }
     }
-    
+
     discard;
+    //return vec4<f32>(0.0, 0., 0., 0.);
 }
 
 

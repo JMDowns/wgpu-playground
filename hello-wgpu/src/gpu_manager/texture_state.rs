@@ -30,6 +30,7 @@ impl TextureState {
             format: wgpu::TextureFormat::Rgba8UnormSrgb,
             usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
             label: None,
+            view_formats: &[]
         };
 
         for i in 0..fundamentals::consts::NUM_TEXTURES {
@@ -39,6 +40,7 @@ impl TextureState {
                     label: Some(&format!("Texture {i}")),
                     ..texture_descriptor
                 }, 
+                wgpu::util::TextureDataOrder::LayerMajor,
                 &atlas_rgba_bytes[i*fundamentals::consts::TEXTURE_LENGTH_WITH_MIPMAPS*4..(i+1)*fundamentals::consts::TEXTURE_LENGTH_WITH_MIPMAPS*4]
             );
 

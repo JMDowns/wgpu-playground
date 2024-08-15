@@ -43,6 +43,7 @@ impl RenderState {
                     buffers: &[
                         Vertex::desc(),
                     ],
+                    compilation_options: Default::default()
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &render_shader,
@@ -52,6 +53,7 @@ impl RenderState {
                         blend: Some(wgpu::BlendState::REPLACE),
                         write_mask: wgpu::ColorWrites::ALL,
                     })],
+                    compilation_options: Default::default()
                 }),
                 primitive: wgpu::PrimitiveState {
                     topology: wgpu::PrimitiveTopology::TriangleList,
@@ -79,6 +81,7 @@ impl RenderState {
                     alpha_to_coverage_enabled: false,
                 },
                 multiview: None,
+                cache: None,
             });
 
         let render_pipeline_wireframe =
@@ -91,6 +94,7 @@ impl RenderState {
                     buffers: &[
                         Vertex::desc(),
                     ],
+                    compilation_options: Default::default()
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &render_shader,
@@ -100,6 +104,7 @@ impl RenderState {
                         blend: Some(wgpu::BlendState::REPLACE),
                         write_mask: wgpu::ColorWrites::ALL,
                     })],
+                    compilation_options: Default::default()
                 }),
                 primitive: wgpu::PrimitiveState {
                     topology: wgpu::PrimitiveTopology::TriangleList,
@@ -127,11 +132,12 @@ impl RenderState {
                     alpha_to_coverage_enabled: false,
                 },
                 multiview: None,
+                cache: None,
             });
 
         let occlusion_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Occlusion Cube Shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("../gpu_manager/shaders/occlusion_cube.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(include_str!("../occlusion_cube.wgsl").into()),
         });
 
         let occlusion_cube_render_pipeline_layout =
@@ -155,6 +161,7 @@ impl RenderState {
                     buffers: &[
                         Vertex::desc(),
                     ],
+                    compilation_options: Default::default()
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &occlusion_shader,
@@ -164,6 +171,7 @@ impl RenderState {
                         blend: Some(wgpu::BlendState::PREMULTIPLIED_ALPHA_BLENDING),
                         write_mask: wgpu::ColorWrites::ALL,
                     })],
+                    compilation_options: Default::default()
                 }),
                 primitive: wgpu::PrimitiveState {
                     topology: wgpu::PrimitiveTopology::TriangleList,
@@ -190,6 +198,7 @@ impl RenderState {
                     alpha_to_coverage_enabled: false,
                 },
                 multiview: None,
+                cache: None,
             });
 
         let grid_aligned_subvoxel_render_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
@@ -218,6 +227,7 @@ impl RenderState {
                 buffers: &[
                     GridAlignedSubvoxelVertex::desc(),
                 ],
+                compilation_options: Default::default()
             },
             fragment: Some(wgpu::FragmentState {
                 module: &grid_aligned_subvoxel_render_shader,
@@ -227,6 +237,7 @@ impl RenderState {
                     blend: Some(wgpu::BlendState::REPLACE),
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
+                compilation_options: Default::default()
             }),
             primitive: wgpu::PrimitiveState {
                 topology: wgpu::PrimitiveTopology::TriangleList,
@@ -254,6 +265,7 @@ impl RenderState {
                 alpha_to_coverage_enabled: false,
             },
             multiview: None,
+            cache: None,
         });
 
         let subvoxel_render_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
@@ -281,6 +293,7 @@ impl RenderState {
                 buffers: &[
                     SubvoxelVertex::desc(),
                 ],
+                compilation_options: Default::default()
             },
             fragment: Some(wgpu::FragmentState {
                 module: &subvoxel_render_shader,
@@ -290,6 +303,7 @@ impl RenderState {
                     blend: Some(wgpu::BlendState::REPLACE),
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
+                compilation_options: Default::default()
             }),
             primitive: wgpu::PrimitiveState {
                 topology: wgpu::PrimitiveTopology::TriangleList,
@@ -317,6 +331,7 @@ impl RenderState {
                 alpha_to_coverage_enabled: false,
             },
             multiview: None,
+            cache: None
         });
 
         RenderState {

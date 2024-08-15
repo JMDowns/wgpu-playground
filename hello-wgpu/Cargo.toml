@@ -15,33 +15,45 @@ path = "src/main.rs"
 
 [dependencies]
 cfg-if = "1"
-image = "0.24.2"
+image = "0.25.2"
+env_logger = "0.11.5"
 anyhow = "1.0.58"
-winit = "0.26"
+winit = { version = "0.30.5" }
 cgmath = "0.18"
-wgpu = "0.13.1"
+wgpu = "22.1.0"
 instant = "0.1"
-pollster = "0.2"
+pollster = "0.3.0"
 bytemuck = { version = "1.12.1", features = [ "derive", "min_const_generics" ] }
 num = "0.4.0"
-num-derive = "0.3.3"
+num-derive = "0.4.2"
 num-traits = "0.2.15"
 phf = { version = "0.11.0", features = ["macros"] }
-fastrand = "1.7.0"
-itertools = "0.10.3"
+fastrand = "2.1.0"
+itertools = "0.13.0"
 fundamentals = { path = "../fundamentals" }
 derivables = { path = "../derivables" }
 crossbeam = "0.8.1"
-noise = "0.7.0"
-priority-queue="1.2.3"
+noise = "0.9.0"
+priority-queue="2.1.0"
 fastapprox="0.3.0"
-futures-intrusive="0.4.0"
-lru = "0.8.0"
+futures-intrusive="0.5.0"
+lru = "0.12.4"
 bitvec = "1.0.1"
 log = "0.4.17"
-log4rs = "1.2.0"
-strum = "0.24.1"
-strum_macros = "0.24.1"
+strum = "0.26.3"
+strum_macros = "0.26.4"
+thread-id = "4.1.0"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+console_error_panic_hook = "0.1.6"
+console_log = "1.0"
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4.30"
+web-sys = { version = "0.3", features = [
+    "Document",
+    "Window",
+    "Element",
+]}
 
 [build-dependencies]
 fundamentals = { path = "../fundamentals" }

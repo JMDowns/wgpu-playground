@@ -1,5 +1,5 @@
 use crate::world_position::WorldPosition;
-use winit::event::VirtualKeyCode;
+use winit::keyboard::KeyCode;
 
 pub const NUM_BLOCK_TYPES: u16 = 5;
 pub const NUM_ADDITIONAL_THREADS: usize = 15;
@@ -36,12 +36,12 @@ pub const PERLIN_SCALE_FACTOR: f64 = 0.02;
 pub const MIP_LEVEL: u32 = 4;
 pub const TEXTURE_LENGTH_WITH_MIPMAPS: usize = 341;
 
-pub const UP_KEY: VirtualKeyCode = VirtualKeyCode::Space;
-pub const DOWN_KEY: VirtualKeyCode = VirtualKeyCode::LShift;
-pub const LEFT_KEY: VirtualKeyCode = VirtualKeyCode::A;
-pub const RIGHT_KEY: VirtualKeyCode = VirtualKeyCode::D;
-pub const FORWARD_KEY: VirtualKeyCode = VirtualKeyCode::W;
-pub const BACKWARD_KEY: VirtualKeyCode = VirtualKeyCode::S;
+pub const UP_KEY: KeyCode = KeyCode::Space;
+pub const DOWN_KEY: KeyCode = KeyCode::ShiftLeft;
+pub const LEFT_KEY: KeyCode = KeyCode::KeyA;
+pub const RIGHT_KEY: KeyCode = KeyCode::KeyD;
+pub const FORWARD_KEY: KeyCode = KeyCode::KeyW;
+pub const BACKWARD_KEY: KeyCode = KeyCode::KeyS;
 pub const MOUSE_SENSITIVITY_THRESHOLD: f64 = 0.5;
 pub const MOUSE_SENSITIVITY: f32 = 0.8;
 

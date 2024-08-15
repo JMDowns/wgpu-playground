@@ -1,4 +1,4 @@
-use winit::event::{MouseScrollDelta, WindowEvent, ElementState, MouseButton, VirtualKeyCode, KeyboardInput};
+use winit::{event::{ElementState, KeyEvent, MouseButton, MouseScrollDelta, WindowEvent}, keyboard::{KeyCode, PhysicalKey}};
 
 pub struct InputState {
     pub is_up_pressed: bool,
@@ -38,10 +38,10 @@ impl InputManager {
     pub fn input(&mut self, event: &WindowEvent) -> (bool, bool, bool) {
         match event {
             WindowEvent::KeyboardInput {
-                input:
-                    KeyboardInput {
-                        virtual_keycode: Some(key),
+                event:
+                    KeyEvent {
                         state,
+                        physical_key: PhysicalKey::Code(key),
                         ..
                     },
                 ..
@@ -74,12 +74,12 @@ impl InputManager {
                     self.input_state.is_down_pressed = state == &ElementState::Pressed;
                     input_movement_character = true;
                 }
-                if key == &VirtualKeyCode::LControl {
+                if key == &KeyCode::ControlLeft {
                     if state == &ElementState::Pressed {
                         should_switch_wireframe = true;
                     }
                 }
-                if key == &VirtualKeyCode::R {
+                if key == &KeyCode::KeyR {
                     if state == &ElementState::Pressed {
                         should_rotate_subvoxel = true;
                     }
