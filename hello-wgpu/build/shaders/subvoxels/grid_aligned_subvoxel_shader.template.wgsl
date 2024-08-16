@@ -123,8 +123,8 @@ struct VertexInput {
 struct VertexOutput {
     @builtin(position) clip_position:vec4<f32>,
     @location(0) world_position: vec3<f32>,
-    @location(1) gas_id: u32,
-    @location(2) rotation: u32
+    @location(1) @interpolate(flat) gas_id: u32,
+    @location(2) @interpolate(flat) rotation: u32
 };
 
 @vertex

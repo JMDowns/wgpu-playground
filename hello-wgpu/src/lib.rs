@@ -3,16 +3,21 @@ mod camera;
 mod voxels;
 mod state;
 mod tasks;
-mod thread_task_manager;
+cfg_if::cfg_if! {
+    if #[cfg(not(target_arch = "wasm32"))] {
+        mod thread_task_manager;
+    }
+}    
+
 mod gpu_manager;
 
 use fundamentals::loge;
 use winit::{
-    event::*, event_loop::{ControlFlow, EventLoop, EventLoopBuilder}, 
+    event::*, event_loop::{self, ControlFlow, EventLoop, EventLoopBuilder}, 
     keyboard::{KeyCode, PhysicalKey}, 
     window::Window
 };
-use state::State;
+use state::{AppState, GraphicsBuilder, GraphicsResources, MaybeGraphicsResources, State};
 
 #[cfg(target_arch="wasm32")]
 use wasm_bindgen::prelude::*;
@@ -20,11 +25,25 @@ use wasm_bindgen::prelude::*;
 
 
 #[cfg_attr(target_arch="wasm32", wasm_bindgen(start))]
-pub async fn run() {
+pub fn run() {
     cfg_if::cfg_if! {
         if #[cfg(target_arch = "wasm32")] {
             std::panic::set_hook(Box::new(console_error_panic_hook::hook));
             console_log::init_with_level(log::Level::Warn).expect("Couldn't initialize logger");
+            let window = web_sys::window().unwrap_throw();
+            let document = window.document().unwrap_throw();
+
+            let canvas = document.create_element("canvas").unwrap_throw();
+            canvas.set_id("wasm-example");
+            canvas.set_attribute("width", "500").unwrap_throw();
+            canvas.set_attribute("height", "500").unwrap_throw();
+
+            let body = document
+                .get_elements_by_tag_name("body")
+                .item(0)
+                .unwrap_throw();
+            body.append_with_node_1(canvas.unchecked_ref())
+                .unwrap_throw();
         } else {
             fundamentals::logger::CustomLogger::init(fundamentals::logger::LoggerInitArgs {
                 debug_path_string: String::from("debug.log"),
@@ -36,30 +55,13 @@ pub async fn run() {
     }    
     
 
-    let event_loop = EventLoopBuilder::new().build().unwrap();
-    let window = event_loop.create_window(Window::default_attributes()).unwrap();
+    let event_loop = EventLoop::with_user_event().build().unwrap();
 
-    #[cfg(target_arch = "wasm32")]
-    {
-        // Winit prevents sizing with CSS, so we have to set
-        // the size manually when on web.
-        use winit::dpi::PhysicalSize;
-        let _ = window.request_inner_size(PhysicalSize::new(450, 400));
-        
-        use winit::platform::web::WindowExtWebSys;
-        web_sys::window()
-            .and_then(|win| win.document())
-            .and_then(|doc| {
-                let dst = doc.get_element_by_id("wasm-example")?;
-                let canvas = web_sys::Element::from(window.canvas()?);
-                dst.append_child(&canvas).ok()?;
-                Some(())
-            })
-            .expect("Couldn't append canvas to document body.");
-    }
-
-
-    let mut state = State::new(&window).await;
+    let mut state = AppState {
+        state: None,
+        window: None,
+        graphics: MaybeGraphicsResources::Loading(GraphicsBuilder::new(event_loop.create_proxy()))
+    };
 
     let _ = event_loop.run_app(&mut state);
 }

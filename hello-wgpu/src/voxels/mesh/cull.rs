@@ -1,5 +1,5 @@
 use fundamentals::{world_position::WorldPosition, enums::block_side::BlockSide, logi};
-use instant::Instant;
+use web_time::Instant;
 
 use crate::voxels::{mesh::Mesh, chunk::{ChunkBlockIterator, Chunk}};
 

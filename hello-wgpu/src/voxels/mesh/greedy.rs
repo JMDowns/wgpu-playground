@@ -1,5 +1,5 @@
 use fundamentals::{enums::block_side::BlockSide, consts::CHUNK_DIMENSION, logi};
-use instant::Instant;
+use web_time::Instant;
 
 use crate::voxels::{mesh::face::Face, chunk::{Chunk, ChunkBlockIterator}};
 

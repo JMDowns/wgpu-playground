@@ -128,6 +128,8 @@ fn raycast(world_position: vec3<f32>, model_offset: u32, rotation_matrix: mat3x3
         }
     }
 
-    discard;
-    //return vec4<f32>(0.0, 0., 0., 0.);
+    if (true) {
+        discard;
+    }
+    return vec4<f32>(0.0, 0., 0., 0.);
 }

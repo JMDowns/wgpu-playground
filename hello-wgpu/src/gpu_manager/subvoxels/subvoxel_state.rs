@@ -305,7 +305,6 @@ impl SubvoxelState {
     }
 
     pub fn add_subvoxel_object(&mut self, spec: SubvoxelObjectSpecification) -> usize {
-        let model = SubvoxelModel { model_name: spec.model_name.clone(), subvoxel_size: Vector3 { x: 2, y: 2, z: 2 }, subvoxel_vec: vec![1, 0, 1, 0, 0, 0, 0, 0] };
         let id = self.subvoxel_objects.len();
         let object = SubvoxelObject::new(id as u32, spec);
         self.queue.read().unwrap().write_buffer(&self.sv_index_buffer, id as u64 * std::mem::size_of::<u32>() as u64 * 36, bytemuck::cast_slice(&generate_indices_for_index(id as u32)));

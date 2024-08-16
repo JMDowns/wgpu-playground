@@ -55,15 +55,15 @@ pub const GENERATE_MESH_SIDE_PRIORITY: u32 = 3;
 
 pub const MOVEMENT_SPEED: f32 = 2.0;
 pub const MIN_MEMORY_USAGE_MB: u32 = 512;
-pub const MAX_MEMORY_USAGE_MB: u32 = 10240;
-pub const MAX_SUBVOXEL_OBJECTS: u64 = 10000;
-pub const MAX_SUBVOXELS_IN_MODELS: u64 = 640000;
+pub const MAX_MEMORY_USAGE_MB: u32 = 1024;
+pub const MAX_SUBVOXEL_OBJECTS: u64 = 500;
+pub const MAX_SUBVOXELS_IN_MODELS: u64 = 1250;
 pub const MAX_SUBVOXEL_COLORS: u64 = 32;
 pub const MAX_GRID_ALIGNED_SUBVOXEL_OBJECTS: u64 = 1024;
 pub type SUBVOXEL_PALETTE = u8;
 pub const BITS_PER_SUBVOXEL_PALETTE: u64 = 8;
-pub const NUM_SUBVOXEL_U32s: u64 = 160000;
-pub const MAX_AMBIENT_OCCLUSION_U32S: u64 = 400000;
+pub const NUM_SUBVOXEL_U32s: u64 = 313;
+pub const MAX_AMBIENT_OCCLUSION_U32S: u64 = 782;
 pub const GRID_ALIGNED_SUBVOXEL_PLACEMENT_DIMENSION: u32 = 16;
 pub fn get_positions_around_player(pos: WorldPosition) -> Vec<WorldPosition> {
     vec![

@@ -1,5 +1,5 @@
-const MAX_SUBVOXEL_U32S : i32 = 160000;
-const MAX_AMBIENT_OCCLUSION_U32S : i32 = 400000;
+const MAX_SUBVOXEL_U32S : i32 = 313;
+const MAX_AMBIENT_OCCLUSION_U32S : i32 = 782;
 const NUM_GRID_ALIGNED_SUBVOXEL_OBJECTS : i32 = 1024;
 const MAX_COLORS : i32 = 32;
 const NUM_CHUNK_I32S : i32 = 1833;
@@ -32,8 +32,8 @@ struct VertexInput {
 struct VertexOutput {
     @builtin(position) clip_position:vec4<f32>,
     @location(0) world_position: vec3<f32>,
-    @location(1) gas_id: u32,
-    @location(2) rotation: u32
+    @location(1) @interpolate(flat) gas_id: u32,
+    @location(2) @interpolate(flat) rotation: u32
 };
 
 @group(0) @binding(0)
@@ -288,8 +288,10 @@ fn raycast(world_position: vec3<f32>, model_offset: u32, rotation_matrix: mat3x3
         }
     }
 
-    discard;
-    //return vec4<f32>(0.0, 0., 0., 0.);
+    if (true) {
+        discard;
+    }
+    return vec4<f32>(0.0, 0., 0., 0.);
 }
 
 

@@ -1,7 +1,7 @@
-const MAX_SUBVOXEL_OBJECTS : i32 = 10000;
-const MAX_SUBVOXEL_U32S : i32 = 160000;
+const MAX_SUBVOXEL_OBJECTS : i32 = 500;
+const MAX_SUBVOXEL_U32S : i32 = 313;
 const MAX_COLORS : i32 = 32;
-const MAX_AMBIENT_OCCLUSION_U32S : i32 = 400000;
+const MAX_AMBIENT_OCCLUSION_U32S : i32 = 782;
 struct CameraUniform {
     view_proj: mat4x4<f32>,
     view_proj_inverse: mat4x4<f32>,
@@ -11,8 +11,8 @@ struct CameraUniform {
 struct VertexOutput {
     @builtin(position) clip_position:vec4<f32>,
     @location(0) world_position: vec3<f32>,
-    @location(1) side: i32,
-    @location(2) sv_id: u32,
+    @location(1) @interpolate(flat) side: i32,
+    @location(2) @interpolate(flat) sv_id: u32,
 };
 
 struct VertexInput {
@@ -284,8 +284,10 @@ fn raycast(world_position: vec3<f32>, model_offset: u32, rotation_matrix: mat3x3
         }
     }
 
-    discard;
-    //return vec4<f32>(0.0, 0., 0., 0.);
+    if (true) {
+        discard;
+    }
+    return vec4<f32>(0.0, 0., 0., 0.);
 }
 
 

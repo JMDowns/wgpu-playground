@@ -9,8 +9,8 @@ var<uniform> camera: CameraUniform;
 struct VertexOutput {
     @builtin(position) clip_position:vec4<f32>,
     @location(0) world_position: vec3<f32>,
-    @location(1) side: i32,
-    @location(2) sv_id: u32,
+    @location(1) @interpolate(flat) side: i32,
+    @location(2) @interpolate(flat) sv_id: u32,
 };
 
 struct VertexInput {
