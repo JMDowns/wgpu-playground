@@ -24,6 +24,24 @@ cfg_if::cfg_if! {
                 logi!("Processed tasks!");
             }
         }
+    } else if #[cfg(not(target_arch = "wasm32"))] {
+        pub struct TaskManager {
+
+        }
+
+        impl TaskManager {
+            pub fn new() -> Self {
+                TaskManager { }
+            }
+
+            pub fn push_task(&mut self, task: Task) {
+                logi!("Pushed task!");
+            }
+
+            pub fn process_tasks(&mut self, world: Arc<RwLock<World>>, gpu_manager: &mut GPUManager) {
+                logi!("Processed tasks!");
+            }
+        }
     } else {
         use crate::thread_task_manager::ThreadTaskManager;
 

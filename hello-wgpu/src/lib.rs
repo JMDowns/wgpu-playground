@@ -6,16 +6,17 @@ mod tasks;
 cfg_if::cfg_if! {
     if #[cfg(not(target_arch = "wasm32"))] {
         mod thread_task_manager;
+    } else {
+        use winit::platform::web::EventLoopExtWebSys;
     }
 }    
 
 mod gpu_manager;
 
 use fundamentals::loge;
+use log::info;
 use winit::{
-    event::*, event_loop::{self, ControlFlow, EventLoop, EventLoopBuilder}, 
-    keyboard::{KeyCode, PhysicalKey}, 
-    window::Window
+    event::*, event_loop::{self, ControlFlow, EventLoop, EventLoopBuilder}, keyboard::{KeyCode, PhysicalKey}, window::Window
 };
 use state::{AppState, GraphicsBuilder, GraphicsResources, MaybeGraphicsResources, State};
 
@@ -30,6 +31,7 @@ pub fn run() {
         if #[cfg(target_arch = "wasm32")] {
             std::panic::set_hook(Box::new(console_error_panic_hook::hook));
             console_log::init_with_level(log::Level::Warn).expect("Couldn't initialize logger");
+            info!("Hello, world!");
             let window = web_sys::window().unwrap_throw();
             let document = window.document().unwrap_throw();
 
@@ -57,11 +59,25 @@ pub fn run() {
 
     let event_loop = EventLoop::with_user_event().build().unwrap();
 
-    let mut state = AppState {
-        state: None,
-        window: None,
-        graphics: MaybeGraphicsResources::Loading(GraphicsBuilder::new(event_loop.create_proxy()))
-    };
-
-    let _ = event_loop.run_app(&mut state);
+    cfg_if::cfg_if! {
+        if #[cfg(target_arch = "wasm32")] {
+            unsafe {
+                static mut STATE : AppState = AppState {
+                    state: None,
+                    window: None,
+                    graphics: MaybeGraphicsResources::Uninitialized,
+                };
+                STATE.graphics = MaybeGraphicsResources::Loading(GraphicsBuilder::new(event_loop.create_proxy()));
+                let _ = event_loop.spawn_app(&mut STATE);
+            }
+        } 
+        else {
+            let mut state : AppState = AppState {
+                state: None,
+                window: None,
+                graphics: MaybeGraphicsResources::Loading(GraphicsBuilder::new(event_loop.create_proxy())),
+            };
+            let _ = event_loop.run_app(&mut state);
+        }
+    }
 }

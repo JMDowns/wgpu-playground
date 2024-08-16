@@ -7,6 +7,7 @@ use flag_state::FlagState;
 use fundamentals::loge;
 use log::info;
 use pollster::FutureExt;
+#[cfg(target_arch = "wasm32")]
 use wasm_bindgen::UnwrapThrowExt;
 use wgpu::Device;
 use wgpu::Instance;
@@ -162,6 +163,7 @@ fn create_graphics(event_loop: &ActiveEventLoop) -> impl Future<Output = Graphic
 }
 
 pub enum MaybeGraphicsResources {
+    Uninitialized,
     Loading(GraphicsBuilder),
     Loaded(GraphicsResources),
 }
@@ -279,6 +281,7 @@ impl<'a> ApplicationHandler<GraphicsResources> for AppState<'a> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         if let MaybeGraphicsResources::Loading(builder) = &mut self.graphics {
             builder.build_and_send(event_loop);
+            info!("Graphics resources are loading...");
         }
     }
     /*
