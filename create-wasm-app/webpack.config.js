@@ -12,6 +12,9 @@ module.exports = {
     asyncWebAssembly: true,
     syncWebAssembly: true,
   },
+  modules: [
+    path.resolve(__dirname, "../hello-wgpu"), "node_modules"
+  ],
   plugins: [
     new CopyWebpackPlugin(['index.html'])
   ],

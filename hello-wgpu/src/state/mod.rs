@@ -5,6 +5,7 @@ mod task_manager;
 use fundamentals::consts::MOUSE_SENSITIVITY;
 use flag_state::FlagState;
 use fundamentals::loge;
+use log::error;
 use log::info;
 use pollster::FutureExt;
 #[cfg(target_arch = "wasm32")]
@@ -276,6 +277,7 @@ impl<'a> State<'a> {
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
+        error!("Rendering!");
         self.gpu_manager.render()
     }
 }

@@ -1,2 +1,2 @@
-import * as wasm from "../create-wasm-app/pkg/hello_wgpu";
-wasm.then(() => console.log("WASM Loaded"));
+import * as wasm from "./pkg/hello_wgpu";
+wasm.run().then(() => console.log("WASM Loaded"));
