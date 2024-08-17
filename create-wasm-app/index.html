@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script type="module">
+      import init from "./pkg/hello_wgpu.js";
+      init().then(() => {
+        console.log("WASM loaded");
+      });
+      // let wasm;
+      // import("./pkg/hello_wgpu.js").then(async module => {
+      //   await module.default();
+      //   wasm = module;
+      //   wasm.run()
+      // }).catch((error) => {
+      //     console.log("WASM loaded");
+      //   });
+    </script>
+  </head>
+</html>

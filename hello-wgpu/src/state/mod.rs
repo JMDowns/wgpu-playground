@@ -79,6 +79,8 @@ fn create_graphics(event_loop: &ActiveEventLoop) -> impl Future<Output = Graphic
     }
 
     let window = Rc::new(event_loop.create_window(window_attrs).unwrap());
+    let dx12_shader_compiler = wgpu::util::dx12_shader_compiler_from_env().unwrap_or_default();
+    let gles_minor_version = wgpu::util::gles_minor_version_from_env().unwrap_or_default();
 
     // The instance is a handle to our GPU
     // Backends::all => Vulkan + Metal + DX12 + Browser WebGPU
@@ -86,10 +88,11 @@ fn create_graphics(event_loop: &ActiveEventLoop) -> impl Future<Output = Graphic
         #[cfg(not(target_arch="wasm32"))]
         backends: wgpu::Backends::PRIMARY,
         #[cfg(target_arch="wasm32")]
-        backends: wgpu::Backends::BROWSER_WEBGPU,
+        backends: wgpu::Backends::GL | wgpu::Backends::BROWSER_WEBGPU,
+        dx12_shader_compiler,
+        gles_minor_version,
         ..Default::default()
     });
-    //let instance = wgpu::Instance::default();
 
     let surface = instance.create_surface(window.clone()).unwrap();
 
@@ -121,7 +124,7 @@ fn create_graphics(event_loop: &ActiveEventLoop) -> impl Future<Output = Graphic
                         wgpu::Limits::default()
                     },
                     label: None,
-                    memory_hints: wgpu::MemoryHints::Performance,
+                    memory_hints: wgpu::MemoryHints::MemoryUsage,
                 },
                 None,
             )
