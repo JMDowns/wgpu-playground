@@ -5,4 +5,5 @@ hello-wgpu/src/atlas.png
 fundamentals/src/consts.rs
 fundamentals/src/enums/block_type.rs
 derivables/src/dictionaries/block_type_to_texture_coordinates.rs
+*/node_modules/
 *.log

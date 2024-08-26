@@ -1,10 +1,10 @@
 {
-    "up": "VirtualKeyCode::Space",
-    "down": "VirtualKeyCode::LShift",
-    "left": "VirtualKeyCode::A",
-    "right": "VirtualKeyCode::D",
-    "forward": "VirtualKeyCode::W",
-    "backward": "VirtualKeyCode::S",
+    "up": "KeyCode::Space",
+    "down": "KeyCode::ShiftLeft",
+    "left": "KeyCode::KeyA",
+    "right": "KeyCode::KeyD",
+    "forward": "KeyCode::KeyW",
+    "backward": "KeyCode::KeyS",
     "mouse_sensitivity_threshold": 0.5,
     "mouse_sensitivity": 0.8
 }

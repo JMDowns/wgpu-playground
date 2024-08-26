@@ -9,8 +9,8 @@ var<uniform> camera: CameraUniform;
 struct VertexOutput {
     @builtin(position) clip_position:vec4<f32>,
     @location(0) world_position: vec3<f32>,
-    @location(1) side: i32,
-    @location(2) sv_id: u32,
+    @location(1) @interpolate(flat) side: i32,
+    @location(2) @interpolate(flat) sv_id: u32,
 };
 
 struct VertexInput {
@@ -43,22 +43,22 @@ struct SubvoxelObject {
 }
 
 //INLINE CONST i32 MAX_SUBVOXEL_OBJECTS
-let MAX_SUBVOXEL_OBJECTS = 32;
+const MAX_SUBVOXEL_OBJECTS = 32;
 //END INLINE CONST
 @group(1) @binding(0)
 var<storage> SV_OBJECTS: array<SubvoxelObject, MAX_SUBVOXEL_OBJECTS>;
 //INLINE CONST i32 MAX_SUBVOXEL_U32S
-let MAX_SUBVOXEL_U32S = 0;
+const MAX_SUBVOXEL_U32S = 0;
 //END INLINE CONST
 @group(1) @binding(1)
 var<storage> SV_VOXELS: array<u32, MAX_SUBVOXEL_U32S>;
 //INLINE CONST i32 MAX_COLORS
-let MAX_COLORS = 0;
+const MAX_COLORS = 0;
 //END INLINE CONST
 @group(1) @binding(2)
 var<storage> SV_PALETTE: array<vec4<f32>, MAX_COLORS>;
 //INLINE CONST i32 MAX_AMBIENT_OCCLUSION_U32S
-let MAX_AMBIENT_OCCLUSION_U32S = 0;
+const MAX_AMBIENT_OCCLUSION_U32S = 0;
 //END INLINE CONST
 @group(1) @binding(3)
 var<storage> AMBIENT_OCCLUSION_ARRAY: array<u32, MAX_AMBIENT_OCCLUSION_U32S>;

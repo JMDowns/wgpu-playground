@@ -84,20 +84,20 @@ impl VertexGPUData {
             let mut indirect_commands = Vec::new();
 
             for i in 0..buffer_size_fn_return.number_of_buckets_per_buffer as u32 {
-                let indirect_command = wgpu::util::DrawIndexedIndirect {
-                    vertex_count: buffer_size_fn_return.index_bucket_size as u32 / std::mem::size_of::<i32>() as u32,
+                let indirect_command = wgpu::util::DrawIndexedIndirectArgs {
+                    index_count: buffer_size_fn_return.index_bucket_size as u32 / std::mem::size_of::<i32>() as u32,
                     instance_count: 0,
-                    base_index: i * buffer_size_fn_return.index_bucket_size as u32 / std::mem::size_of::<i32>() as u32,
-                    vertex_offset: i as i32 * buffer_size_fn_return.vertex_bucket_size as i32 / std::mem::size_of::<Vertex>() as i32,
-                    base_instance: 0
+                    first_index: i * buffer_size_fn_return.index_bucket_size as u32 / std::mem::size_of::<i32>() as u32,
+                    base_vertex: i as i32 * buffer_size_fn_return.vertex_bucket_size as i32 / std::mem::size_of::<Vertex>() as i32,
+                    first_instance: 0
                 };
 
                 let indirect_command_arr = [
-                    indirect_command.vertex_count, 
+                    indirect_command.index_count, 
                     indirect_command.instance_count, 
-                    indirect_command.base_index, 
-                    indirect_command.vertex_offset as u32, 
-                    indirect_command.base_instance
+                    indirect_command.first_index, 
+                    indirect_command.base_vertex as u32, 
+                    indirect_command.first_instance
                     ];
 
                 indirect_commands.push(indirect_command_arr);
@@ -118,20 +118,20 @@ impl VertexGPUData {
             let mut indirect_commands = Vec::new();
 
             for i in 0..buffer_size_fn_return.number_of_buckets_per_buffer as u32 {
-                let indirect_command = wgpu::util::DrawIndexedIndirect {
-                    vertex_count: buffer_size_fn_return.index_bucket_size as u32 / std::mem::size_of::<i32>() as u32,
+                let indirect_command = wgpu::util::DrawIndexedIndirectArgs {
+                    index_count: buffer_size_fn_return.index_bucket_size as u32 / std::mem::size_of::<i32>() as u32,
                     instance_count: 0,
-                    base_index: i * buffer_size_fn_return.index_bucket_size as u32 / std::mem::size_of::<i32>() as u32,
-                    vertex_offset: i as i32 * buffer_size_fn_return.vertex_bucket_size as i32 / std::mem::size_of::<Vertex>() as i32,
-                    base_instance: 0
+                    first_index: i * buffer_size_fn_return.index_bucket_size as u32 / std::mem::size_of::<i32>() as u32,
+                    base_vertex: i as i32 * buffer_size_fn_return.vertex_bucket_size as i32 / std::mem::size_of::<Vertex>() as i32,
+                    first_instance: 0
                 };
 
                 let indirect_command_arr = [
-                    indirect_command.vertex_count, 
+                    indirect_command.index_count, 
                     indirect_command.instance_count, 
-                    indirect_command.base_index, 
-                    indirect_command.vertex_offset as u32, 
-                    indirect_command.base_instance
+                    indirect_command.first_index, 
+                    indirect_command.base_vertex as u32, 
+                    indirect_command.first_instance
                     ];
 
                 indirect_commands.push(indirect_command_arr);

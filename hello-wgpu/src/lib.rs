@@ -3,89 +3,81 @@ mod camera;
 mod voxels;
 mod state;
 mod tasks;
-mod thread_task_manager;
+cfg_if::cfg_if! {
+    if #[cfg(not(target_arch = "wasm32"))] {
+        mod thread_task_manager;
+    } else {
+        use winit::platform::web::EventLoopExtWebSys;
+    }
+}    
+
 mod gpu_manager;
 
 use fundamentals::loge;
+use log::info;
 use winit::{
-    event::*,
-    event_loop::{ControlFlow, EventLoop},
-    window::WindowBuilder,
+    event::*, event_loop::{self, ControlFlow, EventLoop, EventLoopBuilder}, keyboard::{KeyCode, PhysicalKey}, window::Window
 };
-use state::State;
+use state::{AppState, GraphicsBuilder, GraphicsResources, MaybeGraphicsResources, State};
 
-pub async fn run() {
-    fundamentals::logger::CustomLogger::init(fundamentals::logger::LoggerInitArgs {
-        debug_path_string: String::from("debug.log"),
-        info_path_string: String::from("info.log"),
-        warn_path_string: String::from("warn.log"),
-        error_path_string: String::from("error.log"),
-    });
+#[cfg(target_arch="wasm32")]
+use wasm_bindgen::prelude::*;
 
-    let event_loop = EventLoop::new();
-    let window = WindowBuilder::new().build(&event_loop).unwrap();
 
-    let mut state = pollster::block_on(State::new(&window));
-    let mut last_render_time = instant::Instant::now();
 
-    event_loop.run(move |event, _, control_flow| match event {
-        Event::DeviceEvent {
-            event: DeviceEvent::MouseMotion{ delta, },
-            .. // We're not using device_id currently
-        } => state.handle_mouse_motion(delta),
+#[cfg_attr(target_arch="wasm32", wasm_bindgen(start))]
+pub fn run() {
+    cfg_if::cfg_if! {
+        if #[cfg(target_arch = "wasm32")] {
+            std::panic::set_hook(Box::new(console_error_panic_hook::hook));
+            console_log::init_with_level(log::Level::Warn).expect("Couldn't initialize logger");
+            info!("Hello, world!");
+            let window = web_sys::window().unwrap_throw();
+            let document = window.document().unwrap_throw();
 
-        Event::WindowEvent {
-            ref event,
-            window_id,
-        } if window_id == window.id() => {
-            if !state.input(event) {
-                match event {
-                    WindowEvent::CloseRequested
-                    | WindowEvent::KeyboardInput {
-                        input:
-                            KeyboardInput {
-                                state: ElementState::Pressed,
-                                virtual_keycode: Some(VirtualKeyCode::Escape),
-                                ..
-                            },
-                        ..
-                    } => *control_flow = ControlFlow::Exit,
-                    WindowEvent::Resized(physical_size) => {
-                        state.resize(*physical_size);
-                    }
-                    WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
-                        state.resize(**new_inner_size);
-                    }
-                    _ => {}
-                }
+            let canvas = document.create_element("canvas").unwrap_throw();
+            canvas.set_id("wasm-example");
+            canvas.set_attribute("width", "500").unwrap_throw();
+            canvas.set_attribute("height", "500").unwrap_throw();
+
+            let body = document
+                .get_elements_by_tag_name("body")
+                .item(0)
+                .unwrap_throw();
+            body.append_with_node_1(canvas.unchecked_ref())
+                .unwrap_throw();
+        } else {
+            fundamentals::logger::CustomLogger::init(fundamentals::logger::LoggerInitArgs {
+                debug_path_string: String::from("debug.log"),
+                info_path_string: String::from("info.log"),
+                warn_path_string: String::from("warn.log"),
+                error_path_string: String::from("error.log"),
+            });
+        }
+    }    
+    
+
+    let event_loop = EventLoop::with_user_event().build().unwrap();
+
+    cfg_if::cfg_if! {
+        if #[cfg(target_arch = "wasm32")] {
+            unsafe {
+                static mut STATE : AppState = AppState {
+                    state: None,
+                    window: None,
+                    graphics: MaybeGraphicsResources::Uninitialized,
+                };
+                STATE.graphics = MaybeGraphicsResources::Loading(GraphicsBuilder::new(event_loop.create_proxy()));
+                let _ = event_loop.spawn_app(&mut STATE);
             }
+        } 
+        else {
+            let mut state : AppState = AppState {
+                state: None,
+                window: None,
+                graphics: MaybeGraphicsResources::Loading(GraphicsBuilder::new(event_loop.create_proxy())),
+            };
+            let _ = event_loop.run_app(&mut state);
         }
-
-        Event::RedrawRequested(window_id) if window_id == window.id() => {
-            let now = instant::Instant::now();
-            let dt = now - last_render_time;
-            if dt.as_millis() > 0 {
-                last_render_time = now;
-                state.process_input();
-                state.update(dt);
-                match state.render() {
-                    Ok(_) => {}
-                    //Reconfigure if surface is lost
-                    Err(wgpu::SurfaceError::Lost) => state.resize(state.gpu_manager.surface_state.size),
-                    //System is out of memory, so we should probably quit
-                    Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
-                    Err(_e) => {
-                        loge!("{:?}", _e)
-                    }
-                }
-            }
-        }
-
-        Event::MainEventsCleared => {
-            // RedrawRequested will only trigger once, unless we manually request it.
-            state.process_tasks();
-            window.request_redraw();
-        }
-        _ => {}
-    });
+    }
 }

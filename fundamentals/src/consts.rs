@@ -1,5 +1,5 @@
 use crate::world_position::WorldPosition;
-use winit::event::VirtualKeyCode;
+use winit::keyboard::KeyCode;
 
 pub const NUM_BLOCK_TYPES: u16 = 5;
 pub const NUM_ADDITIONAL_THREADS: usize = 15;
@@ -36,12 +36,12 @@ pub const PERLIN_SCALE_FACTOR: f64 = 0.02;
 pub const MIP_LEVEL: u32 = 4;
 pub const TEXTURE_LENGTH_WITH_MIPMAPS: usize = 341;
 
-pub const UP_KEY: VirtualKeyCode = VirtualKeyCode::Space;
-pub const DOWN_KEY: VirtualKeyCode = VirtualKeyCode::LShift;
-pub const LEFT_KEY: VirtualKeyCode = VirtualKeyCode::A;
-pub const RIGHT_KEY: VirtualKeyCode = VirtualKeyCode::D;
-pub const FORWARD_KEY: VirtualKeyCode = VirtualKeyCode::W;
-pub const BACKWARD_KEY: VirtualKeyCode = VirtualKeyCode::S;
+pub const UP_KEY: KeyCode = KeyCode::Space;
+pub const DOWN_KEY: KeyCode = KeyCode::ShiftLeft;
+pub const LEFT_KEY: KeyCode = KeyCode::KeyA;
+pub const RIGHT_KEY: KeyCode = KeyCode::KeyD;
+pub const FORWARD_KEY: KeyCode = KeyCode::KeyW;
+pub const BACKWARD_KEY: KeyCode = KeyCode::KeyS;
 pub const MOUSE_SENSITIVITY_THRESHOLD: f64 = 0.5;
 pub const MOUSE_SENSITIVITY: f32 = 0.8;
 
@@ -55,15 +55,15 @@ pub const GENERATE_MESH_SIDE_PRIORITY: u32 = 3;
 
 pub const MOVEMENT_SPEED: f32 = 2.0;
 pub const MIN_MEMORY_USAGE_MB: u32 = 512;
-pub const MAX_MEMORY_USAGE_MB: u32 = 10240;
-pub const MAX_SUBVOXEL_OBJECTS: u64 = 10000;
-pub const MAX_SUBVOXELS_IN_MODELS: u64 = 640000;
+pub const MAX_MEMORY_USAGE_MB: u32 = 1024;
+pub const MAX_SUBVOXEL_OBJECTS: u64 = 500;
+pub const MAX_SUBVOXELS_IN_MODELS: u64 = 1250;
 pub const MAX_SUBVOXEL_COLORS: u64 = 32;
 pub const MAX_GRID_ALIGNED_SUBVOXEL_OBJECTS: u64 = 1024;
 pub type SUBVOXEL_PALETTE = u8;
 pub const BITS_PER_SUBVOXEL_PALETTE: u64 = 8;
-pub const NUM_SUBVOXEL_U32s: u64 = 160000;
-pub const MAX_AMBIENT_OCCLUSION_U32S: u64 = 400000;
+pub const NUM_SUBVOXEL_U32s: u64 = 313;
+pub const MAX_AMBIENT_OCCLUSION_U32S: u64 = 782;
 pub const GRID_ALIGNED_SUBVOXEL_PLACEMENT_DIMENSION: u32 = 16;
 pub fn get_positions_around_player(pos: WorldPosition) -> Vec<WorldPosition> {
     vec![

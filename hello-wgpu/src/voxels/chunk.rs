@@ -30,7 +30,7 @@ impl Chunk {
     }
 
     pub fn perlin(position: &WorldPosition) -> Self {
-        let perlin = Perlin::new();
+        let perlin = Perlin::new(0);
         let mut cci = ChunkCreationIterator::new(*position);
 
         for k in 0..CHUNK_DIMENSION as i32 {

@@ -208,7 +208,7 @@ pub fn parse_wgsl_file(file_name: &str) -> Result<(Vec<FunctionImportRequirement
                 write_string.push_str(line);
                 write_string.push('\n');
             }
-        } else if line.trim().starts_with("let") && !in_function {
+        } else if line.trim().starts_with("const") && !in_function {
             flush_write_string(&mut write_string, &mut commands);
             match parse_write_const(line) {
                 Some(write_const) => commands.push(Command::WriteConst(write_const)),
@@ -517,7 +517,7 @@ fn parse_data_type(type_str: &str) -> DataType {
 }
 
 fn parse_write_const(line: &str) -> Option<Const> {
-    let pattern = regex::Regex::new(r"^let\s+(\w+)\s*=\s*.*;$").unwrap();
+    let pattern = regex::Regex::new(r"^const\s+(\w+)\s*=\s*.*;$").unwrap();
     if let Some(captures) = pattern.captures(line.trim()) {
         let name = captures[1].to_string();
         return Some(Const {

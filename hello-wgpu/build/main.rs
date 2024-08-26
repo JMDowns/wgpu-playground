@@ -297,10 +297,10 @@ fn process_inline_const(data_type: &DataType, const_name: &String, value_provide
     match value_provider.get(const_name) {
         Some(value) => {
             return match data_type {
-                DataType::U32 => Command::WriteString(format!("let {} : u32 = {}u;", const_name, value.get_display_string())),
-                DataType::I32 => Command::WriteString(format!("let {} : i32 = {};", const_name, value.get_display_string())),
-                DataType::F32 => Command::WriteString(format!("let {} : f32 = {};", const_name, value.get_display_string())),
-                DataType::Bool => Command::WriteString(format!("let {} : bool = {};", const_name, value.get_display_string())),
+                DataType::U32 => Command::WriteString(format!("const {} : u32 = {}u;", const_name, value.get_display_string())),
+                DataType::I32 => Command::WriteString(format!("const {} : i32 = {};", const_name, value.get_display_string())),
+                DataType::F32 => Command::WriteString(format!("const {} : f32 = {};", const_name, value.get_display_string())),
+                DataType::Bool => Command::WriteString(format!("const {} : bool = {};", const_name, value.get_display_string())),
                 _ => Command::WriteString("".to_string())
             };
         },

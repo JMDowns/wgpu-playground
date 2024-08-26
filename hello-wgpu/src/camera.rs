@@ -1,6 +1,6 @@
 use cgmath::*;
 use fundamentals::{world_position::WorldPosition, consts::CHUNK_DIMENSION};
-use instant::Duration;
+use web_time::Duration;
 use std::f32::consts::FRAC_PI_2;
 
 use crate::state::input_manager::InputState;

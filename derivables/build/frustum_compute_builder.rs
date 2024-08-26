@@ -19,12 +19,12 @@ pub fn build_compute_file() {
 fn build_compute_string() -> String {
     let buffer_binding_string = generate_indirect_buffer_bindings();
     let vertex_count_fn_string = generate_set_instance_count_fn();
-    format!("let CHUNKS_AROUND_PLAYER = {NUMBER_OF_CHUNKS_AROUND_PLAYER};
-let CHUNK_DIMENSION = {CHUNK_DIMENSION};
-let NUM_BUCKETS_PER_CHUNK = {NUM_BUCKETS_PER_CHUNK};
-let NUM_BUCKETS_PER_SIDE = {NUM_BUCKETS_PER_SIDE};
-let SQRT_2_DIV_2 = .7071;
-let NEG_SQRT_2_DIV_2 = -.7071;
+    format!("const CHUNKS_AROUND_PLAYER = {NUMBER_OF_CHUNKS_AROUND_PLAYER};
+const CHUNK_DIMENSION = {CHUNK_DIMENSION};
+const NUM_BUCKETS_PER_CHUNK = {NUM_BUCKETS_PER_CHUNK};
+const NUM_BUCKETS_PER_SIDE = {NUM_BUCKETS_PER_SIDE};
+const SQRT_2_DIV_2 = .7071;
+const NEG_SQRT_2_DIV_2 = -.7071;
 
 struct CameraUniform {{
     view_proj: mat4x4<f32>,

@@ -1,5 +1,5 @@
 use log::LevelFilter;
-use log4rs::{append::{file::FileAppender}, config::{Appender, Logger, Root}, encode::pattern::PatternEncoder, Config};
+//use log4rs::{append::{file::FileAppender}, config::{Appender, Logger, Root}, encode::pattern::PatternEncoder, Config};
 use std::path::Path;
 
 pub struct LoggerInitArgs {
@@ -31,7 +31,7 @@ impl CustomLogger {
         if error_path.exists() {
             let _ = std::fs::remove_file(error_path);
         } 
-
+/*
         let debug_ap = FileAppender::builder()
             .encoder(Box::new(PatternEncoder::new("{l} - {m}\n")))
             .build(debug_path).unwrap();
@@ -75,6 +75,7 @@ impl CustomLogger {
 
 
         let _handle = log4rs::init_config(config).unwrap();
+        */
     }
 }
 

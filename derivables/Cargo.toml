@@ -8,12 +8,12 @@ build = "build/main.rs"
 
 [dependencies]
 phf = "0.11"
-wgpu = "0.13.1"
+wgpu = "22.1.0"
 cgmath = "0.18"
 fundamentals = { path = "../fundamentals" }
 bytemuck = { version = "1.12.1", features = [ "derive" ] }
 num = "0.4.0"
-num-derive = "0.3.3"
+num-derive = "0.4.2"
 num-traits = "0.2.15"
 
 [build_dependencies]
