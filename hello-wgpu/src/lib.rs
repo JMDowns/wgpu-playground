@@ -4,7 +4,7 @@ mod voxels;
 mod state;
 mod tasks;
 cfg_if::cfg_if! {
-    if #[cfg(not(target_arch = "wasm32"))] {
+    if #[cfg(not(target_family = "wasm"))] {
         mod thread_task_manager;
     } else {
         use winit::platform::web::EventLoopExtWebSys;
@@ -20,15 +20,15 @@ use winit::{
 };
 use state::{AppState, GraphicsBuilder, GraphicsResources, MaybeGraphicsResources, State};
 
-#[cfg(target_arch="wasm32")]
+#[cfg(target_family="wasm")]
 use wasm_bindgen::prelude::*;
 
 
 
-#[cfg_attr(target_arch="wasm32", wasm_bindgen(start))]
+#[cfg_attr(target_family="wasm", wasm_bindgen)]
 pub fn run() {
     cfg_if::cfg_if! {
-        if #[cfg(target_arch = "wasm32")] {
+        if #[cfg(target_family = "wasm")] {
             std::panic::set_hook(Box::new(console_error_panic_hook::hook));
             console_log::init_with_level(log::Level::Warn).expect("Couldn't initialize logger");
             info!("Hello, world!");
@@ -60,7 +60,7 @@ pub fn run() {
     let event_loop = EventLoop::with_user_event().build().unwrap();
 
     cfg_if::cfg_if! {
-        if #[cfg(target_arch = "wasm32")] {
+        if #[cfg(target_family = "wasm")] {
             unsafe {
                 static mut STATE : AppState = AppState {
                     state: None,

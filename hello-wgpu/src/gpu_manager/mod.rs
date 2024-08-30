@@ -16,6 +16,7 @@ use cgmath::{Deg, Point3, Rad, SquareMatrix, Vector3};
 use compute_state::ComputeState;
 use derivables::subvoxel_vertex::generate_cube_at_center;
 use flag_state::FlagState;
+use log::error;
 use web_time::Instant;
 use render_state::RenderState;
 use surface_state::SurfaceState;
@@ -44,11 +45,12 @@ pub struct GPUManager<'a> {
     pub flag_state: FlagState,
     pub subvoxel_state: SubvoxelState,
    // pub vertex_gpu_data: Arc<RwLock<VertexGPUData>>,
-    pub chunk_index_state: Arc<RwLock<ChunkIndexState>>
+    pub chunk_index_state: Arc<RwLock<ChunkIndexState>>,
+    pub is_surface_configured: bool
 }
 
 impl<'a> GPUManager<'a> {
-    pub fn new(surface: Surface<'a>, size: PhysicalSize<u32>, device: Device, queue: Queue, config: SurfaceConfiguration) -> Self {
+    pub fn new(surface: Surface<'a>, size: PhysicalSize<u32>, device: Device, queue: Queue, config: SurfaceConfiguration, is_surface_configured: bool) -> Self {
         let screen_color = wgpu::Color {
             r: 0.0,
             g: 0.5,
@@ -139,7 +141,8 @@ impl<'a> GPUManager<'a> {
             },
             subvoxel_state,
            // vertex_gpu_data,
-            chunk_index_state
+            chunk_index_state,
+            is_surface_configured
         }
     }
 
@@ -149,7 +152,8 @@ impl<'a> GPUManager<'a> {
             self.surface_state.config.width = new_size.width;
             self.surface_state.config.height = new_size.height;
             self.surface_state.surface.configure(&self.device.read().unwrap(), &self.surface_state.config);
-            self.texture_state.depth_texture = texture::Texture::create_depth_texture(&self.device.read().unwrap(), &self.surface_state.config, "depth_texture");
+            self.is_surface_configured = true;
+            self.texture_state.depth_texture = Some(texture::Texture::create_depth_texture(&self.device.read().unwrap(), &self.surface_state.config, "depth_texture"));
             self.camera_state.projection.resize(new_size.width, new_size.height);
         }
     }
@@ -167,6 +171,12 @@ impl<'a> GPUManager<'a> {
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
         let now = Instant::now();
+
+        if (!self.is_surface_configured) {
+            error!("Surface not configured");
+            return Ok(());
+        }
+
         let output = self.surface_state.surface.get_current_texture()?;
         let view = output
             .texture
@@ -210,6 +220,17 @@ impl<'a> GPUManager<'a> {
         // }
 
         {
+            let depth_stencil_attachment = match &self.texture_state.depth_texture {
+                Some(texture) => Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &texture.view,
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(1.0),
+                        store: wgpu::StoreOp::Store,
+                    }),
+                    stencil_ops: None,
+                }),
+                None => None
+            };
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -220,14 +241,7 @@ impl<'a> GPUManager<'a> {
                         store: wgpu::StoreOp::Store,
                     },
                 })],
-                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                    view: &self.texture_state.depth_texture.view,
-                    depth_ops: Some(wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(1.0),
-                        store: wgpu::StoreOp::Store,
-                    }),
-                    stencil_ops: None,
-                }),
+                depth_stencil_attachment,
                 timestamp_writes: None,
                 occlusion_query_set: None
             });
@@ -287,7 +301,7 @@ impl<'a> GPUManager<'a> {
 
         }
 
-        let current_chunk = self.camera_state.camera.get_chunk_coordinates();
+        // let current_chunk = self.camera_state.camera.get_chunk_coordinates();
 
         // match chunk_index_state.pos_to_gpu_index.get(&current_chunk) {
         //     Some(index) => {

@@ -20,7 +20,6 @@ env_logger = "0.11.5"
 anyhow = "1.0.58"
 winit = { version = "0.30.5" }
 cgmath = "0.18"
-wgpu = "22.1.0"
 web-time = "1.1.0"
 pollster = "0.3.0"
 bytemuck = { version = "1.12.1", features = [ "derive", "min_const_generics" ] }
@@ -44,12 +43,16 @@ strum = "0.26.3"
 strum_macros = "0.26.4"
 thread-id = "4.1.0"
 
-[target.'cfg(target_arch = "wasm32")'.dependencies]
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+wgpu = "22.1.0"
+
+[target.'cfg(target_family = "wasm")'.dependencies]
 console_error_panic_hook = "0.1.6"
 console_log = "1.0"
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4.30"
 web-sys = { version = "0.3.69", features = ["Document", "Element", "Window", "console", "HtmlCanvasElement", "HtmlCollection"] }
+wgpu = { version = "22.1.0" , default-features = false, features = ["webgl", "wgsl"] }
 
 [build-dependencies]
 fundamentals = { path = "../fundamentals" }

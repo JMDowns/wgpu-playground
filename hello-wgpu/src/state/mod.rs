@@ -8,9 +8,11 @@ use fundamentals::loge;
 use log::error;
 use log::info;
 use pollster::FutureExt;
-#[cfg(target_arch = "wasm32")]
+#[cfg(target_family = "wasm")]
 use wasm_bindgen::UnwrapThrowExt;
 use wgpu::Device;
+use wgpu::DownlevelCapabilities;
+use wgpu::DownlevelFlags;
 use wgpu::Instance;
 use wgpu::Queue;
 use wgpu::Surface;
@@ -57,17 +59,17 @@ pub struct State<'a> {
     pub last_render_time: web_time::Instant
 }
 
-#[cfg(target_arch = "wasm32")]
+#[cfg(target_family = "wasm")]
 type Rc<T> = std::rc::Rc<T>;
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(target_family = "wasm"))]
 type Rc<T> = std::sync::Arc<T>;
 
 fn create_graphics(event_loop: &ActiveEventLoop) -> impl Future<Output = GraphicsResources> + 'static {
     #[allow(unused_mut)]
     let mut window_attrs = Window::default_attributes();
 
-    #[cfg(target_arch = "wasm32")]
+    #[cfg(target_family = "wasm")]
     {
         use web_sys::wasm_bindgen::JsCast;
         use winit::platform::web::WindowAttributesExtWebSys;
@@ -86,9 +88,9 @@ fn create_graphics(event_loop: &ActiveEventLoop) -> impl Future<Output = Graphic
     // The instance is a handle to our GPU
     // Backends::all => Vulkan + Metal + DX12 + Browser WebGPU
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-        #[cfg(not(target_arch="wasm32"))]
+        #[cfg(not(target_family="wasm"))]
         backends: wgpu::Backends::PRIMARY,
-        #[cfg(target_arch="wasm32")]
+        #[cfg(target_family="wasm")]
         backends: wgpu::Backends::GL | wgpu::Backends::BROWSER_WEBGPU,
         dx12_shader_compiler,
         gles_minor_version,
@@ -110,7 +112,7 @@ fn create_graphics(event_loop: &ActiveEventLoop) -> impl Future<Output = Graphic
         let (device, queue) = adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
-                    required_features: if cfg!(target_arch = "wasm32") {
+                    required_features: if cfg!(target_family = "wasm") {
                         wgpu::Features::empty()
                     } else {
                         wgpu::Features::POLYGON_MODE_LINE 
@@ -119,7 +121,7 @@ fn create_graphics(event_loop: &ActiveEventLoop) -> impl Future<Output = Graphic
                         | wgpu::Features::TEXTURE_BINDING_ARRAY 
                         | wgpu::Features::VERTEX_WRITABLE_STORAGE
                     },
-                    required_limits: if cfg!(target_arch = "wasm32") {
+                    required_limits: if cfg!(target_family = "wasm") {
                         wgpu::Limits::downlevel_webgl2_defaults()
                     } else {
                         wgpu::Limits::default()
@@ -152,8 +154,14 @@ fn create_graphics(event_loop: &ActiveEventLoop) -> impl Future<Output = Graphic
             view_formats: vec![],
             desired_maximum_frame_latency: 2,
         };
-        
-        surface.configure(&device, &config);
+
+
+        let mut is_surface_configured = false;
+        #[cfg(not(target_family = "wasm"))]
+        {
+            surface.configure(&device, &config);
+            is_surface_configured = true;
+        }
 
         GraphicsResources {
             window,
@@ -161,7 +169,8 @@ fn create_graphics(event_loop: &ActiveEventLoop) -> impl Future<Output = Graphic
             device,
             queue,
             instance,
-            config
+            config,
+            is_surface_configured
         }
     }
 }
@@ -179,6 +188,7 @@ pub struct GraphicsResources {
     queue: wgpu::Queue,
     instance: wgpu::Instance,
     config: wgpu::SurfaceConfiguration,
+    is_surface_configured: bool
 }
 
 pub struct GraphicsBuilder {
@@ -198,7 +208,7 @@ impl GraphicsBuilder {
             return;
         };
 
-        #[cfg(target_arch = "wasm32")]
+        #[cfg(target_family = "wasm")]
         {
             let gfx_fut = create_graphics(event_loop);
             wasm_bindgen_futures::spawn_local(async move {
@@ -207,7 +217,7 @@ impl GraphicsBuilder {
             });
         }
 
-        #[cfg(not(target_arch = "wasm32"))]
+        #[cfg(not(target_family = "wasm"))]
         {
             let gfx = pollster::block_on(create_graphics(event_loop));
             assert!(event_loop_proxy.send_event(gfx).is_ok());
@@ -216,8 +226,8 @@ impl GraphicsBuilder {
 }
 
 impl<'a> State<'a> {
-    pub fn new(surface: Surface<'a>, size: PhysicalSize<u32>, device: Device, queue: Queue, config: SurfaceConfiguration) -> Self {
-        let gpu_manager = GPUManager::new(surface, size, device, queue, config);
+    pub fn new(surface: Surface<'a>, size: PhysicalSize<u32>, device: Device, queue: Queue, config: SurfaceConfiguration, is_surface_configured: bool) -> Self {
+        let gpu_manager = GPUManager::new(surface, size, device, queue, config, is_surface_configured);
 
         let camera_controller = camera::CameraController::new(MOVEMENT_SPEED, MOUSE_SENSITIVITY);
         let world = Arc::new(RwLock::new(World::new()));
@@ -237,7 +247,7 @@ impl<'a> State<'a> {
             task_manager,
             world, 
             camera_controller,
-            last_render_time: web_time::Instant::now()
+            last_render_time: web_time::Instant::now(),
         }
     }
 
@@ -277,7 +287,7 @@ impl<'a> State<'a> {
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
-        error!("Rendering!");
+        //error!("Rendering!");
         self.gpu_manager.render()
     }
 }
@@ -298,7 +308,7 @@ impl<'a> ApplicationHandler<GraphicsResources> for AppState<'a> {
             
 
 
-            #[cfg(target_arch = "wasm32")]
+            #[cfg(target_family = "wasm")]
             {
                 // Winit prevents sizing with CSS, so we have to set
                 // the size manually when on web.
@@ -392,8 +402,11 @@ impl<'a> ApplicationHandler<GraphicsResources> for AppState<'a> {
     }
 
     fn user_event(&mut self, _event_loop: &ActiveEventLoop, graphics: GraphicsResources) {
-        self.state = Some(State::new(graphics.surface, graphics.window.inner_size(), graphics.device, graphics.queue, graphics.config));
+        error!("{:?}", graphics.device.limits());
+        let window_size = graphics.window.inner_size();
+        self.state = Some(State::new(graphics.surface, window_size, graphics.device, graphics.queue, graphics.config, graphics.is_surface_configured));
         self.window = Some(graphics.window);
+        self.state.as_mut().unwrap().resize(window_size);
     }
 }
 

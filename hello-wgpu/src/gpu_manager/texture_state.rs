@@ -5,7 +5,7 @@ use crate::texture;
 pub struct TextureState {
     //pub diffuse_bind_group_layout: wgpu::BindGroupLayout,
     //pub diffuse_bind_group: wgpu::BindGroup,
-    pub depth_texture: texture::Texture,
+    pub depth_texture: Option<texture::Texture>,
 }
 
 impl TextureState {
@@ -107,7 +107,11 @@ impl TextureState {
         //     }
         // );
 
-        let depth_texture = texture::Texture::create_depth_texture(&device, &config, "depth_texture");
+        #[cfg(not(target_family = "wasm"))]
+        let depth_texture = Some(texture::Texture::create_depth_texture(&device, &config, "depth_texture"));
+
+        #[cfg(target_family = "wasm")]
+        let depth_texture = None;
 
         TextureState { 
            // diffuse_bind_group_layout: texture_array_bind_group_layout, 
